@@ -90,7 +90,8 @@ test('bad files are rejected with a reason and never throw', () => {
     [withDoc({ progress: [] }), 'format'],
     [withDoc({ format: 2 }), 'version'],
     [withDoc({ format: undefined }), 'version'],
-    [withDoc({ progress: Object.assign(clone(good.progress), { version: 2 }) }), 'version'],
+    [withDoc({ progress: Object.assign(clone(good.progress), { version: P.VERSION + 1 }) }), 'version'],
+    [withDoc({ progress: Object.assign(clone(good.progress), { version: P.MIN_VERSION - 1 }) }), 'version'],
     [withDoc({ progress: Object.assign(clone(good.progress), { version: undefined }) }), 'version'],
     ['x'.repeat(B.MAX_CHARS + 1), 'size'],
   ];
@@ -192,4 +193,40 @@ test('a second import overwrites the previous backup', async () => {
   await B.applyImport(first, second, io);
   await B.applyImport(second, P.createProgress(C), io);
   assert.deepEqual(io.backup, second);
+});
+
+test('old v1 export files still import: records kept, ext added empty, counted as imported', () => {
+  const p = sample();
+  const doc = JSON.parse(B.buildExport(p, '2.2.0'));
+  delete doc.progress.ext;
+  doc.progress.version = 1;
+  const r = parse(JSON.stringify(doc));
+  assert.equal(r.ok, true);
+  assert.equal(r.progress.version, P.VERSION);
+  assert.deepEqual(r.progress.symbols, p.symbols);
+  assert.deepEqual(r.progress.lessons, p.lessons);
+  assert.deepEqual(r.progress.settings, p.settings);
+  assert.deepEqual(r.progress.ext, { symbols: {} });
+  assert.equal(r.imported, 3);
+  assert.equal(r.skipped, 0);
+});
+
+test('ext records round trip through export / import and count as entries', () => {
+  const { extra } = require('./helpers/fixtures.js');
+  const p = sample();
+  P.recordExtAnswer(p, extra[0], false, C);
+  P.recordExtAnswer(p, extra[1], true, C);
+  const r = B.parseImport(B.buildExport(p, '2.3.0'), table, plan, C, catNames, extra);
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.progress, p);
+  assert.equal(r.imported, 5);
+  // 扩展表不可用（未传 extraRows）：记录原样保留
+  const keep = B.parseImport(B.buildExport(p, '2.3.0'), table, plan, C, catNames);
+  assert.deepEqual(keep.progress.ext, p.ext);
+  // 扩展符号签名不符：丢弃并计入跳过
+  const doc = JSON.parse(B.buildExport(p, '2.3.0'));
+  doc.progress.ext.symbols[extra[0].id].sig = 'changed|sig';
+  const r2 = B.parseImport(JSON.stringify(doc), table, plan, C, catNames, extra);
+  assert.equal(r2.progress.ext.symbols[extra[0].id], undefined);
+  assert.equal(r2.skipped, 1);
 });

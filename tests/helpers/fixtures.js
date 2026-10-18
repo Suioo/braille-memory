@@ -6,6 +6,7 @@ const { parseTable, categoriesOf } = require('../../src/core/csv.js');
 const { DEFAULTS, mergeConfig } = require('../../src/core/config.js');
 const { planLessons } = require('../../src/core/course.js');
 const { loadExtra } = require('../../src/core/csv.js');
+const Ext = require('../../src/core/ext.js');
 
 const ROOT = path.join(__dirname, '..', '..');
 const table = parseTable(fs.readFileSync(path.join(ROOT, 'data', 'braille_table.csv'), 'utf8')).rows;
@@ -15,10 +16,11 @@ const rowsById = new Map(table.map((r) => [r.id, r]));
 /** 扩展符号表（data/braille_extra.csv）及其分组。 */
 const extraRes = loadExtra(fs.readFileSync(path.join(ROOT, 'data', 'braille_extra.csv'), 'utf8'), table);
 const extra = extraRes.rows;
+const ext = Ext.build(extra);
 const plan = planLessons(table, DEFAULTS.lessonSize);
 /** 与正确点位不同的一个作答（去掉第一个点；单点符号则换成另一个点）。 */
 function wrongDots(row) {
   if (row.dots.length > 1) return row.dots.slice(1);
   return [row.dots[0] === 1 ? 2 : 1];
 }
-module.exports = { ROOT, table, cats, cfg, rowsById, plan, wrongDots, extraRes, extra };
+module.exports = { ROOT, table, cats, cfg, rowsById, plan, wrongDots, extraRes, extra, ext };

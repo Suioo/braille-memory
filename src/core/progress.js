@@ -3,10 +3,11 @@
  * 渲染进程：window.BMProgress；Node：require()。
  *
  * progress = {
- *   version: 1,
+ *   version: 2,           // 1 → 2：新增 ext（扩展符号进度，单独存放）；读入 v1 时原有记录逐字段保留
  *   settings: { theme, seed, mirror, scope, roundLength, autoNext, timing, qtype, fx, haptics, style },
  *   symbols: { [id]: { sig, score, right, wrong } },
- *   lessons: { [key]: { sig, stars, bestAcc, bestAvgSec, plays } }
+ *   lessons: { [key]: { sig, stars, bestAcc, bestAvgSec, plays } },
+ *   ext: { symbols: { [id]: { sig, score, right, wrong } } }   // 扩展符号（data/braille_extra.csv），sig = 符号|各方点位
  * }
  */
 (function (root, factory) {
@@ -15,7 +16,9 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = 1;
+  const VERSION = 2;
+  /** 可读入的最低存档版本（旧版本读入时迁移到 VERSION）。 */
+  const MIN_VERSION = 1;
   const THEMES = ['system', 'light', 'dark'];
   const QTYPES = ['dots', 'choose', 'mix'];
   /** 视觉风格：material（默认）/ glass（玻璃）。旧存档没有该键 → material。 */
@@ -42,11 +45,14 @@
 
   /** 新的空进度。 */
   function createProgress(cfg, settings) {
-    return { version: VERSION, settings: Object.assign(defaultSettings(cfg), settings || {}), symbols: {}, lessons: {} };
+    return { version: VERSION, settings: Object.assign(defaultSettings(cfg), settings || {}), symbols: {}, lessons: {}, ext: { symbols: {} } };
   }
 
   /** 符号签名：符号或点位在 CSV 中被改动后，旧记录作废。 */
   const symSig = (row) => row.symbol + '|' + row.dotsText;
+
+  /** 扩展符号签名：符号或各方点位在 braille_extra.csv 中被改动后，旧记录作废。 */
+  const extSymSig = (row) => row.symbol + '|' + row.cellsText;
 
   const clampInt = (v, lo, hi, dflt) => (Number.isInteger(v) ? Math.min(hi, Math.max(lo, v)) : dflt);
 
@@ -57,8 +63,9 @@
    * @param {object[]} plan 课程表（planLessons 的结果）
    * @param {object} cfg
    * @param {string[]} categories 类别名
+   * @param {object[]} [extraRows] 扩展符号表；省略（undefined）= 扩展表不可用，已有扩展记录原样保留（只做形状校验），不会因此丢档
    */
-  function normalizeProgress(raw, rows, plan, cfg, categories) {
+  function normalizeProgress(raw, rows, plan, cfg, categories, extraRows) {
     const p = createProgress(cfg);
     if (!raw || typeof raw !== 'object') return p;
     const s = raw.settings || {};
@@ -98,7 +105,29 @@
         plays: clampInt(e.plays, 0, 1e9, 0),
       };
     }
+    const ext = raw.ext && typeof raw.ext === 'object' && raw.ext.symbols && typeof raw.ext.symbols === 'object' ? raw.ext.symbols : {};
+    if (Array.isArray(extraRows)) {
+      for (const row of extraRows) {
+        const e = ext[row.id];
+        if (!e || e.sig !== extSymSig(row)) continue;
+        p.ext.symbols[row.id] = extEntry(e, cfg);
+      }
+    } else {
+      for (const id of Object.keys(ext)) {
+        const e = ext[id];
+        if (/^[1-9]\d{0,8}$/.test(id) && e && typeof e === 'object' && typeof e.sig === 'string') p.ext.symbols[id] = extEntry(e, cfg);
+      }
+    }
     return p;
+  }
+
+  function extEntry(e, cfg) {
+    return {
+      sig: e.sig,
+      score: clampInt(e.score, cfg.score.min, cfg.score.max, 0),
+      right: clampInt(e.right, 0, 1e9, 0),
+      wrong: clampInt(e.wrong, 0, 1e9, 0),
+    };
   }
 
   /** 读取（不存在则视为全 0）。 */
@@ -159,13 +188,31 @@
     return { entry, improved: entry.stars > old.stars };
   }
 
+  // ---------- 扩展符号（与主表记录分开存放，计分规则相同） ----------
+  function extState(progress, row) {
+    return progress.ext.symbols[row.id] || { sig: extSymSig(row), score: 0, right: 0, wrong: 0 };
+  }
+  function ensureExt(progress, row) {
+    if (!progress.ext.symbols[row.id]) progress.ext.symbols[row.id] = extState(progress, row);
+    return progress.ext.symbols[row.id];
+  }
+  /** 扩展符号：记录一次作答（答对 score+right，答错 score+wrong）。 */
+  function recordExtAnswer(progress, row, correct, cfg) {
+    const e = ensureExt(progress, row);
+    e.score = nextScore(e.score, correct, cfg);
+    if (correct) e.right += 1; else e.wrong += 1;
+    return e;
+  }
+  const extWeakRows = (progress, rows) => rows.filter((r) => extState(progress, r).score > 0);
+
   /** 清除进度：保留设置。 */
   function clearProgress(progress, cfg) {
     return createProgress(cfg, progress.settings);
   }
 
   return {
-    VERSION, THEMES, QTYPES, STYLES, SEED_NAMES, defaultSettings, createProgress, normalizeProgress, symSig, symState,
+    VERSION, MIN_VERSION, THEMES, QTYPES, STYLES, SEED_NAMES, defaultSettings, createProgress, normalizeProgress, symSig, symState,
     nextScore, recordAnswer, recordTestMistake, isWeak, weakRows, recordLessonResult, clearProgress,
+    extSymSig, extState, recordExtAnswer, extWeakRows,
   };
 });

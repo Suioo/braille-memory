@@ -43,21 +43,22 @@
 
   const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
   const countKeys = (v) => (isObj(v) ? Object.keys(v).length : 0);
-  const countEntries = (p) => countKeys(p.symbols) + countKeys(p.lessons);
+  const countEntries = (p) => countKeys(p.symbols) + countKeys(p.lessons) + countKeys(p.ext && p.ext.symbols);
 
   /**
    * 校验并清洗导入文本。不修改任何现有数据。
    * @returns {{ok:true, progress:object, imported:number, skipped:number} | {ok:false, reason:'empty'|'size'|'json'|'format'|'version'}}
    *   imported / skipped 的单位是「项」（符号记录 + 课程记录）。
    */
-  function parseImport(text, rows, plan, cfg, categories) {
+  function parseImport(text, rows, plan, cfg, categories, extraRows) {
     if (typeof text !== 'string' || !text.trim()) return { ok: false, reason: 'empty' };
     if (text.length > MAX_CHARS) return { ok: false, reason: 'size' };
     let doc;
     try { doc = JSON.parse(text); } catch (_) { return { ok: false, reason: 'json' }; }
     if (!isObj(doc) || doc.app !== APP || doc.kind !== KIND || !isObj(doc.progress)) return { ok: false, reason: 'format' };
-    if (doc.format !== FORMAT || doc.progress.version !== P.VERSION) return { ok: false, reason: 'version' };
-    const progress = P.normalizeProgress(doc.progress, rows, plan, cfg, categories);
+    const v = doc.progress.version;
+    if (doc.format !== FORMAT || !Number.isInteger(v) || v < P.MIN_VERSION || v > P.VERSION) return { ok: false, reason: 'version' };
+    const progress = P.normalizeProgress(doc.progress, rows, plan, cfg, categories, extraRows); // 旧版本（v1）在这里迁移到当前版本
     const total = countEntries(doc.progress);
     const imported = countEntries(progress);
     return { ok: true, progress, imported, skipped: Math.max(0, total - imported) };

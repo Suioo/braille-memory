@@ -139,7 +139,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   ctx.pickImport = async () => {
     const r = await root.bm.pickRecord();
     if (!r || !r.ok) return r && r.canceled ? { canceled: true } : { ok: false, reason: (r && r.reason) || 'read' };
-    return root.BMBackup.parseImport(r.text, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name));
+    return root.BMBackup.parseImport(r.text, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name), ctx.extraRows || undefined);
   };
   /** 确认后覆盖：先备份当前记录，写入失败自动恢复。@returns {Promise<boolean>} */
   ctx.applyImport = async (next) => {
@@ -156,7 +156,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     await saving;
     const r = await root.BMBackup.undoImport({ loadBackup: root.bm.loadBackup, saveProgress: root.bm.saveProgress, clearBackup: root.bm.clearBackup });
     if (!r.ok) { if (r.reason === 'none') ctx.hasUndo = false; return false; }
-    ctx.progress = P.normalizeProgress(r.data, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name));
+    ctx.progress = P.normalizeProgress(r.data, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name), ctx.extraRows || undefined);
     ctx.hasUndo = false;
     applySettings();
     return true;
@@ -414,10 +414,13 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
       return;
     }
     ctx.table = b.table.rows;
+    // 扩展符号表：缺失或有错时 ctx.extraRows = null，相关功能隐藏，且已有扩展记录原样保留
+    ctx.extraRows = b.extra && b.extra.ok ? b.extra.rows : null;
+    ctx.ext = ctx.extraRows ? root.BMExt.build(ctx.extraRows) : null;
     ctx.cats = root.BMCsv.categoriesOf(ctx.table);
     ctx.rowsById = new Map(ctx.table.map((r) => [r.id, r]));
     ctx.plan = root.BMCourse.planLessons(ctx.table, ctx.cfg.lessonSize);
-    ctx.progress = P.normalizeProgress(b.progress, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name));
+    ctx.progress = P.normalizeProgress(b.progress, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name), ctx.extraRows || undefined);
     ctx.shot = !!b.shot;
     ctx.version = b.version || '';
     ctx.hasUndo = false;
