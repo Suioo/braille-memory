@@ -19,6 +19,7 @@ android/capacitor-cordova-android-plugins/build/
 private/
 *.keystore
 *.jks
+keystore.properties
 .env
 # screenshots (generated, heavy)
 docs/shots/

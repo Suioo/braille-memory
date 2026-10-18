@@ -1,5 +1,15 @@
 apply plugin: 'com.android.application'
 
+// 正式签名配置：android/keystore.properties（已被 git 忽略，只在本机；模板见 keystore.properties.example）。
+// 文件不存在时调试版照常构建；此时打正式版会直接报错，而不是悄悄产出未签名的 APK。
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+def releaseSigningReady = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword'].every { !(keystoreProps[it] ?: '').trim().isEmpty() } &&
+    rootProject.file(keystoreProps['storeFile'].trim()).exists()
+
 android {
     namespace = "local.braillememory"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,8 +26,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (releaseSigningReady) {
+                storeFile rootProject.file(keystoreProps['storeFile'].trim())
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias'].trim()
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            if (releaseSigningReady) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
@@ -43,6 +66,14 @@ dependencies {
 }
 
 apply from: 'capacitor.build.gradle'
+
+// 只在真正要打正式版（assembleRelease / bundleRelease）而签名配置缺失或不完整时才报错。
+gradle.taskGraph.whenReady { graph ->
+    def wantsRelease = graph.allTasks.any { it.project == project && (it.name == 'assembleRelease' || it.name == 'bundleRelease') }
+    if (wantsRelease && !releaseSigningReady) {
+        throw new GradleException('正式签名配置缺失或不完整：请检查 android/keystore.properties（storeFile / storePassword / keyAlias / keyPassword）以及密钥文件是否存在。')
+    }
+}
 
 try {
     def servicesJSON = file('google-services.json')

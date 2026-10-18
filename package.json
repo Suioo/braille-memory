@@ -13,7 +13,8 @@
     "www": "node tools/build-www.js",
     "android:icons": "electron tools/make-android-icons.js",
     "android:sync": "node tools/build-www.js && cap sync android",
-    "android:build": "node tools/android-build.js"
+    "android:build": "node tools/android-build.js",
+    "android:release": "node tools/android-build.js --release"
   },
   "build": {
     "appId": "local.braille-memory",

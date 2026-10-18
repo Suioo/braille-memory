@@ -43,6 +43,12 @@ npm run android:sync
 npm run android:build
 ```
 
+正式签名版（可持续覆盖升级）：先用 keytool 在 `private/` 生成密钥，复制 `android/keystore.properties.example` 为 `android/keystore.properties` 并填写（均已被 git 忽略），然后：
+
+```
+npm run android:release   # 输出 dist\盲文记忆-<版本号>.apk，并用 apksigner 验证签名
+```
+
 ## 数据来源
 
 点位数据整理自 GF 0019—2018《国家通用盲文方案》，并经人工逐项核对，唯一来源是 `data/braille_table.csv`。

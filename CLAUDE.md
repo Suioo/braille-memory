@@ -30,4 +30,4 @@
 
 ## 构建速查
 
-`npm run pack`（Windows 目录版）；`npm run android:sync` + `npm run android:build`（调试 APK）。版本号以 `package.json` 为准，另改 `android/app/build.gradle` 的 versionCode / versionName。
+`npm run pack`（Windows 目录版）；`npm run android:sync` + `npm run android:build`（调试 APK）；`npm run android:release`（正式签名 APK → `dist\盲文记忆-<版本>.apk`，需本机 `android/keystore.properties` 与 `private/` 下的密钥，打包后自动 apksigner 验证）。版本号以 `package.json` 为准，另改 `android/app/build.gradle` 的 versionCode / versionName。
