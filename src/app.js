@@ -55,6 +55,8 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     if (dir !== 'none') screen.classList.add('anim-' + dir);
     if (isTab) ctx.lastTab = view.tab;
     $app.replaceChildren(screen);
+    const navEl = screen.querySelector('.nav-bar');
+    if (navEl && navEl.start) navEl.start(); // 导航指示块在首次绘制前就位
     // 原地刷新（设置项改动等）保留滚动位置，否则「我的」页每点一下都会跳回顶部
     if (keepScroll) { const nb = screen.querySelector('.page-body'); if (nb) nb.scrollTop = keepScroll; }
     const target = (params.focus && screen.querySelector(params.focus)) || (COARSE ? null : screen.querySelector('[data-autofocus]'));

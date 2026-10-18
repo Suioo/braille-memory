@@ -361,14 +361,104 @@
       h('div', { class: 'tb-trail' }, trailing));
   }
 
-  /** 底部导航栏。items: [{key, label, icon}] */
+  /** 上一次显示的导航指示块所在标签：页面（含导航栏）每次切换都会重建，靠它让新导航栏的指示块从旧位置滑到新位置。 */
+  let navPrevKey = null;
+  /**
+   * 底部导航栏。items: [{key, label, icon}]
+   * 选中底板是一块会滑动的指示块（.nav-pill，JS 只写 width / translateX）：点按切换时从上一个标签滑过来；
+   * 按住横向拖动时指示块跟着指针吸附到所在标签，松手才跳转（和分段按钮一致）。
+   */
   function navBar(items, current, onSelect) {
-    return h('nav', { class: 'nav-bar', 'aria-label': STR.appName },
-      items.map((it) => h('button', {
+    const I = root.BMInteract;
+    const nav = h('nav', { class: 'nav-bar', 'aria-label': STR.appName });
+    const pill = h('span', { class: 'nav-pill no-anim', 'aria-hidden': 'true' });
+    nav.append(pill);
+    let dragEnd = 0;
+    const btns = items.map((it) => {
+      const b = h('button', {
         class: 'nav-item' + (it.key === current ? ' active' : ''), type: 'button', 'data-nav': 'navbar',
         'aria-current': it.key === current ? 'page' : null, 'data-tab': it.key,
-        onclick: () => { if (it.key !== current) onSelect(it.key); },
-      }, h('span', { class: 'nav-ind sl' }, it.icon()), h('span', { class: 'nav-label', text: it.label }))));
+        onclick: () => { if (Date.now() - dragEnd > 150 && it.key !== current) onSelect(it.key); },
+      }, h('span', { class: 'nav-ind sl' }, it.icon()), h('span', { class: 'nav-label', text: it.label }));
+      b._key = it.key;
+      nav.append(b);
+      return b;
+    });
+    const byKey = (k) => btns.find((b) => b._key === k);
+    /** 把指示块放到 target 按钮的图标位置（相对导航栏）。 */
+    function place(animate, target) {
+      if (!target) return false;
+      const ico = target.querySelector('.nav-ind');
+      if (!ico || !ico.offsetWidth) return false;
+      // 用布局尺寸（不受按下时的缩放影响）：按钮在导航栏内，图标在按钮内，二者都是定位祖先
+      pill.classList.toggle('no-anim', !animate);
+      pill.style.width = ico.offsetWidth + 'px';
+      pill.style.height = ico.offsetHeight + 'px';
+      pill.style.top = (target.offsetTop + ico.offsetTop) + 'px';
+      pill.style.transform = 'translateX(' + (target.offsetLeft + ico.offsetLeft) + 'px)';
+      return true;
+    }
+    const cur = byKey(current);
+    let busy = 0;
+    let started = false;
+    const start = () => {
+      if (started) return;
+      const from = navPrevKey && navPrevKey !== current ? byKey(navPrevKey) : null;
+      if (!place(false, from || cur)) return;
+      started = true;
+      if (from) { void pill.offsetWidth; busy = Date.now() + 500; place(true, cur); }
+      navPrevKey = current;
+    };
+    nav.start = start; // 页面插入 DOM 后由 app.js 立即调用：同一帧内就位，指示块不会闪空
+    if (typeof root.ResizeObserver === 'function') {
+      new root.ResizeObserver(() => { if (!started) start(); else if (Date.now() > busy && !nav.classList.contains('dragging')) place(false, cur); }).observe(nav);
+    } else if (root.requestAnimationFrame) root.requestAnimationFrame(start);
+
+    // ---------- 按住滑动 ----------
+    let drag = null;
+    const measure = () => {
+      const g = nav.getBoundingClientRect();
+      return { rects: btns.map((b) => { const r = b.getBoundingClientRect(); return { left: r.left, right: r.right }; }), box: { top: g.top, bottom: g.bottom } };
+    };
+    nav.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || e.isPrimary === false) return;
+      const m = measure();
+      drag = Object.assign({ id: e.pointerId, x0: e.clientX, y0: e.clientY, sliding: false, hover: I.segmentIndexFromX(e.clientX, m.rects) }, m);
+    });
+    nav.addEventListener('pointermove', (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      if (!drag.sliding) {
+        if (!I.exceedsSlide(e.clientX - drag.x0, e.clientY - drag.y0)) return;
+        drag.sliding = true;
+        try { nav.setPointerCapture(e.pointerId); } catch (_) { /* 忽略 */ }
+        nav.classList.add('dragging');
+        busy = Date.now() + 600;
+        if (drag.hover >= 0) place(true, btns[drag.hover]);
+      }
+      const idx = I.hoverIndex(e.clientX, e.clientY, drag.rects, drag.box);
+      if (idx === drag.hover) return;
+      drag.hover = idx;
+      busy = Date.now() + 600;
+      if (idx < 0) place(true, cur); else { place(true, btns[idx]); if (hooks.tick) hooks.tick(); }
+    });
+    const finish = (e, commit) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const d = drag;
+      drag = null;
+      nav.classList.remove('dragging');
+      if (!d.sliding) return; // 点按交给 click
+      dragEnd = Date.now();
+      try { nav.releasePointerCapture(d.id); } catch (_) { /* 忽略 */ }
+      if (commit && d.hover >= 0 && btns[d.hover]._key !== current) {
+        navPrevKey = btns[d.hover]._key; // 新导航栏的指示块直接就位在松手处，不再从旧位置回滑
+        onSelect(btns[d.hover]._key);
+      } else { busy = Date.now() + 600; place(true, cur); }
+    };
+    nav.addEventListener('pointerup', (e) => finish(e, true));
+    nav.addEventListener('pointercancel', (e) => finish(e, false));
+    // 触屏有隐式捕获：改由 nav 捕获时按钮的 lostpointercapture 会冒泡上来，必须忽略，否则拖动一开始就被取消
+    nav.addEventListener('lostpointercapture', (e) => { if (e.target === nav) finish(e, false); });
+    return nav;
   }
 
   // ---------- 结果标记 ----------

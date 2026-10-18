@@ -113,7 +113,7 @@ html[data-style="glass"] .screen.with-nav .page-body { padding-bottom: calc(100p
 html[data-style="glass"] .nav-item { justify-content: center; gap: 2px; }
 html[data-style="glass"] .nav-ind { width: 64px; height: 32px; border-radius: 999px; transition: transform var(--t-morph) var(--spring-fast), background var(--t-state) var(--effects); }
 html[data-style="glass"] .nav-item.active .nav-ind, html[data-style="glass"] .nav-item:active .nav-ind { border-radius: 999px; }
-html[data-style="glass"] .nav-item.active .nav-ind { box-shadow: inset 0 1px 0 var(--g-spec), 0 2px 8px rgba(0, 0, 0, 0.12); }
+html[data-style="glass"] .nav-pill { border-radius: 999px; box-shadow: inset 0 1px 0 var(--g-spec), 0 2px 8px rgba(0, 0, 0, 0.12); }
 html[data-style="glass"] .nav-item:active .nav-ind { transform: scale(0.92); }
 html[data-style="glass"] .nav-label { font-size: 12px; }
 
