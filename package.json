@@ -14,7 +14,8 @@
     "android:icons": "electron tools/make-android-icons.js",
     "android:sync": "node tools/build-www.js && cap sync android",
     "android:build": "node tools/android-build.js",
-    "android:release": "node tools/android-build.js --release"
+    "android:release": "node tools/android-build.js --release",
+    "vendor": "node tools/vendor.js"
   },
   "build": {
     "appId": "local.braille-memory",
@@ -53,7 +54,8 @@
     "@capacitor/cli": "8.5.2",
     "@capacitor/core": "8.5.2",
     "electron": "44.5.1",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.15.3",
+    "pinyin-pro": "3.29.5"
   },
   "dependencies": {
     "@capacitor/filesystem": "8.1.4",

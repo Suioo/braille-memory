@@ -1,0 +1,13 @@
+{
+  "libs": [
+    {
+      "name": "pinyin-pro",
+      "version": "3.29.5",
+      "license": "MIT",
+      "as": "pinyin-pro.js",
+      "from": "pinyin-pro/dist/index.js",
+      "bytes": 325698,
+      "sha256": "a488173470768ace074c3c4fffbb880e83523b3aa9598a8147c930e7f2d5c7dc"
+    }
+  ]
+}
