@@ -144,7 +144,11 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   } : null);
   const textEntries = () => (ctx.textData ? ctx.textData.entries : undefined);
   /** 清洗记录时用的当前 textEntries（文本库不可用 = undefined，记录原样保留）。 */
-  ctx.normProgress = (raw) => P.normalizeProgress(raw, ctx.table, ctx.plan, ctx.cfg, catNames(), ctx.extraRows || undefined, ctx.ruleData ? ctx.ruleData.entries : undefined, textEntries());
+  ctx.normProgress = (raw) => {
+    const p = P.normalizeProgress(raw, ctx.table, ctx.plan, ctx.cfg, catNames(), ctx.extraRows || undefined, ctx.ruleData ? ctx.ruleData.entries : undefined, textEntries());
+    P.pruneTextRuns(p, new Set(ctx.texts.texts.map((t) => t.id)));
+    return p;
+  };
   /** 保存文本库（串行，与进度各自一条队列）。 */
   let savingTexts = Promise.resolve();
   ctx.saveTexts = () => {

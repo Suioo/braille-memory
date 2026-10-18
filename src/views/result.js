@@ -28,6 +28,14 @@
         ? root.BMProgress.extWeakRows(ctx.progress, C.extScopeRows(ctx)).length > 0
         : root.BMProgress.weakRows(ctx.progress, ctx.scopeRows()).length > 0);
 
+    // 文本 + 计时：每方用时、每分钟方数（合计所有涉及的文本）、新纪录与各篇成绩（折叠）
+    const runs = isTexts && params.runs && params.runs.length ? params.runs : null;
+    let tm = null;
+    if (runs) {
+      const agg = runs.reduce((a, x) => ({ n: a.n + x.run.n, ok: a.ok + x.run.ok, cells: a.cells + x.run.cells, ms: a.ms + x.run.ms }), { n: 0, ok: 0, cells: 0, ms: 0 });
+      tm = root.BMTextStats.metrics(agg);
+    }
+    const nm = (v) => (v < 10 ? v.toFixed(1) : String(Math.round(v)));
     const el = h('div', { class: 'page result-page' },
       W.topBar(C.backBtn(leave), h('h1', { text: MODE_LABEL()[sm.mode] }), null),
       h('div', { class: 'page-body' },
@@ -37,8 +45,17 @@
           h('div', { class: 'stats' },
             stat(STR.count, String(sm.total)),
             stat(STR.time, STR.sec(fmtSec(sm.totalSec))),
-            stat(STR.avg, STR.sec(fmtSec(sm.avgSec))),
-            params.bestStreak != null ? stat(STR.bestStreak, String(params.bestStreak)) : null)),
+            tm ? stat(STR.textPerCell, STR.sec(nm(tm.secPerCell))) : stat(STR.avg, STR.sec(fmtSec(sm.avgSec))),
+            tm ? stat(STR.textCpm, nm(tm.cpm)) : null,
+            params.bestStreak != null && !tm ? stat(STR.bestStreak, String(params.bestStreak)) : null)),
+        runs ? h('section', { class: 'text-runs' }, ...runs.map((x) => {
+          const t = ctx.texts.texts.find((y) => y.id === x.textId);
+          if (!t) return null;
+          return h('div', { class: 'text-run' },
+            h('div', { class: 'tr-head' }, h('span', { class: 'tr-title', text: t.title }),
+              x.newBest ? h('span', { class: 'sent-flag ok', text: STR.textNewBest }) : x.newBestAcc ? h('span', { class: 'sent-flag ok', text: STR.textNewBestAcc }) : null),
+            root.BMTextViews.statsEl(ctx, x.textId));
+        })) : null,
         wrongRows.length || wrongItems.length ? h('section', { class: 'weak-card' },
           h('span', { class: 'lg-wrap', 'aria-hidden': 'true' }, W.legendGlyph('extra')),
           h('div', { class: 'chip-row wrap', role: 'list', 'aria-label': STR.a11yIncorrect }, wrongItems.map(ruleChip), wrongRows.map((r) => (isExt ? W.extSymbolChip(r, ctx.settings.mirror) : W.symbolChip(r, ctx.settings.mirror))))) : null,

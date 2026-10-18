@@ -29,10 +29,18 @@
       W.topBar(C.backBtn(back), h('h1', { text: clip(find().title, 14) }), null),
       h('div', { class: 'page-body' },
         h('div', { class: 'text-banner', role: 'note' }, h('span', { class: 'tb-flag', text: STR.textAuto }), summary),
+        root.BMTextViews.statsEl(ctx, params.textId),
         list,
         h('div', { class: 'footer' }, practiceBtn)));
 
     const status = (sid) => ctx.textData.status.get('t:' + params.textId + '#' + sid);
+    /** 这句最近 / 最快用时（开「计时」练过才有）。 */
+    function timeNote(sid) {
+      const e = ctx.progress.texts.items['t:' + params.textId + '#' + sid];
+      if (!e || e.lastMs === undefined) return '';
+      const f = (ms) => (ms / 1000 < 10 ? (ms / 1000).toFixed(1) : String(Math.round(ms / 1000)));
+      return ' · ' + STR.textLastFast(f(e.lastMs), e.bestMs !== undefined ? f(e.bestMs) : null);
+    }
     function updateSummary() {
       const st = ctx.textData.texts.find((t) => t.id === params.textId);
       summary.textContent = STR.textReady(st.ready, st.total);
@@ -132,7 +140,7 @@
       const issues = st && !st.ok ? st.issues : [];
       let row = h('article', { class: 'sent' + (ok ? ' ok' : ' bad'), 'data-sent': sent.id },
         h('div', { class: 'sent-head' },
-          h('span', { class: 'sent-no num', text: STR.textSentence(n) }),
+          h('span', { class: 'sent-no num', text: STR.textSentence(n) + timeNote(sent.id) }),
           h('span', { class: 'sent-flag ' + (ok ? 'ok' : 'bad'), text: ok ? STR.textOk : STR.textIssues(issues.length) })),
         h('p', { class: 'sent-raw', text: sent.raw }),
         issues.length ? h('ul', { class: 'sent-issues' }, ...issues.slice(0, 4).map((is) => h('li', { text: issueText(tokens, is) })), issues.length > 4 ? h('li', { text: '…' }) : null) : null,

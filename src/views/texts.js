@@ -16,6 +16,46 @@
   /** 文本框（原生 input / textarea，带标签）。 */
   const field = (tag, label, attrs) => h(tag, Object.assign({ class: 'field', 'aria-label': label, placeholder: label, spellcheck: 'false', autocomplete: 'off', autocapitalize: 'off' }, attrs));
 
+  const p2 = (n) => String(n).padStart(2, '0');
+  const when = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()); };
+  const num = (v) => (v < 10 ? v.toFixed(1) : String(Math.round(v)));
+
+  /** 迷你折线（每分钟方数，旧 → 新）；一个点时只画点。 */
+  function sparkline(vals) {
+    const { s } = root.BMDom;
+    const w = 120; const hgt = 32; const pad = 4;
+    const lo = Math.min(...vals); const hi = Math.max(...vals);
+    const x = (i) => (vals.length === 1 ? w / 2 : pad + (i * (w - 2 * pad)) / (vals.length - 1));
+    const y = (v) => (hi === lo ? hgt / 2 : hgt - pad - ((v - lo) * (hgt - 2 * pad)) / (hi - lo));
+    const pts = vals.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ');
+    return s('svg', { class: 'spark', viewBox: '0 0 ' + w + ' ' + hgt, role: 'img', 'aria-label': STR.a11yTrend(vals.map(num)) },
+      vals.length > 1 ? s('polyline', { points: pts, fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }) : null,
+      s('circle', { cx: x(vals.length - 1).toFixed(1), cy: y(vals[vals.length - 1]).toFixed(1), r: '3', fill: 'currentColor' }));
+  }
+
+  /**
+   * 某篇文本的计时成绩：最佳、最高正确率、最近几次（数字 + 迷你折线）。默认折叠。
+   * 数据来自 progress.texts.runs；没有成绩时只给一句说明。
+   */
+  TV.statsEl = function (ctx, textId, o) {
+    const S = root.BMTextStats;
+    const r = root.BMProgress.textRuns(ctx.progress, textId);
+    const kids = [];
+    let head = STR.textStatsTitle;
+    if (!r || !r.recent.length) kids.push(h('p', { class: 'text-hint', text: STR.textStatsNone }));
+    else {
+      kids.push(h('p', { class: 'stat-best num', text: r.best ? STR.textStatsBest(num(r.best.cpm), r.best.acc) : STR.textStatsBestNone }));
+      kids.push(h('p', { class: 'text-hint', text: STR.textStatsBestAcc(r.bestAcc) }));
+      kids.push(h('div', { class: 'spark-row' }, h('span', { class: 'opt-label', text: STR.textStatsRecent }), sparkline(S.trend(r))));
+      kids.push(h('ol', { class: 'run-list' }, ...r.recent.slice().reverse().map((run) => {
+        const m = S.metrics(run);
+        return h('li', { class: 'num', text: STR.textStatsRun(when(run.at), Math.round(m.acc * 100), num(m.cpm), num(m.secPerCell), num(m.totalSec)) });
+      })));
+      if (r.best) head = STR.textStatsTitle + ' · ' + num(r.best.cpm) + ' ' + STR.textCpm;
+    }
+    return W.collapse({ title: head, cls: 'text-stats' + (o && o.cls ? ' ' + o.cls : ''), open: false }, ...kids);
+  };
+
   /** 删除一篇文本和它的练习记录。 */
   function deleteText(ctx, id) {
     ctx.setTexts(root.BMTexts.removeText(ctx.texts, id));

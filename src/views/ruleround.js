@@ -20,7 +20,7 @@
     const data = isText ? ctx.textRoundData(params.textId || 'all') : ctx.ruleData;
     const tr = ctx.translator;
     const round = new root.BMRuleRound.RuleRound({
-      mode, data, scope: isText ? 'text' : 'rule', translator: tr, progress: ctx.progress, cfg: ctx.cfg, length: S.roundLength, qtype: ctx.ruleQtype, rng: ctx.rng,
+      mode, data, scope: isText ? 'text' : 'rule', timed: isText && !!S.timing, translator: tr, progress: ctx.progress, cfg: ctx.cfg, length: S.roundLength, qtype: ctx.ruleQtype, rng: ctx.rng,
     });
     const sw = new root.BMTimer.Stopwatch(() => performance.now());
     let q = null;
@@ -254,7 +254,16 @@
       streakEl.textContent = STR.streak + ' ' + streak;
       streakEl.setAttribute('aria-label', STR.a11yStreak(streak));
     }
-    function finish() { ctx.go('result', { summary: round.summary(), bestStreak, module: isText ? 'texts' : 'rules', textId: params.textId }); }
+    function finish() {
+      // 文本 + 开了「计时」：每篇涉及的文本记一次成绩（总用时、方数、正确率），结果页据此显示新纪录
+      let runs = null;
+      if (isText && S.timing) {
+        runs = root.BMTextStats.roundRuns(round.log, data.byKey, new Date().toISOString(), P.MAX_SENTENCE_MS)
+          .map((x) => Object.assign({ textId: x.textId }, P.recordTextRun(ctx.progress, x.textId, x.run))).filter((x) => x.run);
+        ctx.save();
+      }
+      ctx.go('result', { summary: round.summary(), bestStreak, module: isText ? 'texts' : 'rules', textId: params.textId, runs });
+    }
 
     function onMirror(m) {
       if (!q) return;

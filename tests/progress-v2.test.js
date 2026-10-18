@@ -26,7 +26,7 @@ test('version is 4, createProgress carries empty ext, rules and texts, MIN_VERSI
   assert.equal(p.version, 4);
   assert.deepEqual(p.ext, { symbols: {} });
   assert.deepEqual(p.rules, { items: {} });
-  assert.deepEqual(p.texts, { items: {} });
+  assert.deepEqual(p.texts, { items: {}, runs: {} });
 });
 
 test('v1 save: symbols, lessons (stars!) and settings come through field by field unchanged', () => {

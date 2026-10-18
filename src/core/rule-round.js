@@ -50,7 +50,7 @@
       Object.assign(this, o);
       this.scope = o.scope === 'text' ? 'text' : 'rule';
       this.P = PROG[this.scope];
-      if (this.scope === 'text') this.qtype = 'translate'; // 文本只练翻盲文
+      if (this.scope === 'text') this.qtype = 'translate'; // 文本只练翻盲文；o.timed = 开了「计时」，每句用时写进记录
       this.index = 0;
       this.current = null;
       this.log = [];
@@ -122,7 +122,7 @@
         correct = answer.choice === q.item.answer;
         explain = { rules: q.item.rules.slice() };
       }
-      this.P.record(this.progress, q.item, correct, this.cfg);
+      this.P.record(this.progress, q.item, correct, this.cfg, this.scope === 'text' && this.timed ? ms : undefined);
       this.log.push({ key: q.item.key, correct, ms: Math.max(0, ms) });
       this.current = null;
       return { correct, type: q.type, item: q.item, judge, explain };

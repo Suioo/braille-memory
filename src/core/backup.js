@@ -75,6 +75,7 @@
     const final = texts || (textsApi ? textsApi.current : null);
     const textEntries = textsApi && final ? textsApi.entries(final) : undefined;
     const progress = P.normalizeProgress(doc.progress, rows, plan, cfg, categories, extraRows, ruleEntries, textEntries); // 旧版本在这里迁移到当前版本
+    if (final) P.pruneTextRuns(progress, new Set(final.texts.map((t) => t.id))); // 文本库里没有的文本，计时成绩没有意义
     const total = countEntries(doc.progress);
     const imported = countEntries(progress);
     return { ok: true, progress, imported, skipped: Math.max(0, total - imported), texts, textCount: texts ? texts.texts.length : null };

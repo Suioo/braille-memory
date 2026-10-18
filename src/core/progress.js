@@ -9,7 +9,8 @@
  *   lessons: { [key]: { sig, stars, bestAcc, bestAvgSec, plays } },
  *   ext: { symbols: { [id]: { sig, score, right, wrong } } },  // 扩展符号（data/braille_extra.csv），sig = 符号|各方点位
  *   rules: { items: { [key]: { sig, score, right, wrong } } },  // 规则 / 词句题目（data/rules.json 的例词与判断题），key 见 rule-items.js
- *   texts: { items: { [key]: { sig, score, right, wrong } } }   // 自定义文本的句子（文本本身存在 texts 存储里，不在这里），key = t:<文本id>#<句id>
+ *   texts: { items: { [key]: { sig, score, right, wrong, lastMs?, bestMs?, timed? } },   // 自定义文本的句子（文本本身存在 texts 存储里，不在这里），key = t:<文本id>#<句id>；*Ms = 开「计时」时记的用时
+ *           runs: { [textId]: { recent: [{at, n, ok, cells, ms}], best: {at, cpm, acc}|null, bestAcc } } }   // 每篇文本的计时成绩：最近 10 次、最佳速度（正确率 ≥ 80%）、最高正确率
  * }
  */
 (function (root, factory) {
@@ -47,7 +48,7 @@
 
   /** 新的空进度。 */
   function createProgress(cfg, settings) {
-    return { version: VERSION, settings: Object.assign(defaultSettings(cfg), settings || {}), symbols: {}, lessons: {}, ext: { symbols: {} }, rules: { items: {} }, texts: { items: {} } };
+    return { version: VERSION, settings: Object.assign(defaultSettings(cfg), settings || {}), symbols: {}, lessons: {}, ext: { symbols: {} }, rules: { items: {} }, texts: { items: {}, runs: {} } };
   }
 
   /** 符号签名：符号或点位在 CSV 中被改动后，旧记录作废。 */
@@ -140,13 +141,19 @@
       for (const it of textEntries) {
         const e = tit[it.key];
         if (!e || e.sig !== it.sig) continue;
-        p.texts.items[it.key] = extEntry(e, cfg);
+        p.texts.items[it.key] = textEntry(e, cfg);
       }
     } else {
       for (const key of Object.keys(tit)) {
         const e = tit[key];
-        if (RULE_KEY.test(key) && e && typeof e === 'object' && typeof e.sig === 'string') p.texts.items[key] = extEntry(e, cfg);
+        if (RULE_KEY.test(key) && e && typeof e === 'object' && typeof e.sig === 'string') p.texts.items[key] = textEntry(e, cfg);
       }
+    }
+    // 计时成绩：只做形状清洗（文本被改到暂时没有可练句子也不丢历史）；已不存在的文本由 pruneTextRuns 清理
+    const runs = raw.texts && typeof raw.texts === 'object' && raw.texts.runs && typeof raw.texts.runs === 'object' ? raw.texts.runs : {};
+    for (const id of Object.keys(runs)) {
+      const r = TEXT_ID.test(id) ? normRuns(runs[id]) : null;
+      if (r) p.texts.runs[id] = r;
     }
     return p;
   }
@@ -161,6 +168,44 @@
       right: clampInt(e.right, 0, 1e9, 0),
       wrong: clampInt(e.wrong, 0, 1e9, 0),
     };
+  }
+
+  const TEXT_ID = /^t_[0-9a-z]{3,12}$/;
+  /** 单句用时上限（30 分钟）：防止离开没点提交的长时间空转污染成绩。 */
+  const MAX_SENTENCE_MS = 30 * 60 * 1000;
+  const RUNS_KEEP = 10;
+  /** 好成绩的正确率门槛：速度再快，错太多的不算最佳。 */
+  const BEST_MIN_ACC = 0.8;
+  const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+  const optMs = (v) => (Number.isInteger(v) && v >= 0 && v <= MAX_SENTENCE_MS ? v : undefined);
+  function textEntry(e, cfg) {
+    const o = extEntry(e, cfg);
+    const last = optMs(e.lastMs);
+    const best = optMs(e.bestMs);
+    if (last !== undefined) o.lastMs = last;
+    if (best !== undefined) o.bestMs = best;
+    if (last !== undefined || best !== undefined) o.timed = clampInt(e.timed, 1, 1e9, 1);
+    return o;
+  }
+  function normRun(r) {
+    if (!isObj(r) || typeof r.at !== 'string') return null;
+    const n = r.n;
+    const cells = r.cells;
+    const ms = r.ms;
+    if (![n, cells, ms].every((v) => Number.isInteger(v) && v >= 1) || n > 1e6 || cells > 1e7 || ms > 1e10) return null;
+    return { at: r.at.slice(0, 40), n, ok: clampInt(r.ok, 0, n, 0), cells, ms };
+  }
+  const runCpm = (r) => r.cells / (r.ms / 60000);
+  const round1 = (x) => Math.round(x * 10) / 10;
+  function normRuns(raw) {
+    if (!isObj(raw)) return null;
+    const recent = (Array.isArray(raw.recent) ? raw.recent : []).map(normRun).filter(Boolean).slice(-RUNS_KEEP);
+    const b = raw.best;
+    const best = isObj(b) && typeof b.at === 'string' && typeof b.cpm === 'number' && b.cpm > 0 && b.cpm < 1e6 && typeof b.acc === 'number' && b.acc >= BEST_MIN_ACC && b.acc <= 1
+      ? { at: b.at.slice(0, 40), cpm: round1(b.cpm), acc: b.acc } : null;
+    const bestAcc = typeof raw.bestAcc === 'number' && raw.bestAcc >= 0 && raw.bestAcc <= 1 ? raw.bestAcc : 0;
+    if (!recent.length && !best && !bestAcc) return null;
+    return { recent, best, bestAcc };
   }
 
   /** 读取（不存在则视为全 0）。 */
@@ -256,19 +301,51 @@
   function textState(progress, item) {
     return progress.texts.items[item.key] || { sig: item.sig, score: 0, right: 0, wrong: 0 };
   }
-  function recordTextAnswer(progress, item, correct, cfg) {
+  /** ms 只在开了「计时」时传：记最近一次与最快一次（只算答对的最快）。 */
+  function recordTextAnswer(progress, item, correct, cfg, ms) {
     if (!progress.texts.items[item.key]) progress.texts.items[item.key] = textState(progress, item);
     const e = progress.texts.items[item.key];
     e.sig = item.sig;
     e.score = nextScore(e.score, correct, cfg);
     if (correct) e.right += 1; else e.wrong += 1;
+    if (Number.isFinite(ms) && ms > 0) {
+      const t = Math.min(MAX_SENTENCE_MS, Math.round(ms));
+      e.lastMs = t;
+      e.timed = (e.timed || 0) + 1;
+      if (correct && (e.bestMs === undefined || t < e.bestMs)) e.bestMs = t;
+    }
     return e;
+  }
+  /**
+   * 记一次文本练习成绩（一轮里这篇文本的句子合计）。run = {at, n, ok, cells, ms}。
+   * @returns {{run:object, newBest:boolean, newBestAcc:boolean}|null} 数据无效返回 null
+   */
+  function recordTextRun(progress, textId, run) {
+    const r = normRun(run);
+    if (!r || !TEXT_ID.test(textId)) return null;
+    const cur = progress.texts.runs[textId] || { recent: [], best: null, bestAcc: 0 };
+    const acc = r.ok / r.n;
+    const cpm = round1(runCpm(r));
+    const newBest = acc >= BEST_MIN_ACC && (!cur.best || cpm > cur.best.cpm);
+    const newBestAcc = acc > cur.bestAcc;
+    progress.texts.runs[textId] = {
+      recent: cur.recent.concat([r]).slice(-RUNS_KEEP),
+      best: newBest ? { at: r.at, cpm, acc } : cur.best,
+      bestAcc: newBestAcc ? acc : cur.bestAcc,
+    };
+    return { run: r, newBest, newBestAcc };
+  }
+  const textRuns = (progress, textId) => progress.texts.runs[textId] || null;
+  /** 丢掉已不在文本库里的文本的计时成绩（导入 / 撤销后调用）。 */
+  function pruneTextRuns(progress, textIds) {
+    for (const id of Object.keys(progress.texts.runs)) if (!textIds.has(id)) delete progress.texts.runs[id];
   }
   const textWeakItems = (progress, items) => items.filter((it) => textState(progress, it).score > 0);
   /** 删除一篇文本时一并删掉它的句子记录。 */
   function removeTextProgress(progress, textId) {
     const pre = 't:' + textId + '#';
     for (const k of Object.keys(progress.texts.items)) if (k.startsWith(pre)) delete progress.texts.items[k];
+    delete progress.texts.runs[textId];
   }
 
   /** 清除进度：保留设置。 */
@@ -280,6 +357,6 @@
     VERSION, MIN_VERSION, THEMES, QTYPES, STYLES, SEED_NAMES, defaultSettings, createProgress, normalizeProgress, symSig, symState,
     nextScore, recordAnswer, recordTestMistake, isWeak, weakRows, recordLessonResult, clearProgress,
     extSymSig, extState, recordExtAnswer, extWeakRows, ruleState, recordRuleAnswer, ruleWeakItems,
-    textState, recordTextAnswer, textWeakItems, removeTextProgress,
+    textState, recordTextAnswer, recordTextRun, textRuns, pruneTextRuns, textWeakItems, removeTextProgress, runCpm, MAX_SENTENCE_MS, RUNS_KEEP, BEST_MIN_ACC,
   };
 });

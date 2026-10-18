@@ -55,12 +55,12 @@ test('v1 / v2 / v3 saves still load: every old field is kept, texts starts empty
   assert.deepEqual(q.symbols, p.symbols);
   assert.deepEqual(q.ext, p.ext);
   assert.deepEqual(q.rules, p.rules);
-  assert.deepEqual(q.texts, { items: {} });
+  assert.deepEqual(q.texts, { items: {}, runs: {} });
   const v2 = clone(v3); delete v2.rules; v2.version = 2;
   assert.deepEqual(norm(v2).rules, { items: {} });
   const v1 = clone(v2); delete v1.ext; v1.version = 1;
   assert.deepEqual(norm(v1).symbols, p.symbols);
-  assert.deepEqual(norm(v1).texts, { items: {} });
+  assert.deepEqual(norm(v1).texts, { items: {}, runs: {} });
 });
 
 test('text records: round trip; stale signature dropped; unknown key dropped; unavailable (no entries) → kept, junk filtered', () => {
@@ -80,7 +80,7 @@ test('text records: round trip; stale signature dropped; unknown key dropped; un
   assert.deepEqual(norm(clone(p)).texts, p.texts, 'no entries → existing records preserved');
   const junk = clone(p); junk.texts.items['not a key!'] = { sig: 'x' }; junk.texts.items[d.items[0].key] = 'nope';
   assert.deepEqual(Object.keys(norm(junk).texts.items), [d.items[1].key]);
-  assert.deepEqual(norm({ version: 4, texts: 'bad' }).texts, { items: {} });
+  assert.deepEqual(norm({ version: 4, texts: 'bad' }).texts, { items: {}, runs: {} });
 });
 
 test('clearProgress keeps settings and clears text records too', () => {
@@ -89,7 +89,7 @@ test('clearProgress keeps settings and clears text records too', () => {
   P.recordTextAnswer(p, T.buildItems(store1(), tr).items[0], false, C);
   const c = P.clearProgress(p, C);
   assert.equal(c.settings.theme, 'dark');
-  assert.deepEqual(c.texts, { items: {} });
+  assert.deepEqual(c.texts, { items: {}, runs: {} });
 });
 
 test('export format 2 carries the text library; import accepts format 1 and 2', () => {
@@ -119,7 +119,7 @@ test('export format 2 carries the text library; import accepts format 1 and 2', 
   assert.deepEqual(r1.progress.texts, p.texts);
   // 没有现有文本、文件也没带文本：句子记录因签名无从验证而被丢弃并计入跳过
   const r2 = B.parseImport(JSON.stringify(old), table, plan, C, catNames, extra, ruleData.entries, api(T.emptyStore()));
-  assert.deepEqual(r2.progress.texts, { items: {} });
+  assert.deepEqual(r2.progress.texts, { items: {}, runs: {} });
   assert.equal(r2.skipped, 1);
   // 不带 texts API（旧调用方式）：仍可导入，句子记录原样保留
   assert.equal(B.parseImport(JSON.stringify(old), table, plan, C, catNames, extra, ruleData.entries).ok, true);

@@ -1059,3 +1059,18 @@ textarea.field { line-height: 1.5; }
 .text-item.asking .ti-ctl { flex-direction: column; align-items: flex-end; }
 .ti-ask { align-self: stretch; }
 .text-item.asking .ti-main { flex: none; }
+
+/* 文本成绩（详情页、结果页；默认折叠） */
+.text-stats { flex: none; background: var(--surface-container-low); border-radius: var(--r-l); }
+.text-stats > .collapse-head { min-height: 48px; }
+.text-stats > .collapse-body .collapse-inner { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+.text-stats.open > .collapse-body .collapse-inner { padding: 8px 16px 14px; }
+.stat-best { margin: 0; font-weight: 700; font-size: var(--title-s); }
+.spark-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.spark { width: 120px; height: 32px; color: var(--primary); flex: none; }
+.run-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: var(--label-m); color: var(--on-surface-variant); }
+.text-runs { flex: none; display: flex; flex-direction: column; gap: 8px; }
+.text-run { display: flex; flex-direction: column; gap: 6px; }
+.tr-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tr-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.stat .v { white-space: nowrap; }
