@@ -471,6 +471,7 @@ button { font: inherit; color: inherit; }
   padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px;
 }
 .lg-wrap { display: inline-flex; padding-top: 2px; }
+.weak-card .chip-row.wrap { flex: 1 1 0; min-width: 0; } /* 答错的符号多时在卡内换行，不撑出卡片 */
 
 /* ---------- 星：三个盲文点 ---------- */
 .stars { display: inline-flex; gap: 5px; align-items: center; }
@@ -857,3 +858,54 @@ html[data-style="glass"] .fx-ring { border-radius: 32px; }
 button.mini-cell { position: relative; border: 0; font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; will-change: transform; }
 button.mini-cell::after { content: ""; position: absolute; inset: -6px; }
 button.mini-cell:focus-visible { outline-offset: 3px; }
+
+/* ================= 扩展符号（多方）：基础 | 扩展、整串点位、逐方输入 ================= */
+.module-content { display: contents; }
+.cat-tag { display: inline-flex; align-items: center; flex: none; padding: 2px 12px; border-radius: var(--r-full);
+  font-size: var(--label-m); font-weight: 700; letter-spacing: 0.08em; background: var(--secondary-container); color: var(--on-secondary-container); }
+.seq-strip { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.seq-strip.xs { gap: 4px; }
+.seq-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.cell-no { font-size: var(--label-m); line-height: 1; color: var(--on-surface-variant); }
+/* 学习卡背面：各方并排，方数多时自动缩小 */
+.card-cell.seq { gap: clamp(6px, 2.5cqw, 16px); }
+.face.back .card-cell.seq .cell { --dot: min(76px, calc(100cqh / 4.6), calc((100cqw - 14px * (var(--n) - 1)) / (3 * var(--n)))); }
+.face .card-note { flex: none; max-width: 100%; font-size: var(--label-m); line-height: 1.3; text-align: center; color: var(--on-surface-variant);
+  overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.face.front .cat-tag { margin-top: 3cqh; }
+/* 答题：题面 = 类别 + 符号（点位题揭晓后追加整串迷你点图） */
+.prompt-ext { flex-direction: column; gap: 1.5cqh; }
+.prompt-ext .sym.s { font-size: min(8.5rem, 40cqh, 56cqw); }
+.prompt-ext .sym.m { font-size: min(5.5rem, 24cqh, 24cqw); }
+.prompt-ext .sym.l { font-size: min(2.75rem, 16cqh, 9cqw); }
+.prompt-ext .seq-big { margin-top: 1cqh; }
+.seq-big { display: flex; align-items: flex-start; justify-content: center; gap: 12px; max-width: 100%; }
+.seq-big .cell-card.small { --dot: min(clamp(34px, 5.8vh, 56px), calc((100cqw - 12px * (var(--n) - 1)) / (3.8 * var(--n)))); }
+/* 逐方输入：上方一排「第几方」小格，下方大方输入当前这一方 */
+.seq-input { display: flex; flex-direction: column; align-items: center; gap: 10px; min-height: 0; max-width: 100%; }
+.q-body.ext-dots .cell-card.input-cell { --dot: min(84px, 10.5cqh, 24cqw); }
+.seq-slots { display: flex; justify-content: center; gap: 10px; flex: none; }
+.slot { position: relative; border: 0; cursor: pointer; display: grid; place-items: center; padding: 8px 10px 16px;
+  border-radius: 16px; background: var(--surface-container); color: var(--on-surface); box-shadow: inset 0 0 0 1px var(--outline-variant);
+  touch-action: manipulation; }
+.slot .mini-cell { --md: 8px; background: none; padding: 0; }
+.slot.current { background: var(--secondary-container); box-shadow: inset 0 0 0 2px var(--primary); }
+.slot-no { position: absolute; left: 0; right: 0; bottom: 2px; text-align: center; font-size: 11px; line-height: 1; color: var(--on-surface-variant); }
+.slot.ok { box-shadow: inset 0 0 0 2px var(--primary); }
+.slot.bad { background: var(--error-container); box-shadow: inset 0 0 0 2px var(--error); }
+.slot-mark { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--primary); color: var(--on-primary); }
+.slot.bad .slot-mark { background: var(--error); color: var(--on-error); }
+.slot-mark svg { width: 12px; height: 12px; stroke-width: 3; }
+.slot:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+/* 选点位题：选项是整串迷你点图 */
+.option.opt-seq { flex-direction: column; justify-content: flex-end; padding: 34px 8px 12px; min-height: clamp(84px, 12vh, 112px); }
+.option .seq-strip { gap: 8px; }
+.option .seq-strip .mini-cell { --md: 8px; background: none; padding: 0; }
+.footer .btn.text { min-width: 0; }
+/* 扩展答题的选项：符号 / 整串点位都放在序号下方，窄屏也不折行 */
+.ext-round .option { flex-direction: column; justify-content: flex-end; padding: 34px 8px 12px; min-height: clamp(84px, 12vh, 112px); }
+@media (max-width: 540px) {
+  .seq-slots { gap: 8px; }
+  .slot { padding: 6px 8px 15px; }
+}

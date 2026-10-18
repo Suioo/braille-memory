@@ -496,8 +496,202 @@
     return el;
   }
 
+
+  // ---------- 扩展符号（多方） ----------
+  /** 类别小标签（题面 / 学习卡上始终标明类别，避免与主表同点位的符号混淆）。 */
+  const catTag = (name) => h('span', { class: 'cat-tag', 'aria-label': STR.a11yCat(name), text: name });
+
+  /**
+   * 整串迷你点图，按显示顺序排列（阅读：第 1 方在最左；扎写：整串从右往左、各方内部左右列互换）。
+   * @param {number[][]} cells
+   * @param {boolean} mirror
+   * @param {{xs?:boolean}} [o]
+   */
+  function seqStripEl(cells, mirror, o) {
+    o = o || {};
+    const text = cells.map((c) => c.join('')).join(' ');
+    const el = h('span', { class: 'seq-strip' + (o.xs ? ' xs' : ''), role: 'img', 'aria-label': STR.a11ySeq(text) });
+    for (const index of root.BMSeq.displayOrder(cells.length, mirror)) el.append(miniCellEl(cells[index], mirror, { xs: !!o.xs }));
+    return el;
+  }
+
+  /** 带整串迷你点图的辅助芯片（结果页答错符号）。 */
+  const extSymbolChip = (row, mirror) => h('span', { class: 'chip assist with-mini', role: 'listitem', 'aria-label': row.symbol + ' ' + STR.a11ySeq(row.cellsText) },
+    seqStripEl(row.cells, mirror, { xs: true }), h('span', { text: row.symbol }));
+
+  /** 扩展符号学习卡：正面 = 符号 + 类别；背面 = 各方大方格（带编号 / 第几方）+ 点位 + 备注。 */
+  function extCardEl(row, o) {
+    const n = row.cells.length;
+    const front = h('div', { class: 'face front' }, h('div', { class: 'sym ' + symClass(row.symbol), text: row.symbol }), catTag(row.category));
+    const cellsEl = h('div', { class: 'card-cell seq' });
+    cellsEl.style.setProperty('--n', String(n));
+    const build = (mirror) => {
+      cellsEl.replaceChildren(...root.BMSeq.displayOrder(n, mirror).map((index) => h('div', { class: 'seq-cell' },
+        cellEl({ dots: new Set(row.cells[index]), mirror, numbers: true }),
+        n > 1 ? h('span', { class: 'cell-no num', 'aria-hidden': 'true', text: String(index + 1) }) : null)));
+    };
+    build(o.mirror);
+    const back = h('div', { class: 'face back' },
+      h('div', { class: 'back-head' }, seqStripEl(row.cells, o.mirror), h('div', { class: 'sym small', text: row.symbol })),
+      cellsEl,
+      h('div', { class: 'digits', text: row.cellsText }),
+      row.note ? h('div', { class: 'card-note', text: row.note }) : null);
+    const el = h('div', { class: 'card' }, h('div', { class: 'card-inner' }, front, back));
+    let flipped = false;
+    const set = (f) => {
+      flipped = f;
+      el.classList.toggle('flipped', f);
+      front.setAttribute('aria-hidden', String(f));
+      back.setAttribute('aria-hidden', String(!f));
+    };
+    set(!!o.flipped);
+    return { el, flip: () => { set(!flipped); if (o.onFlip) o.onFlip(el); return flipped; }, set, get flipped() { return flipped; } };
+  }
+
+  /**
+   * 逐方点位输入：上方一排「第几方」小格（按显示顺序；扎写时第 1 方在最右），下方一个大方输入当前这一方。
+   * 输入顺序始终从第 1 方开始；点哪一方的小格就切到哪一方。揭晓后小格标对错，点小格看该方的漏点 / 多点。
+   */
+  class SeqDotsInput {
+    /** @param {{n:number, mirror:boolean, numbers:boolean}} o */
+    constructor(o) {
+      this.n = o.n;
+      this.mirror = o.mirror;
+      this.cells = Array.from({ length: o.n }, () => new Set());
+      this.cur = 0;
+      this.judge = null;
+      this.locked = false;
+      this.onChange = null;
+      this.onTap = null;
+      this.inner = new DotsInput({ mirror: o.mirror, numbers: o.numbers });
+      this.inner.selected = this.cells[0];
+      this.inner.render();
+      this.inner.onChange = () => { this.drawSlot(this.cur); if (this.onChange) this.onChange(); };
+      this.inner.onTap = (n, on) => { if (this.onTap) this.onTap(n, on); };
+      this.slots = h('div', { class: 'seq-slots', role: 'group', 'aria-label': STR.a11ySeq('') });
+      this.slots.hidden = o.n < 2;
+      this.btns = [];
+      for (let i = 0; i < o.n; i++) {
+        const b = h('button', { class: 'slot sl', type: 'button', 'data-i': i, onclick: () => this.setCur(i) });
+        this.btns.push(b);
+        this.drawSlot(i, b);
+      }
+      this.el = h('div', { class: 'seq-input' }, this.slots, this.inner.el);
+      this.layoutSlots();
+    }
+    drawSlot(i, b) {
+      b = b || this.btns[i];
+      const dots = [...this.cells[i]].sort((x, y) => x - y);
+      const j = this.judge && this.judge.cells[i];
+      b.classList.toggle('current', i === this.cur);
+      b.classList.toggle('filled', dots.length > 0);
+      b.classList.toggle('ok', !!(j && j.correct));
+      b.classList.toggle('bad', !!(j && !j.correct));
+      b.setAttribute('aria-current', i === this.cur ? 'true' : 'false');
+      b.setAttribute('aria-label', STR.a11ySlot(i + 1, this.n, dots.join(''), j ? '，' + (j.correct ? STR.a11yCorrect : STR.a11yIncorrect) : ''));
+      const kids = [miniCellEl(dots, this.mirror, {}), h('span', { class: 'slot-no num', 'aria-hidden': 'true', text: String(i + 1) })];
+      if (j) kids.push(h('span', { class: 'slot-mark', 'aria-hidden': 'true' }, j.correct ? ICON.check() : ICON.cross()));
+      b.replaceChildren(...kids);
+    }
+    layoutSlots() {
+      this.slots.replaceChildren(...root.BMSeq.displayOrder(this.n, this.mirror).map((i) => this.btns[i]));
+    }
+    /** 切到第 i 方（0 起）。 */
+    setCur(i) {
+      if (i < 0 || i >= this.n || i === this.cur) return;
+      const old = this.cur;
+      this.cur = i;
+      this.inner.selected = this.cells[i];
+      this.inner.reveal = this.judge && !this.judge.correct ? this.judge.cells[i] : null;
+      this.inner.render();
+      this.drawSlot(old);
+      this.drawSlot(i);
+      if (this.onChange) this.onChange();
+    }
+    next() { this.setCur(this.cur + 1); }
+    prev() { this.setCur(this.cur - 1); }
+    toggle(n) { this.inner.toggle(n); }
+    get curFilled() { return this.cells[this.cur].size > 0; }
+    get complete() { return this.cells.every((s) => s.size > 0); }
+    /** 各方作答（每方点位升序）。 */
+    get answer() { return this.cells.map((s) => [...s].sort((x, y) => x - y)); }
+    setMirror(m) {
+      this.mirror = m;
+      this.inner.setMirror(m);
+      for (let i = 0; i < this.n; i++) this.drawSlot(i);
+      this.layoutSlots();
+    }
+    /** 预设各方作答（截图 / 测试用）。 */
+    set(all) {
+      all.forEach((d, i) => { this.cells[i].clear(); d.forEach((x) => this.cells[i].add(x)); });
+      this.inner.render();
+      for (let i = 0; i < this.n; i++) this.drawSlot(i);
+    }
+    /** 揭晓：逐方标对错，大方显示当前这一方的漏点 / 多点。 */
+    showReveal(judge) {
+      this.locked = true;
+      this.judge = judge;
+      this.inner.showReveal(judge.cells[this.cur]);
+      for (let i = 0; i < this.n; i++) this.drawSlot(i);
+    }
+    /** 答对：锁定。 */
+    lock(judge) {
+      this.locked = true;
+      this.judge = judge || null;
+      this.inner.lock();
+      for (let i = 0; i < this.n; i++) this.drawSlot(i);
+    }
+  }
+
+  /** 选择题（扩展）：mode 'cells' = 选项是整串点位；'symbol' = 选项是符号。键 1–4。 */
+  class SeqChooseInput {
+    constructor(options, onPick, o) {
+      this.options = options;
+      this.locked = false;
+      this.mode = o.mode;
+      this.el = h('div', { class: 'options' + (o.mode === 'cells' ? ' opts-seq' : ''), role: 'group' });
+      this.build(o.mirror, onPick);
+    }
+    build(mirror, onPick) {
+      this.onPick = onPick || this.onPick;
+      this.buttons = this.options.map((row, i) => h('button', {
+        class: 'option sl' + (this.mode === 'cells' ? ' opt-seq' : ''), type: 'button', 'data-id': row.id, 'data-nav': 'options',
+        'aria-label': STR.a11yOption(i + 1, this.mode === 'cells' ? STR.a11ySeq(row.cellsText) : row.symbol),
+        onclick: () => { if (!this.locked) this.onPick(row.id); },
+      }, h('span', { class: 'key', 'aria-hidden': 'true', text: String(i + 1) }),
+      this.mode === 'cells' ? seqStripEl(row.cells, mirror) : h('span', { class: 'osym ' + symClass(row.symbol), text: row.symbol }),
+      h('span', { class: 'mark', 'aria-hidden': 'true' })));
+      this.el.replaceChildren(...this.buttons);
+    }
+    setMirror(m) { if (this.mode === 'cells' && !this.locked) this.build(m); }
+    idAt(k) { return this.options[k - 1] ? this.options[k - 1].id : null; }
+    showResult(pickedId, correctId) {
+      this.locked = true;
+      for (const b of this.buttons) {
+        const id = Number(b.dataset.id);
+        b.disabled = true;
+        const mark = b.querySelector('.mark');
+        if (id === correctId) { b.classList.add('right'); mark.replaceChildren(ICON.check()); }
+        else if (id === pickedId) { b.classList.add('wrong'); mark.replaceChildren(ICON.cross()); }
+        else b.classList.add('dim');
+      }
+    }
+  }
+
+  /** 多方揭晓面板：结果标记 + 全部方合计的漏点 / 多点 + 正确点位（各方以空格分隔）。 */
+  function extRevealPanel(judge, cellsText) {
+    const all = (k) => judge.cells.flatMap((j) => j[k]);
+    return h('div', { class: 'result-row' },
+      verdictEl(false),
+      h('div', { class: 'legend' },
+        h('div', { class: 'legend-row', 'aria-label': STR.a11yMissed(all('missed')) }, legendGlyph('missed'), String(all('missed').length)),
+        h('div', { class: 'legend-row', 'aria-label': STR.a11yExtra(all('extra')) }, legendGlyph('extra'), String(all('extra').length))),
+      answerDigits(cellsText));
+  }
+
   root.BMW = {
     cellEl, miniCellEl, symbolChip, DotsInput, ChooseInput, cardEl, starsEl, btn, iconBtn, filterChip, assistChip, segmented, switchEl,
     hooks, topBar, navBar, verdictEl, legendGlyph, revealPanel, answerDigits, progressBar,
+    catTag, seqStripEl, extSymbolChip, extCardEl, SeqDotsInput, SeqChooseInput, extRevealPanel,
   };
 })(typeof self !== 'undefined' ? self : this);

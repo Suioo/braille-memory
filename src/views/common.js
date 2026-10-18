@@ -29,6 +29,42 @@
     return row;
   }
 
+  /** 当前范围：扩展表可用且选了「扩展」才是 'ext'，否则 'base'。 */
+  const moduleNow = (ctx) => (ctx.ext && ctx.module === 'ext' ? 'ext' : 'base');
+
+  /**
+   * 「基础 | 扩展」分段控件（复用带拖动的分段按钮）。只有一项可选（没有扩展表）时返回 null，整个不显示。
+   * @param {(m:'base'|'ext')=>void} onChange 已就地更新选中态后回调
+   */
+  function moduleSegmented(ctx, onChange) {
+    if (!ctx.ext) return null;
+    const g = W.segmented(STR.a11yModule, [{ value: 'base', text: STR.modBase }, { value: 'ext', text: STR.modExt }],
+      moduleNow(ctx), (v) => { g.select(v); ctx.module = v; onChange(v); });
+    return h('div', { class: 'seg-row module-seg' }, g);
+  }
+
+  /** 扩展符号的范围芯片（全部 + 扩展表类别；类别名完全来自 CSV）。选择只在本次运行内记住。 */
+  function extScopeChips(ctx, onChange) {
+    const items = [['all', STR.all, ctx.extraRows.length], ...ctx.ext.cats.map((c) => [c.name, c.name, c.count])];
+    if (!items.some(([k]) => k === ctx.extScope)) ctx.extScope = 'all';
+    const chips = items.map(([key, label, n]) => {
+      const c = W.filterChip(label, ctx.extScope === key, () => {
+        if (ctx.extScope === key) return;
+        ctx.extScope = key;
+        row.select(key);
+        onChange(key);
+      }, { nav: 'extscope', count: n });
+      c.dataset.scope = key;
+      return c;
+    });
+    const row = h('div', { class: 'chip-row', role: 'radiogroup', 'aria-label': STR.all }, chips);
+    row.select = (key) => { for (const c of chips) c.setSelected(c.dataset.scope === key); };
+    return row;
+  }
+  /** 当前范围内的扩展符号。 */
+  const extScopeRows = (ctx) => (ctx.extScope === 'all' || !ctx.ext.cats.some((c) => c.name === ctx.extScope)
+    ? ctx.extraRows : ctx.extraRows.filter((r) => r.category === ctx.extScope));
+
   /** 阅读 / 镜像 分段按钮（就地改选中态，再通知页面刷新依赖视角的内容）。 */
   function viewSegmented(ctx, onChange) {
     const g = W.segmented(STR.view, [{ value: false, text: STR.read }, { value: true, text: STR.mirror }],
@@ -51,5 +87,5 @@
   /** 选择器中的 CSS 转义。 */
   const sel = (attr, v) => '[' + attr + '="' + CSS.escape(String(v)) + '"]';
 
-  root.BMCommon = { scopeChips, viewSegmented, backBtn, mirrorToggle, sel };
+  root.BMCommon = { scopeChips, viewSegmented, backBtn, mirrorToggle, sel, moduleNow, moduleSegmented, extScopeChips, extScopeRows };
 })(typeof self !== 'undefined' ? self : this);

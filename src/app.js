@@ -18,6 +18,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   /** 共享上下文（页面只通过它读写状态）。 */
   const ctx = {
     table: [], cats: [], rowsById: new Map(), plan: [], cfg: null, progress: null,
+    extraRows: null, ext: null, module: 'base', extScope: 'all', // 扩展符号：extraRows 为 null = 无扩展表，相关入口隐藏
     shot: false, rng: Math.random,
     get settings() { return ctx.progress.settings; },
   };

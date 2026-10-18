@@ -7,7 +7,8 @@
   const STR = root.STR;
   const Views = (root.BMViews = root.BMViews || {});
 
-  Views.practice = function (ctx) {
+  /** 基础符号练习内容（主表）。 */
+  function basePractice(ctx) {
     const S = ctx.settings;
     let rows = ctx.scopeRows();
     let weak = root.BMProgress.weakRows(ctx.progress, rows).length;
@@ -40,22 +41,35 @@
       return h('div', { class: 'opt-row' }, h('span', { class: 'opt-label', text: label }), g);
     };
 
+    const nodes = [
+      C.scopeChips(ctx, refresh),
+      h('div', { class: 'seg-row' }, C.viewSegmented(ctx, () => {})),
+      h('section', { class: 'hero-card' },
+        h('div', { class: 'hero-text' },
+          h('span', { class: 'hero-label', text: STR.practice }), heroCount),
+        W.btn(STR.start, () => ctx.go('round', { mode: 'practice' }), { variant: 'filled', icon: ICON.play(), cls: 'fab', autofocus: true })),
+      h('div', { class: 'entry-row' }, reviewEntry, weakEntry),
+      optSeg(STR.qtype, [
+        { value: 'dots', text: STR.qtypeDots }, { value: 'choose', text: STR.qtypeChoose }, { value: 'mix', text: STR.qtypeMix },
+      ], S.qtype, (v) => { S.qtype = v; }),
+      optSeg(STR.roundLength, ctx.cfg.round.lengths.map((n) => ({ value: n, text: String(n) })), S.roundLength,
+        (v) => { S.roundLength = v; }),
+    ];
+    refresh();
+    return { nodes };
+  }
+
+  Views.practice = function (ctx) {
+    const content = h('div', { class: 'module-content' });
+    const mount = () => {
+      const sub = C.moduleNow(ctx) === 'ext' ? root.BMExtViews.practice(ctx) : basePractice(ctx);
+      content.replaceChildren(...sub.nodes);
+    };
+    const modSeg = C.moduleSegmented(ctx, mount);
+    mount();
     const el = h('div', { class: 'page practice-page' },
       W.topBar(null, h('h1', { text: STR.tabPractice }), null),
-      h('div', { class: 'page-body' },
-        C.scopeChips(ctx, refresh),
-        h('div', { class: 'seg-row' }, C.viewSegmented(ctx, () => {})),
-        h('section', { class: 'hero-card' },
-          h('div', { class: 'hero-text' },
-            h('span', { class: 'hero-label', text: STR.practice }), heroCount),
-          W.btn(STR.start, () => ctx.go('round', { mode: 'practice' }), { variant: 'filled', icon: ICON.play(), cls: 'fab', autofocus: true })),
-        h('div', { class: 'entry-row' }, reviewEntry, weakEntry),
-        optSeg(STR.qtype, [
-          { value: 'dots', text: STR.qtypeDots }, { value: 'choose', text: STR.qtypeChoose }, { value: 'mix', text: STR.qtypeMix },
-        ], S.qtype, (v) => { S.qtype = v; }),
-        optSeg(STR.roundLength, ctx.cfg.round.lengths.map((n) => ({ value: n, text: String(n) })), S.roundLength,
-          (v) => { S.roundLength = v; })));
-    refresh();
+      h('div', { class: 'page-body' }, modSeg, content));
     return { el, tab: 'practice' };
   };
 })(typeof self !== 'undefined' ? self : this);

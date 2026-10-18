@@ -13,8 +13,11 @@
     const sm = params.summary;
     const leave = () => ctx.go('practice', {}, { dir: 'back' });
     const stat = (k, v) => h('div', { class: 'stat' }, h('span', { class: 'v num', text: v }), h('span', { class: 'k', text: k }));
-    const wrongRows = sm.wrongIds.map((id) => ctx.rowsById.get(id)).filter(Boolean);
-    const canAgain = sm.mode !== 'wrong' || root.BMProgress.weakRows(ctx.progress, ctx.scopeRows()).length > 0;
+    const isExt = params.module === 'ext' && !!ctx.ext;
+    const wrongRows = sm.wrongIds.map((id) => (isExt ? ctx.ext.byId.get(id) : ctx.rowsById.get(id))).filter(Boolean);
+    const canAgain = sm.mode !== 'wrong' || (isExt
+      ? root.BMProgress.extWeakRows(ctx.progress, C.extScopeRows(ctx)).length > 0
+      : root.BMProgress.weakRows(ctx.progress, ctx.scopeRows()).length > 0);
 
     const el = h('div', { class: 'page result-page' },
       W.topBar(C.backBtn(leave), h('h1', { text: MODE_LABEL()[sm.mode] }), null),
@@ -29,10 +32,10 @@
             params.bestStreak != null ? stat(STR.bestStreak, String(params.bestStreak)) : null)),
         wrongRows.length ? h('section', { class: 'weak-card' },
           h('span', { class: 'lg-wrap', 'aria-hidden': 'true' }, W.legendGlyph('extra')),
-          h('div', { class: 'chip-row wrap', role: 'list', 'aria-label': STR.a11yIncorrect }, wrongRows.map((r) => W.symbolChip(r, ctx.settings.mirror)))) : null,
+          h('div', { class: 'chip-row wrap', role: 'list', 'aria-label': STR.a11yIncorrect }, wrongRows.map((r) => (isExt ? W.extSymbolChip(r, ctx.settings.mirror) : W.symbolChip(r, ctx.settings.mirror))))) : null,
         h('div', { class: 'footer two' },
           W.btn(STR.back, leave, { variant: 'outlined', autofocus: !canAgain }),
-          canAgain ? W.btn(STR.again, () => ctx.go('round', { mode: sm.mode }), { variant: 'filled', icon: ICON.review(), autofocus: true }) : null)));
+          canAgain ? W.btn(STR.again, () => ctx.go(isExt ? 'extround' : 'round', { mode: sm.mode }), { variant: 'filled', icon: ICON.review(), autofocus: true }) : null)));
     ctx.fx.countUp(el.querySelector('.big-num'));
     ctx.say(STR.pct(sm.acc));
 
