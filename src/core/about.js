@@ -30,8 +30,9 @@
   }
 
   /**
-   * 彩蛋序列（纯逻辑，时钟可注入）：先在 windowMs 内点按 taps 次（每次按下不超过 tapMaxMs），
-   * 随后在 armMs 内再次按住 holdMs 以上即完成。中途超时、过早松开、取消都会整体清零。
+   * 彩蛋序列（纯逻辑，时钟可注入）：在 windowMs 内点按 taps 次（每次按下不超过 tapMaxMs），
+   * 随后在 armMs 内再次按住 holdMs 以上即完成（手法 a：点满 taps 次后第 taps+1 下按住）；
+   * 或者第 taps 下直接按住 holdMs 以上不松开（手法 b：前 taps-1 次是点按，且从第 1 次点按到本次按下不超过 windowMs）。中途超时、过早松开、取消都会整体清零。
    * 不产生任何对外反馈；仅 poll/up 在完成时返回 true。
    * @param {{taps?:number, windowMs?:number, tapMaxMs?:number, armMs?:number, holdMs?:number}} [o]
    */
@@ -50,9 +51,12 @@
       },
       /** 按住期间轮询（定时器调用）；已武装且按住满 holdMs 返回 true 并清零。 */
       poll(now) {
-        if (armedAt === null || downAt === null || now - armedAt > armMs) return false;
-        if (now - downAt >= holdMs) { reset(); return true; }
-        return false;
+        if (downAt === null || now - downAt < holdMs) return false;
+        if (armedAt !== null) {
+          if (now - armedAt > armMs) return false;
+        } else if (!(times.length >= taps - 1 && downAt - times[0] <= windowMs)) return false;
+        reset();
+        return true;
       },
       /** 松开；返回是否因此完成（按住满 holdMs 后松开且尚未被 poll 处理）。 */
       up(now) {
@@ -63,6 +67,7 @@
           if (now - armedAt - d <= armMs && d >= holdMs) { reset(); return true; }
           reset(); return false;
         }
+        if (d >= holdMs && times.length >= taps - 1 && now - d - times[0] <= windowMs) { reset(); return true; } // 手法 b：第 taps 下按住后松开
         if (d > tapMaxMs) { times = []; return false; }
         times.push(now);
         times = times.filter((t) => now - t <= windowMs);

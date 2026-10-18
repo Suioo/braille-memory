@@ -159,24 +159,40 @@
     }
     let holdTimer = null;
     const stopHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
-    let pressed = false; // 松开后紧跟的 pointerleave 不能把刚「武装」的序列清掉
+    let pressed = false; // 松开后紧跟的事件不能把刚「武装」的序列清掉
+    let startX = 0;
+    let startY = 0;
     const press = () => {
       pressed = true;
       seq.down(Date.now());
       stopHold();
-      holdTimer = setTimeout(() => { holdTimer = null; if (seq.poll(Date.now())) revealFeedback(); }, A.SECRET.holdMs + 10);
+      // 到点判定：手指按住不动时，pointerup 之前（甚至 pointercancel 之后没有 pointerup 时）也能完成；到点仍未完成则整体清零
+      holdTimer = setTimeout(() => {
+        holdTimer = null;
+        if (seq.poll(Date.now())) revealFeedback(); else seq.cancel();
+        pressed = false;
+      }, A.SECRET.holdMs + 10);
     };
     const release = () => { if (!pressed) return; pressed = false; stopHold(); if (seq.up(Date.now())) revealFeedback(); };
     const abort = () => { if (!pressed) return; pressed = false; stopHold(); seq.cancel(); };
     const isAct = (e) => e.key === 'Enter' || e.key === ' ';
+    const MOVE_CANCEL_PX = 10;
     const verBtn = h('button', {
       class: 'about-ver', type: 'button', 'aria-label': verText ? STR.a11yVersion(verText) : null, text: verText ? STR.versionLabel(verText) : '',
-      onpointerdown: (e) => { if (e.button === 0 || e.pointerType === 'touch') press(); },
-      onpointerup: release, onpointercancel: abort, onpointerleave: abort,
+      onpointerdown: (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        startX = e.clientX; startY = e.clientY;
+        try { verBtn.setPointerCapture(e.pointerId); } catch (_) { /* 无捕获也能用 */ }
+        press();
+      },
+      // 手指移出起点超过 10px 才取消；系统发来的 pointercancel（长按手势等）不清零，由到点定时器完成判定
+      onpointermove: (e) => { if (pressed && Math.hypot(e.clientX - startX, e.clientY - startY) > MOVE_CANCEL_PX) abort(); },
+      onpointerup: release,
       onkeydown: (e) => { if (isAct(e)) { if (!e.repeat) press(); e.preventDefault(); } },
       onkeyup: (e) => { if (isAct(e)) { release(); e.preventDefault(); } },
       onblur: abort,
       oncontextmenu: (e) => e.preventDefault(),
+      ondragstart: (e) => e.preventDefault(),
     });
     about.append(verBtn);
     if (ctx.aboutOpen) revealFeedback();

@@ -53,7 +53,7 @@ test('secret: release after the hold also completes; early release resets', () =
 
 test('secret: fewer than 7 taps, too slow, or long press as a tap do not arm', () => {
   const a = createSecretSequence();
-  let t = tapN(a, 6, 0, 500);
+  let t = tapN(a, 5, 0, 500); // 5 次点按 + 第 6 下按住：还差一次（手法 b 需要前 6 次点按）
   a.down(t); assert.equal(a.poll(t + 3000), false);
   const b = createSecretSequence();
   t = tapN(b, 7, 0, 1200); // 7.2 s span
@@ -95,7 +95,7 @@ test('secret (5/1.5): 5 taps within 5 s, then 1.5 s hold completes via poll or r
 
 test('secret (5/1.5): 4 taps, taps spread over more than 5 s, or a hold shorter than 1.5 s do not complete', () => {
   const a = mkSecret();
-  let t = tapN(a, 4, 0, 500);
+  let t = tapN(a, 3, 0, 500); // 只有 3 次点按，第 4 下按住不够
   a.down(t); assert.equal(a.poll(t + 3000), false);
   const b = mkSecret();
   t = tapN(b, 5, 0, 1300); // 第 1 与第 5 次按下相隔 5.2 s（抬起相隔 5.2 s）
@@ -123,4 +123,50 @@ test('secret (5/1.5): a cancel (pointer left, blur) after arming clears it; a fu
   const e = mkSecret();
   t = tapN(e, 6, 0, 400); // 第 6 次短按在武装之后：整体清零
   e.down(t); assert.equal(e.poll(t + 1500), false);
+});
+
+// 两种手法都要能触发：(a) 点满 5 次后第 6 下按住；(b) 第 5 下直接按住不松开
+test('secret (5/1.5) method b: 4 taps then the 5th press held 1.5 s completes via poll (finger stays down)', () => {
+  const s = mkSecret();
+  const t = tapN(s, 4, 0, 500);
+  s.down(t);
+  assert.equal(s.poll(t + 1400), false);
+  assert.equal(s.poll(t + 1500), true);
+  assert.equal(s.poll(t + 1600), false); // 清零
+});
+
+test('secret (5/1.5) method b: releasing after the hold also completes; releasing early does not', () => {
+  const a = mkSecret();
+  let t = tapN(a, 4, 0, 500);
+  a.down(t); assert.equal(a.up(t + 1500), true);
+  const b = mkSecret();
+  t = tapN(b, 4, 0, 500);
+  b.down(t); assert.equal(b.up(t + 1400), false);
+  b.down(t + 1500); assert.equal(b.poll(t + 3200), false, 'early release cleared the taps');
+});
+
+test('secret (5/1.5) method b: the 4 taps must fall within 5 s of the held press; too few taps never complete', () => {
+  const a = mkSecret();
+  let t = tapN(a, 4, 0, 1500); // 第 1 次点按抬起在 80ms，第 5 下按下在 6000ms：超出 5 s
+  a.down(t); assert.equal(a.poll(t + 2000), false);
+  const b = mkSecret();
+  t = tapN(b, 2, 0, 400);
+  b.down(t); assert.equal(b.poll(t + 5000), false);
+  const c = mkSecret();
+  t = tapN(c, 4, 0, 400);
+  c.down(t); assert.equal(c.poll(t + 1500), true, 'control: within the window it works');
+});
+
+test('secret (5/1.5): a stale press (no up, e.g. after a pointercancel) completes by poll and a later cancel/reset leaves it reusable', () => {
+  const s = mkSecret();
+  let t = tapN(s, 5, 0, 400); // 手法 a：已武装
+  s.down(t); // 之后 pointercancel：没有 up，只有定时器 poll
+  assert.equal(s.poll(t + 1500), true);
+  t += 5000;
+  t = tapN(s, 4, t, 400);
+  s.down(t); // 手法 b，同样没有 up
+  assert.equal(s.poll(t + 1500), true);
+  s.down(t + 9000); s.cancel(); // 视图在定时器到点仍未完成时清零
+  s.down(t + 9100);
+  assert.equal(s.poll(t + 9100 + 1500), false);
 });

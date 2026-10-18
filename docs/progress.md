@@ -184,3 +184,12 @@
 - 连续点击：先读当前高度 / 透明度 / 位移再取消动画，从当前位置反向，时长按剩余距离缩短（不低于 120 ms），不闪跳。
 - 减弱动效（或没有 Web Animations API）：瞬时完成。
 - 无头浏览器逐帧记录：高度随时间与理想曲线最大偏差 ≤ 3 px，无突变；透明度、位移、箭头角度连续；连点反向处高度连续。
+
+## 彩蛋真机修复（2.5.3）
+
+OnePlus 13 上长按会触发 `pointercancel` / 系统长按手势，序列被清零。修复：
+
+- 版本号按钮 `touch-action: none`、`user-select: none`、`-webkit-touch-callout: none`，阻止 `contextmenu` / `dragstart`；按下时 `setPointerCapture`。
+- `pointercancel` 不再清零：只有手指相对按下点移动超过 10 px（或失焦）才取消；按住满时长由定时器（1.5 s + 10 ms）判定，所以系统取消后没有 `pointerup` 也能完成。到点仍未完成则整体清零。
+- 两种手法都触发：(a) 点满 5 次后第 6 下按住 1.5 s；(b) 第 5 下直接按住 1.5 s 不松开（`core/about.js` 的 `poll` / `up` 支持；(b) 要求前 4 次点按到本次按下不超过 5 s）。
+- 测试：`tests/about.test.js` 补充；CDP 触摸模拟（`Input.dispatchTouchEvent`）验证 a、b、长按期间 `pointercancel`（真实触发）、移动 6 px 仍完成、移动 30 px 取消、松手过早 / 点按不足 / 单击均不触发，按住过程中 DOM 无任何变化。

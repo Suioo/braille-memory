@@ -26,7 +26,7 @@
 - 减弱动效：`prefers-reduced-motion` 的 `!important` 块
 - 卡片布局基于容器（container）单位
 - 控件原位更新，设置页滚动位置保持
-- 「关于」彩蛋：版本号 5 次点按（5 s 内）+ 长按约 1.5 s（或按住 Enter/Space），逻辑在 `src/core/about.js`，触发前无任何提示
+- 「关于」彩蛋：版本号 5 次点按（5 s 内）+ 长按约 1.5 s（或按住 Enter/Space）；两种手法都要能触发：点满 5 次后第 6 下按住，或第 5 下直接按住不松开，逻辑在 `src/core/about.js`，触发前无任何提示
 
 ## 构建速查
 
