@@ -35,6 +35,8 @@
   }
   const isNative = () => { try { return !!(root.Capacitor && root.Capacitor.isNativePlatform()); } catch (_) { return false; } };
   const maxChars = () => (root.BMBackup ? root.BMBackup.MAX_CHARS : 2 * 1024 * 1024);
+  let textsStore = null;
+  try { textsStore = new root.BMWebStore.WebStore(root.localStorage, 'braille-memory.texts'); } catch (_) { textsStore = null; }
   let backupStore = null;
   try { backupStore = new root.BMWebStore.WebStore(root.localStorage, 'braille-memory.progress.backup'); } catch (_) { backupStore = null; }
 
@@ -85,11 +87,17 @@
       try { version = JSON.parse(await fetchText('version.json')).version || ''; } catch (_) { version = ''; }
       let contact = null;
       try { contact = JSON.parse(await fetchText('contact.json')); } catch (_) { contact = null; }
-      return { shot: null, version, contact, table, extra, rules: rulesData, pinyinMap, config, progress: saved.data, storeStatus: saved.status, themeSource, seed: null };
+      let texts = null;
+      try { const tr = textsStore ? textsStore.load() : null; texts = tr && tr.status === 'ok' ? tr.data : null; } catch (_) { texts = null; }
+      return { shot: null, texts, version, contact, table, extra, rules: rulesData, pinyinMap, config, progress: saved.data, storeStatus: saved.status, themeSource, seed: null };
     },
     async saveProgress(data) {
       if (!store || !data || typeof data !== 'object') return false;
       try { store.save(data); return true; } catch (_) { return false; }
+    },
+    async saveTexts(data) {
+      if (!textsStore || !data || typeof data !== 'object') return false;
+      try { textsStore.save(data); return true; } catch (_) { return false; }
     },
     async setTheme(source) {
       if (!THEMES.includes(source)) return themeSource;

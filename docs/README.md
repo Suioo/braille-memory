@@ -11,7 +11,7 @@
 npx electron .          # 或 npm start
 ```
 
-存档在 `%APPDATA%\盲文记忆\progress.json`（Electron 按 productName 生成的 userData 目录）。
+存档在 `%APPDATA%\盲文记忆\progress.json`（Electron 按 productName 生成的 userData 目录）；自定义文本库在同目录 `texts.json`（网页/安卓为 localStorage `braille-memory.texts`），仅本机。
 调试时用临时目录，避免碰真实存档：
 
 ```

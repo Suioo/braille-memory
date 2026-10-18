@@ -19,13 +19,14 @@ function v1Save() {
   return { version: 1, settings: { theme: 'dark', seed: 'indigo', mirror: true, scope: 'all', roundLength: C.round.lengths[0], autoNext: false, timing: false, qtype: 'dots', fx: false, haptics: false, style: 'glass' }, symbols, lessons };
 }
 
-test('version is 3, createProgress carries empty ext and rules, MIN_VERSION is 1', () => {
-  assert.equal(P.VERSION, 3);
+test('version is 4, createProgress carries empty ext, rules and texts, MIN_VERSION is 1', () => {
+  assert.equal(P.VERSION, 4);
   assert.equal(P.MIN_VERSION, 1);
   const p = P.createProgress(C);
-  assert.equal(p.version, 3);
+  assert.equal(p.version, 4);
   assert.deepEqual(p.ext, { symbols: {} });
   assert.deepEqual(p.rules, { items: {} });
+  assert.deepEqual(p.texts, { items: {} });
 });
 
 test('v1 save: symbols, lessons (stars!) and settings come through field by field unchanged', () => {

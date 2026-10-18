@@ -37,4 +37,27 @@ const translator = Translate.createTranslator({ table, extra, rules, map: pmap }
 const examples = rules.rules.flatMap((r) => (r.examples || []).filter((e) => !(e[2] || '').includes(Rules.UNSUPPORTED_MARK))
   .map((e) => ({ rule: r.id, chars: e[0], pinyin: e[1], note: e[2] || '' })));
 const ruleData = RuleItems.build({ rules, translator });
-module.exports = { ROOT, table, cats, cfg, rowsById, plan, wrongDots, extraRes, extra, ext, rulesText, mapText, rules, pmap, translator, examples, ruleData };
+/**
+ * 测试用拼音提供者：词典全部来自 rules.json 的例词（汉字 → 拼音，跳过带空格 / 声调标记 / 撇号的），最长匹配分词；
+ * 词典里没有的汉字抛错（模拟「提供者给不出拼音」）。它只给拼音与分词，不碰盲文。
+ */
+const dict = new Map();
+for (const e of examples) {
+  if (/[\s'!]/.test(e.pinyin) || !/^[\u3400-\u9fff]+$/.test(e.chars) || dict.has(e.chars)) continue;
+  dict.set(e.chars, e.pinyin);
+}
+const dictProvider = {
+  segment(run) {
+    const a = Array.from(run);
+    const out = [];
+    for (let i = 0; i < a.length;) {
+      let hit = null;
+      for (let n = Math.min(6, a.length - i); n >= 1 && !hit; n--) { const w = a.slice(i, i + n).join(''); if (dict.has(w)) hit = w; }
+      if (!hit) throw new Error('no pinyin for ' + a[i]);
+      out.push({ chars: hit, pinyin: dict.get(hit) });
+      i += Array.from(hit).length;
+    }
+    return out;
+  },
+};
+module.exports = { ROOT, table, cats, cfg, rowsById, plan, wrongDots, extraRes, extra, ext, rulesText, mapText, rules, pmap, translator, examples, ruleData, dict, dictProvider };

@@ -131,23 +131,52 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     ctx.fx.sync();
   }
   const clone = (o) => JSON.parse(JSON.stringify(o));
+  const catNames = () => ctx.cats.map((c) => c.name);
+  /** 文本库 → 练习题目；没有翻盲文引擎时为 null（文本功能隐藏，已存文本原样保留）。 */
+  ctx.rebuildTexts = () => {
+    ctx.textData = null;
+    try { if (ctx.translator) ctx.textData = root.BMTexts.buildItems(ctx.texts, ctx.translator); } catch (_) { ctx.textData = null; }
+  };
+  const textEntries = () => (ctx.textData ? ctx.textData.entries : undefined);
+  /** 清洗记录时用的当前 textEntries（文本库不可用 = undefined，记录原样保留）。 */
+  ctx.normProgress = (raw) => P.normalizeProgress(raw, ctx.table, ctx.plan, ctx.cfg, catNames(), ctx.extraRows || undefined, ctx.ruleData ? ctx.ruleData.entries : undefined, textEntries());
+  /** 保存文本库（串行，与进度各自一条队列）。 */
+  let savingTexts = Promise.resolve();
+  ctx.saveTexts = () => {
+    const snapshot = clone(ctx.texts);
+    savingTexts = savingTexts.then(() => root.bm.saveTexts(snapshot)).catch(() => false);
+    return savingTexts;
+  };
+  /** 换入新的文本库并重建题目、重新清洗进度里的文本记录。 */
+  ctx.setTexts = (store) => {
+    ctx.texts = store;
+    ctx.rebuildTexts();
+    ctx.progress = ctx.normProgress(ctx.progress);
+  };
   /** 导出当前记录。@returns {Promise<'ok'|'canceled'|'fail'>} */
   ctx.exportRecord = async () => {
-    const r = await root.bm.exportRecord(root.BMBackup.buildExport(ctx.progress, ctx.version), root.BMBackup.defaultFileName());
+    const r = await root.bm.exportRecord(root.BMBackup.buildExport(ctx.progress, ctx.version, undefined, ctx.texts.texts.length ? ctx.texts : undefined), root.BMBackup.defaultFileName());
     return r && r.ok ? 'ok' : r && r.canceled ? 'canceled' : 'fail';
   };
   /** 选择并校验导入文件；不改动现有记录。@returns {Promise<{canceled:true}|{ok:false,reason:string}|{ok:true,progress,imported,skipped}>} */
   ctx.pickImport = async () => {
     const r = await root.bm.pickRecord();
     if (!r || !r.ok) return r && r.canceled ? { canceled: true } : { ok: false, reason: (r && r.reason) || 'read' };
-    return root.BMBackup.parseImport(r.text, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name), ctx.extraRows || undefined, ctx.ruleData ? ctx.ruleData.entries : undefined);
+    return root.BMBackup.parseImport(r.text, ctx.table, ctx.plan, ctx.cfg, catNames(), ctx.extraRows || undefined, ctx.ruleData ? ctx.ruleData.entries : undefined, ctx.translator ? {
+      normalize: root.BMTexts.normalizeStore,
+      current: ctx.texts,
+      entries: (store) => { try { return root.BMTexts.buildItems(store, ctx.translator).entries; } catch (_) { return undefined; } },
+    } : undefined);
   };
   /** 确认后覆盖：先备份当前记录，写入失败自动恢复。@returns {Promise<boolean>} */
   ctx.applyImport = async (next) => {
     await saving;
-    const r = await root.BMBackup.applyImport(clone(ctx.progress), next, { saveBackup: root.bm.saveBackup, saveProgress: root.bm.saveProgress });
+    await savingTexts;
+    const bundle = { kind: 'bundle', progress: next.progress, texts: next.texts };
+    const r = await root.BMBackup.applyImport({ kind: 'bundle', progress: clone(ctx.progress), texts: clone(ctx.texts) }, bundle, { saveBackup: root.bm.saveBackup, saveProgress: root.bm.saveProgress, saveTexts: root.bm.saveTexts });
     if (!r.ok) return false;
-    ctx.progress = next;
+    if (next.texts) { ctx.texts = next.texts; ctx.rebuildTexts(); }
+    ctx.progress = next.progress;
     ctx.hasUndo = true;
     applySettings();
     return true;
@@ -155,9 +184,11 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   /** 撤销上次导入：恢复到导入前的记录。 */
   ctx.undoImport = async () => {
     await saving;
-    const r = await root.BMBackup.undoImport({ loadBackup: root.bm.loadBackup, saveProgress: root.bm.saveProgress, clearBackup: root.bm.clearBackup });
+    await savingTexts;
+    const r = await root.BMBackup.undoImport({ loadBackup: root.bm.loadBackup, saveProgress: root.bm.saveProgress, saveTexts: root.bm.saveTexts, clearBackup: root.bm.clearBackup });
     if (!r.ok) { if (r.reason === 'none') ctx.hasUndo = false; return false; }
-    ctx.progress = P.normalizeProgress(r.data, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name), ctx.extraRows || undefined, ctx.ruleData ? ctx.ruleData.entries : undefined);
+    if (r.texts) { const n = root.BMTexts.normalizeStore(r.texts); ctx.texts = n.ok ? n.store : root.BMTexts.emptyStore(); ctx.rebuildTexts(); }
+    ctx.progress = ctx.normProgress(r.data);
     ctx.hasUndo = false;
     applySettings();
     return true;
@@ -439,7 +470,10 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     ctx.cats = root.BMCsv.categoriesOf(ctx.table);
     ctx.rowsById = new Map(ctx.table.map((r) => [r.id, r]));
     ctx.plan = root.BMCourse.planLessons(ctx.table, ctx.cfg.lessonSize);
-    ctx.progress = P.normalizeProgress(b.progress, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name), ctx.extraRows || undefined, ctx.ruleData ? ctx.ruleData.entries : undefined);
+    // 自定义文本库：读入后清洗；没有翻盲文引擎时题目为 null，已有文本记录原样保留
+    { const n = root.BMTexts.normalizeStore(b.texts); ctx.texts = n.ok ? n.store : root.BMTexts.emptyStore(); }
+    ctx.rebuildTexts();
+    ctx.progress = ctx.normProgress(b.progress);
     ctx.shot = !!b.shot;
     ctx.version = b.version || '';
     ctx.hasUndo = false;

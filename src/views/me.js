@@ -96,7 +96,7 @@
             h('div', { class: 'li-ctl' }, h('div', { class: 'confirm-row' },
               W.btn(STR.cancel, () => closeConfirm('button'), { variant: 'text' }),
               W.btn(STR.overwrite, () => guard(async () => {
-                const next = pending && pending.progress;
+                const next = pending && pending.progress ? pending : null;
                 closeConfirm();
                 if (!next) return;
                 const ok = await ctx.applyImport(next);

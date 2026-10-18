@@ -229,7 +229,7 @@
     const toneDots = (tone) => rowCells('tone', map.toneNames[String(tone)]);
     return {
       ok: true, translate, word, parse: py.parse, categories: catOf, finalNames, marker, toneDots,
-      contractChars: [...contractForms.keys()], ruleIds: rules.rules.map((r) => r.id), rules,
+      contractChars: [...contractForms.keys()], ruleIds: rules.rules.map((r) => r.id), rules, map,
     };
   }
 

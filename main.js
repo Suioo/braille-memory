@@ -128,6 +128,8 @@ function loadConfig() {
 }
 
 const store = new Store(app.getPath('userData'));
+const textsStore = new Store(app.getPath('userData'), 'texts.json'); // 自定义文本库（仅本机）
+let savedTexts = { status: 'empty', data: null };
 let saved = { status: 'empty', data: null };
 /** 窗口底色 = 当前配色的 surface（避免启动白闪）。 */
 const seedName = () => {
@@ -192,6 +194,7 @@ ipcMain.handle('boot:get', (e) => {
     pinyinMap: loadPinyinMapData(),
     config: loadConfig(),
     progress: shotMode ? null : saved.data,
+    texts: shotMode ? null : savedTexts.data,
     storeStatus: shotMode ? 'shot' : saved.status,
     themeSource: nativeTheme.themeSource,
     version: app.getVersion(),
@@ -205,6 +208,12 @@ ipcMain.handle('progress:save', (e, data) => {
   if (!fromOurWindow(e) || shotMode) return false; // 截图模式不写盘（e2e 写入 --user-data）
   if (!data || typeof data !== 'object') return false;
   try { store.save(data); return true; } catch (err) { console.error('[save] ' + err.message); return false; }
+});
+
+ipcMain.handle('texts:save', (e, data) => {
+  if (!fromOurWindow(e) || shotMode) return false;
+  if (!data || typeof data !== 'object' || JSON.stringify(data).length > 3 * 1024 * 1024) return false;
+  try { textsStore.save(data); return true; } catch (err) { console.error('[texts] ' + err.message); return false; }
 });
 
 // ---------- 记录导出 / 导入 / 撤销备份 ----------
@@ -308,6 +317,7 @@ nativeTheme.on('updated', () => { if (win) win.setBackgroundColor(bg()); });
 app.whenReady().then(() => {
   if (!shotMode) {
     try { saved = store.load(); } catch (err) { console.error('[load] ' + err.message); }
+    try { savedTexts = textsStore.load(); } catch (err) { console.error('[texts] ' + err.message); }
     if (saved.status === 'corrupt') console.warn('[load] corrupt save backed up to ' + saved.backup);
     const t = saved.data && saved.data.settings && saved.data.settings.theme;
     if (THEMES.includes(t)) nativeTheme.themeSource = t;

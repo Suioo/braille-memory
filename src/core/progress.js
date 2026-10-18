@@ -3,12 +3,13 @@
  * 渲染进程：window.BMProgress；Node：require()。
  *
  * progress = {
- *   version: 3,           // 1 → 2 新增 ext（扩展符号）；2 → 3 新增 rules（规则 / 词句）；读入旧版本时原有记录逐字段保留
+ *   version: 4,           // 1 → 2 新增 ext（扩展符号）；2 → 3 新增 rules（规则 / 词句）；3 → 4 新增 texts（自定义文本）；读入旧版本时原有记录逐字段保留
  *   settings: { theme, seed, mirror, scope, roundLength, autoNext, timing, qtype, fx, haptics, style },
  *   symbols: { [id]: { sig, score, right, wrong } },
  *   lessons: { [key]: { sig, stars, bestAcc, bestAvgSec, plays } },
  *   ext: { symbols: { [id]: { sig, score, right, wrong } } },  // 扩展符号（data/braille_extra.csv），sig = 符号|各方点位
- *   rules: { items: { [key]: { sig, score, right, wrong } } }  // 规则 / 词句题目（data/rules.json 的例词与判断题），key 见 rule-items.js
+ *   rules: { items: { [key]: { sig, score, right, wrong } } },  // 规则 / 词句题目（data/rules.json 的例词与判断题），key 见 rule-items.js
+ *   texts: { items: { [key]: { sig, score, right, wrong } } }   // 自定义文本的句子（文本本身存在 texts 存储里，不在这里），key = t:<文本id>#<句id>
  * }
  */
 (function (root, factory) {
@@ -17,7 +18,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = 3;
+  const VERSION = 4;
   /** 可读入的最低存档版本（旧版本读入时迁移到 VERSION）。 */
   const MIN_VERSION = 1;
   const THEMES = ['system', 'light', 'dark'];
@@ -46,7 +47,7 @@
 
   /** 新的空进度。 */
   function createProgress(cfg, settings) {
-    return { version: VERSION, settings: Object.assign(defaultSettings(cfg), settings || {}), symbols: {}, lessons: {}, ext: { symbols: {} }, rules: { items: {} } };
+    return { version: VERSION, settings: Object.assign(defaultSettings(cfg), settings || {}), symbols: {}, lessons: {}, ext: { symbols: {} }, rules: { items: {} }, texts: { items: {} } };
   }
 
   /** 符号签名：符号或点位在 CSV 中被改动后，旧记录作废。 */
@@ -66,8 +67,9 @@
    * @param {string[]} categories 类别名
    * @param {object[]} [extraRows] 扩展符号表；省略（undefined）= 扩展表不可用，已有扩展记录原样保留（只做形状校验），不会因此丢档
    * @param {{key:string, sig:string}[]} [ruleEntries] 规则 / 词句题目清单；省略 = 规则数据不可用，已有记录原样保留
+   * @param {{key:string, sig:string}[]} [textEntries] 自定义文本的题目清单（文本库 + 引擎推出）；省略 = 不可用（没有引擎 / 文本库），已有记录原样保留
    */
-  function normalizeProgress(raw, rows, plan, cfg, categories, extraRows, ruleEntries) {
+  function normalizeProgress(raw, rows, plan, cfg, categories, extraRows, ruleEntries, textEntries) {
     const p = createProgress(cfg);
     if (!raw || typeof raw !== 'object') return p;
     const s = raw.settings || {};
@@ -131,6 +133,19 @@
       for (const key of Object.keys(rit)) {
         const e = rit[key];
         if (RULE_KEY.test(key) && e && typeof e === 'object' && typeof e.sig === 'string') p.rules.items[key] = extEntry(e, cfg);
+      }
+    }
+    const tit = raw.texts && typeof raw.texts === 'object' && raw.texts.items && typeof raw.texts.items === 'object' ? raw.texts.items : {};
+    if (Array.isArray(textEntries)) {
+      for (const it of textEntries) {
+        const e = tit[it.key];
+        if (!e || e.sig !== it.sig) continue;
+        p.texts.items[it.key] = extEntry(e, cfg);
+      }
+    } else {
+      for (const key of Object.keys(tit)) {
+        const e = tit[key];
+        if (RULE_KEY.test(key) && e && typeof e === 'object' && typeof e.sig === 'string') p.texts.items[key] = extEntry(e, cfg);
       }
     }
     return p;
@@ -237,6 +252,25 @@
   }
   const ruleWeakItems = (progress, items) => items.filter((it) => ruleState(progress, it).score > 0);
 
+  // ---------- 自定义文本的句子（与其他记录分开；item 带 key 与 sig） ----------
+  function textState(progress, item) {
+    return progress.texts.items[item.key] || { sig: item.sig, score: 0, right: 0, wrong: 0 };
+  }
+  function recordTextAnswer(progress, item, correct, cfg) {
+    if (!progress.texts.items[item.key]) progress.texts.items[item.key] = textState(progress, item);
+    const e = progress.texts.items[item.key];
+    e.sig = item.sig;
+    e.score = nextScore(e.score, correct, cfg);
+    if (correct) e.right += 1; else e.wrong += 1;
+    return e;
+  }
+  const textWeakItems = (progress, items) => items.filter((it) => textState(progress, it).score > 0);
+  /** 删除一篇文本时一并删掉它的句子记录。 */
+  function removeTextProgress(progress, textId) {
+    const pre = 't:' + textId + '#';
+    for (const k of Object.keys(progress.texts.items)) if (k.startsWith(pre)) delete progress.texts.items[k];
+  }
+
   /** 清除进度：保留设置。 */
   function clearProgress(progress, cfg) {
     return createProgress(cfg, progress.settings);
@@ -246,5 +280,6 @@
     VERSION, MIN_VERSION, THEMES, QTYPES, STYLES, SEED_NAMES, defaultSettings, createProgress, normalizeProgress, symSig, symState,
     nextScore, recordAnswer, recordTestMistake, isWeak, weakRows, recordLessonResult, clearProgress,
     extSymSig, extState, recordExtAnswer, extWeakRows, ruleState, recordRuleAnswer, ruleWeakItems,
+    textState, recordTextAnswer, textWeakItems, removeTextProgress,
   };
 });
