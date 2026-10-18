@@ -29,17 +29,20 @@
     return row;
   }
 
-  /** 当前范围：扩展表可用且选了「扩展」才是 'ext'，否则 'base'。 */
-  const moduleNow = (ctx) => (ctx.ext && ctx.module === 'ext' ? 'ext' : 'base');
+  /** 当前范围：对应数据可用且选了才是 'ext' / 'rules'，否则 'base'。 */
+  const moduleNow = (ctx) => (ctx.ext && ctx.module === 'ext' ? 'ext' : ctx.ruleData && ctx.module === 'rules' ? 'rules' : 'base');
 
   /**
-   * 「基础 | 扩展」分段控件（复用带拖动的分段按钮）。只有一项可选（没有扩展表）时返回 null，整个不显示。
-   * @param {(m:'base'|'ext')=>void} onChange 已就地更新选中态后回调
+   * 「基础 | 扩展 | 规则（词句）」分段控件（复用带拖动的分段按钮）。只有一项可选（没有对应数据）时返回 null，整个不显示。
+   * @param {string} rulesLabel 第三项的文字（学习页「规则」、练习页「词句」）
+   * @param {(m:'base'|'ext'|'rules')=>void} onChange 已就地更新选中态后回调
    */
-  function moduleSegmented(ctx, onChange) {
-    if (!ctx.ext) return null;
-    const g = W.segmented(STR.a11yModule, [{ value: 'base', text: STR.modBase }, { value: 'ext', text: STR.modExt }],
-      moduleNow(ctx), (v) => { g.select(v); ctx.module = v; onChange(v); });
+  function moduleSegmented(ctx, onChange, rulesLabel) {
+    const opts = [{ value: 'base', text: STR.modBase }];
+    if (ctx.ext) opts.push({ value: 'ext', text: STR.modExt });
+    if (ctx.ruleData) opts.push({ value: 'rules', text: rulesLabel || STR.modRules });
+    if (opts.length < 2) return null;
+    const g = W.segmented(STR.a11yModule, opts, moduleNow(ctx), (v) => { g.select(v); ctx.module = v; onChange(v); });
     return h('div', { class: 'seg-row module-seg' }, g);
   }
 

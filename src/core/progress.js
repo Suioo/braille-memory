@@ -3,11 +3,12 @@
  * 渲染进程：window.BMProgress；Node：require()。
  *
  * progress = {
- *   version: 2,           // 1 → 2：新增 ext（扩展符号进度，单独存放）；读入 v1 时原有记录逐字段保留
+ *   version: 3,           // 1 → 2 新增 ext（扩展符号）；2 → 3 新增 rules（规则 / 词句）；读入旧版本时原有记录逐字段保留
  *   settings: { theme, seed, mirror, scope, roundLength, autoNext, timing, qtype, fx, haptics, style },
  *   symbols: { [id]: { sig, score, right, wrong } },
  *   lessons: { [key]: { sig, stars, bestAcc, bestAvgSec, plays } },
- *   ext: { symbols: { [id]: { sig, score, right, wrong } } }   // 扩展符号（data/braille_extra.csv），sig = 符号|各方点位
+ *   ext: { symbols: { [id]: { sig, score, right, wrong } } },  // 扩展符号（data/braille_extra.csv），sig = 符号|各方点位
+ *   rules: { items: { [key]: { sig, score, right, wrong } } }  // 规则 / 词句题目（data/rules.json 的例词与判断题），key 见 rule-items.js
  * }
  */
 (function (root, factory) {
@@ -16,7 +17,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = 2;
+  const VERSION = 3;
   /** 可读入的最低存档版本（旧版本读入时迁移到 VERSION）。 */
   const MIN_VERSION = 1;
   const THEMES = ['system', 'light', 'dark'];
@@ -45,7 +46,7 @@
 
   /** 新的空进度。 */
   function createProgress(cfg, settings) {
-    return { version: VERSION, settings: Object.assign(defaultSettings(cfg), settings || {}), symbols: {}, lessons: {}, ext: { symbols: {} } };
+    return { version: VERSION, settings: Object.assign(defaultSettings(cfg), settings || {}), symbols: {}, lessons: {}, ext: { symbols: {} }, rules: { items: {} } };
   }
 
   /** 符号签名：符号或点位在 CSV 中被改动后，旧记录作废。 */
@@ -64,8 +65,9 @@
    * @param {object} cfg
    * @param {string[]} categories 类别名
    * @param {object[]} [extraRows] 扩展符号表；省略（undefined）= 扩展表不可用，已有扩展记录原样保留（只做形状校验），不会因此丢档
+   * @param {{key:string, sig:string}[]} [ruleEntries] 规则 / 词句题目清单；省略 = 规则数据不可用，已有记录原样保留
    */
-  function normalizeProgress(raw, rows, plan, cfg, categories, extraRows) {
+  function normalizeProgress(raw, rows, plan, cfg, categories, extraRows, ruleEntries) {
     const p = createProgress(cfg);
     if (!raw || typeof raw !== 'object') return p;
     const s = raw.settings || {};
@@ -118,8 +120,24 @@
         if (/^[1-9]\d{0,8}$/.test(id) && e && typeof e === 'object' && typeof e.sig === 'string') p.ext.symbols[id] = extEntry(e, cfg);
       }
     }
+    const rit = raw.rules && typeof raw.rules === 'object' && raw.rules.items && typeof raw.rules.items === 'object' ? raw.rules.items : {};
+    if (Array.isArray(ruleEntries)) {
+      for (const it of ruleEntries) {
+        const e = rit[it.key];
+        if (!e || e.sig !== it.sig) continue;
+        p.rules.items[it.key] = extEntry(e, cfg);
+      }
+    } else {
+      for (const key of Object.keys(rit)) {
+        const e = rit[key];
+        if (RULE_KEY.test(key) && e && typeof e === 'object' && typeof e.sig === 'string') p.rules.items[key] = extEntry(e, cfg);
+      }
+    }
     return p;
   }
+
+  /** 规则题目的 key 形状（规则数据不可用时用来过滤明显的垃圾）。 */
+  const RULE_KEY = /^[a-z]:[0-9A-Za-z.#:_\-]{1,80}$/;
 
   function extEntry(e, cfg) {
     return {
@@ -205,6 +223,20 @@
   }
   const extWeakRows = (progress, rows) => rows.filter((r) => extState(progress, r).score > 0);
 
+  // ---------- 规则 / 词句（单独存放，计分规则相同；item = rule-items.js 的题目，带 key 与 sig） ----------
+  function ruleState(progress, item) {
+    return progress.rules.items[item.key] || { sig: item.sig, score: 0, right: 0, wrong: 0 };
+  }
+  function recordRuleAnswer(progress, item, correct, cfg) {
+    if (!progress.rules.items[item.key]) progress.rules.items[item.key] = ruleState(progress, item);
+    const e = progress.rules.items[item.key];
+    e.sig = item.sig;
+    e.score = nextScore(e.score, correct, cfg);
+    if (correct) e.right += 1; else e.wrong += 1;
+    return e;
+  }
+  const ruleWeakItems = (progress, items) => items.filter((it) => ruleState(progress, it).score > 0);
+
   /** 清除进度：保留设置。 */
   function clearProgress(progress, cfg) {
     return createProgress(cfg, progress.settings);
@@ -213,6 +245,6 @@
   return {
     VERSION, MIN_VERSION, THEMES, QTYPES, STYLES, SEED_NAMES, defaultSettings, createProgress, normalizeProgress, symSig, symState,
     nextScore, recordAnswer, recordTestMistake, isWeak, weakRows, recordLessonResult, clearProgress,
-    extSymSig, extState, recordExtAnswer, extWeakRows,
+    extSymSig, extState, recordExtAnswer, extWeakRows, ruleState, recordRuleAnswer, ruleWeakItems,
   };
 });

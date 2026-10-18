@@ -67,10 +67,11 @@
     const mount = () => {
       const p = first ? params : {};
       first = false;
-      sub = C.moduleNow(ctx) === 'ext' ? root.BMExtViews.learn(ctx, p, counter) : baseLearn(ctx, p, counter);
+      const m = C.moduleNow(ctx);
+      sub = m === 'ext' ? root.BMExtViews.learn(ctx, p, counter) : m === 'rules' ? root.BMRuleViews.learn(ctx, p, counter) : baseLearn(ctx, p, counter);
       content.replaceChildren(...sub.nodes);
     };
-    const modSeg = C.moduleSegmented(ctx, mount);
+    const modSeg = C.moduleSegmented(ctx, mount, STR.modRules);
     mount();
     const el = h('div', { class: 'page learn-page' },
       W.topBar(null, h('h1', { text: STR.tabLearn }), counter),

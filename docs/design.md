@@ -168,14 +168,15 @@ standard-decelerate `cubic-bezier(0,0,0,1)`。
 - **存档**：`app.getPath('userData')/progress.json`；原子写入（先写 `.tmp` 再改名）；
   读到损坏文件先改名为 `.corrupt`（已有则加时间戳）备份，再从空进度开始。
   ```
-  { version: 2,
+  { version: 3,
     settings: { theme, seed, mirror, scope, roundLength, autoNext, timing, qtype },
     symbols:  { "<id>": { sig: "符号|点位", score, right, wrong } },
     lessons:  { "<类别>#<课号>": { sig: "id,id,…", stars, bestAcc, bestAvgSec, plays } },
-    ext:      { symbols: { "<id>": { sig: "符号|各方点位", score, right, wrong } } } }   // 扩展符号，单独存放
+    ext:      { symbols: { "<id>": { sig: "符号|各方点位", score, right, wrong } } },   // 扩展符号，单独存放
+    rules:    { items: { "<key>": { sig, score, right, wrong } } } }   // 规则 / 词句题目（w: 例词、j:t: / j:c: 判断题），单独存放
   ```
   `sig` 与当前 CSV 不符的记录在读入时丢弃（导入记录文件时同样处理，并计入「跳过」）。清除进度保留设置。
-- 版本 1 → 2：读入 v1 时 symbols / lessons / settings 逐字段原样保留，只新增空的 `ext`；导入的 v1 导出文件同样迁移。扩展表缺失或有错时，已有 `ext` 记录原样保留，不因此丢档。课程解锁：已有星星的课永远解锁（字表增补后新课插在中间也不会把旧课重新锁住）。
+- 版本 1 → 2 → 3：2 → 3 新增 `rules`；读入 v1 / v2 时 symbols / lessons / settings 逐字段原样保留，只新增空的 `ext`；导入的 v1 导出文件同样迁移。扩展表缺失或有错时，已有 `ext` 记录原样保留，不因此丢档。课程解锁：已有星星的课永远解锁（字表增补后新课插在中间也不会把旧课重新锁住）。
 - 导入前把当前记录备份到单独位置（Electron：`progress.backup.json`；Web / 安卓：独立 localStorage 键），供「撤销」使用。
 - 截图（`--shot` / `--shot-all`）用临时数据目录且不写盘；测试只用系统临时目录；冒烟（`--e2e`）必须给 `--user-data`。
 

@@ -18,7 +18,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   /** 共享上下文（页面只通过它读写状态）。 */
   const ctx = {
     table: [], cats: [], rowsById: new Map(), plan: [], cfg: null, progress: null,
-    extraRows: null, ext: null, translator: null, module: 'base', extScope: 'all', // 扩展符号：extraRows 为 null = 无扩展表，相关入口隐藏
+    extraRows: null, ext: null, translator: null, ruleData: null, module: 'base', extScope: 'all', ruleScope: 'all', ruleQtype: 'mix', // 扩展符号：extraRows 为 null = 无扩展表，相关入口隐藏
     shot: false, rng: Math.random,
     get settings() { return ctx.progress.settings; },
   };
@@ -140,7 +140,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   ctx.pickImport = async () => {
     const r = await root.bm.pickRecord();
     if (!r || !r.ok) return r && r.canceled ? { canceled: true } : { ok: false, reason: (r && r.reason) || 'read' };
-    return root.BMBackup.parseImport(r.text, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name), ctx.extraRows || undefined);
+    return root.BMBackup.parseImport(r.text, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name), ctx.extraRows || undefined, ctx.ruleData ? ctx.ruleData.entries : undefined);
   };
   /** 确认后覆盖：先备份当前记录，写入失败自动恢复。@returns {Promise<boolean>} */
   ctx.applyImport = async (next) => {
@@ -157,7 +157,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     await saving;
     const r = await root.BMBackup.undoImport({ loadBackup: root.bm.loadBackup, saveProgress: root.bm.saveProgress, clearBackup: root.bm.clearBackup });
     if (!r.ok) { if (r.reason === 'none') ctx.hasUndo = false; return false; }
-    ctx.progress = P.normalizeProgress(r.data, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name), ctx.extraRows || undefined);
+    ctx.progress = P.normalizeProgress(r.data, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name), ctx.extraRows || undefined, ctx.ruleData ? ctx.ruleData.entries : undefined);
     ctx.hasUndo = false;
     applySettings();
     return true;
@@ -428,10 +428,18 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
         ctx.translator = t.ok ? t : null;
       }
     } catch (_) { ctx.translator = null; }
+    // 规则 / 词句题目库（有翻盲文引擎才有）；至少要有可出的题，否则规则相关入口隐藏
+    ctx.ruleData = null;
+    try {
+      if (ctx.translator) {
+        const d = root.BMRuleItems.build({ rules: ctx.translator.rules, translator: ctx.translator });
+        ctx.ruleData = d.cards.length && root.BMRuleRound.availableTypes(d).length ? d : null;
+      }
+    } catch (_) { ctx.ruleData = null; }
     ctx.cats = root.BMCsv.categoriesOf(ctx.table);
     ctx.rowsById = new Map(ctx.table.map((r) => [r.id, r]));
     ctx.plan = root.BMCourse.planLessons(ctx.table, ctx.cfg.lessonSize);
-    ctx.progress = P.normalizeProgress(b.progress, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name), ctx.extraRows || undefined);
+    ctx.progress = P.normalizeProgress(b.progress, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name), ctx.extraRows || undefined, ctx.ruleData ? ctx.ruleData.entries : undefined);
     ctx.shot = !!b.shot;
     ctx.version = b.version || '';
     ctx.hasUndo = false;

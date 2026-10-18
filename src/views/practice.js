@@ -62,10 +62,11 @@
   Views.practice = function (ctx) {
     const content = h('div', { class: 'module-content' });
     const mount = () => {
-      const sub = C.moduleNow(ctx) === 'ext' ? root.BMExtViews.practice(ctx) : basePractice(ctx);
+      const m = C.moduleNow(ctx);
+      const sub = m === 'ext' ? root.BMExtViews.practice(ctx) : m === 'rules' ? root.BMRuleViews.practice(ctx) : basePractice(ctx);
       content.replaceChildren(...sub.nodes);
     };
-    const modSeg = C.moduleSegmented(ctx, mount);
+    const modSeg = C.moduleSegmented(ctx, mount, STR.modWords);
     mount();
     const el = h('div', { class: 'page practice-page' },
       W.topBar(null, h('h1', { text: STR.tabPractice }), null),

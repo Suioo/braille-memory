@@ -19,27 +19,29 @@ function v1Save() {
   return { version: 1, settings: { theme: 'dark', seed: 'indigo', mirror: true, scope: 'all', roundLength: C.round.lengths[0], autoNext: false, timing: false, qtype: 'dots', fx: false, haptics: false, style: 'glass' }, symbols, lessons };
 }
 
-test('version is 2, createProgress carries an empty ext, MIN_VERSION is 1', () => {
-  assert.equal(P.VERSION, 2);
+test('version is 3, createProgress carries empty ext and rules, MIN_VERSION is 1', () => {
+  assert.equal(P.VERSION, 3);
   assert.equal(P.MIN_VERSION, 1);
   const p = P.createProgress(C);
-  assert.equal(p.version, 2);
+  assert.equal(p.version, 3);
   assert.deepEqual(p.ext, { symbols: {} });
+  assert.deepEqual(p.rules, { items: {} });
 });
 
 test('v1 save: symbols, lessons (stars!) and settings come through field by field unchanged', () => {
   const old = v1Save();
   const p = norm(clone(old));
-  assert.equal(p.version, 2);
+  assert.equal(p.version, P.VERSION);
   assert.deepEqual(p.symbols, old.symbols);
   assert.deepEqual(p.lessons, old.lessons);
   assert.deepEqual(p.settings, old.settings);
   assert.deepEqual(p.ext, { symbols: {} });
+  assert.deepEqual(p.rules, { items: {} });
   // 星星逐课不变
   for (const l of plan) assert.equal(p.lessons[l.key] && p.lessons[l.key].stars, old.lessons[l.key].stars);
 });
 
-test('v2 save with ext records round trips exactly', () => {
+test('current-version save with ext records round trips exactly', () => {
   const p = P.createProgress(C);
   P.recordAnswer(p, table[0], false, C);
   P.recordExtAnswer(p, extra[0], false, C);

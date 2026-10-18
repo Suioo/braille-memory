@@ -13,11 +13,16 @@
     const sm = params.summary;
     const leave = () => ctx.go('practice', {}, { dir: 'back' });
     const stat = (k, v) => h('div', { class: 'stat' }, h('span', { class: 'v num', text: v }), h('span', { class: 'k', text: k }));
+    const isRules = params.module === 'rules' && !!ctx.ruleData;
     const isExt = params.module === 'ext' && !!ctx.ext;
-    const wrongRows = sm.wrongIds.map((id) => (isExt ? ctx.ext.byId.get(id) : ctx.rowsById.get(id))).filter(Boolean);
-    const canAgain = sm.mode !== 'wrong' || (isExt
-      ? root.BMProgress.extWeakRows(ctx.progress, C.extScopeRows(ctx)).length > 0
-      : root.BMProgress.weakRows(ctx.progress, ctx.scopeRows()).length > 0);
+    const wrongRows = isRules ? [] : sm.wrongIds.map((id) => (isExt ? ctx.ext.byId.get(id) : ctx.rowsById.get(id))).filter(Boolean);
+    const wrongItems = isRules ? (sm.wrongKeys || []).map((k) => ctx.ruleData.byKey.get(k)).filter(Boolean) : [];
+    const ruleChip = (it) => W.assistChip(it.family ? (it.family === 'tone' ? it.raw : it.char) + ' · ' + it.word.chars : it.chars);
+    const canAgain = sm.mode !== 'wrong' || (isRules
+      ? root.BMProgress.ruleWeakItems(ctx.progress, root.BMRuleRound.availableTypes(ctx.ruleData).flatMap((t) => root.BMRuleRound.poolOf(ctx.ruleData, t))).length > 0
+      : isExt
+        ? root.BMProgress.extWeakRows(ctx.progress, C.extScopeRows(ctx)).length > 0
+        : root.BMProgress.weakRows(ctx.progress, ctx.scopeRows()).length > 0);
 
     const el = h('div', { class: 'page result-page' },
       W.topBar(C.backBtn(leave), h('h1', { text: MODE_LABEL()[sm.mode] }), null),
@@ -30,12 +35,12 @@
             stat(STR.time, STR.sec(fmtSec(sm.totalSec))),
             stat(STR.avg, STR.sec(fmtSec(sm.avgSec))),
             params.bestStreak != null ? stat(STR.bestStreak, String(params.bestStreak)) : null)),
-        wrongRows.length ? h('section', { class: 'weak-card' },
+        wrongRows.length || wrongItems.length ? h('section', { class: 'weak-card' },
           h('span', { class: 'lg-wrap', 'aria-hidden': 'true' }, W.legendGlyph('extra')),
-          h('div', { class: 'chip-row wrap', role: 'list', 'aria-label': STR.a11yIncorrect }, wrongRows.map((r) => (isExt ? W.extSymbolChip(r, ctx.settings.mirror) : W.symbolChip(r, ctx.settings.mirror))))) : null,
+          h('div', { class: 'chip-row wrap', role: 'list', 'aria-label': STR.a11yIncorrect }, wrongItems.map(ruleChip), wrongRows.map((r) => (isExt ? W.extSymbolChip(r, ctx.settings.mirror) : W.symbolChip(r, ctx.settings.mirror))))) : null,
         h('div', { class: 'footer two' },
           W.btn(STR.back, leave, { variant: 'outlined', autofocus: !canAgain }),
-          canAgain ? W.btn(STR.again, () => ctx.go(isExt ? 'extround' : 'round', { mode: sm.mode }), { variant: 'filled', icon: ICON.review(), autofocus: true }) : null)));
+          canAgain ? W.btn(STR.again, () => ctx.go(isRules ? 'ruleround' : isExt ? 'extround' : 'round', { mode: sm.mode }), { variant: 'filled', icon: ICON.review(), autofocus: true }) : null)));
     ctx.fx.countUp(el.querySelector('.big-num'));
     ctx.say(STR.pct(sm.acc));
 

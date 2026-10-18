@@ -225,7 +225,12 @@
     /** 单个词（或空格分词的一段）的便捷入口。 */
     const word = (pinyin, chars) => translate([{ type: 'text', pinyin, chars }]);
 
-    return { ok: true, translate, word, parse: py.parse, categories: catOf, finalNames, marker, ruleIds: rules.rules.map((r) => r.id) };
+    /** 某个声调（1–4）的盲方（取自字表，供「错因」比对）。 */
+    const toneDots = (tone) => rowCells('tone', map.toneNames[String(tone)]);
+    return {
+      ok: true, translate, word, parse: py.parse, categories: catOf, finalNames, marker, toneDots,
+      contractChars: [...contractForms.keys()], ruleIds: rules.rules.map((r) => r.id), rules,
+    };
   }
 
   return { REQUIRED_TYPES, createTranslator };

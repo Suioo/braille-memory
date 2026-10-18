@@ -689,9 +689,197 @@
       answerDigits(cellsText));
   }
 
+
+  // ---------- 规则 / 词句 ----------
+  /**
+   * 一个词的整串迷你点图：空方画成虚线空框；扎写（镜像）时整串从右往左排、各方内部左右互换。
+   * @param {number[][]} cells 各方点位（空方为 []）
+   * @param {boolean} mirror
+   * @param {{marks?: (string|null)[], first?: number}} [o] marks = 逐方标记（'ok' | 'bad'）；first = 第一个出错的方
+   */
+  function wordStripEl(cells, mirror, o) {
+    o = o || {};
+    const el = h('div', { class: 'word-strip' + (mirror ? ' rtl' : ''), role: 'img', 'aria-label': STR.a11yWordCells(cells.length) });
+    cells.forEach((d, i) => {
+      const c = d.length ? miniCellEl(d, mirror, {}) : h('span', { class: 'mini-cell blank', 'aria-hidden': 'true' });
+      const m = o.marks && o.marks[i];
+      const wrap = h('span', { class: 'ws-cell' + (m ? ' ' + m : '') + (o.first === i ? ' first' : '') }, c);
+      el.append(wrap);
+    });
+    return el;
+  }
+
+  /**
+   * 词句翻盲文的逐方输入：一排已输入的小格 + 一个大方输入当前这一方。
+   * 「下一方」确认当前方并新开一方；「空方」把当前方记为空方（词与词之间）；「删除」撤销最后一方（或清空当前方）。
+   * 轻点任一小格可回头修改。提交时去掉末尾还没写的空草稿方。
+   */
+  class WordInput {
+    /** @param {{mirror:boolean, numbers:boolean}} o */
+    constructor(o) {
+      this.mirror = o.mirror;
+      this.slots = [new Set()];
+      this.cur = 0;
+      this.locked = false;
+      this.onChange = null;
+      this.onTap = null;
+      this.inner = new DotsInput({ mirror: o.mirror, numbers: o.numbers });
+      this.inner.selected = this.slots[0];
+      this.inner.render();
+      this.inner.onChange = () => { this.draw(); if (this.onChange) this.onChange(); };
+      this.inner.onTap = (n, on) => { if (this.onTap) this.onTap(n, on); };
+      this.strip = h('div', { class: 'word-slots' + (o.mirror ? ' rtl' : ''), role: 'group', 'aria-label': STR.a11yWordCells(1) });
+      this.el = h('div', { class: 'seq-input word-input' }, this.strip, this.inner.el);
+      this.draw();
+    }
+    get last() { return this.slots.length - 1; }
+    /** 作答：各方点位（空方 []），去掉末尾还没写的空草稿方。 */
+    get answer() {
+      const a = this.slots.map((s) => [...s].sort((x, y) => x - y));
+      while (a.length && a[a.length - 1].length === 0) a.pop();
+      return a;
+    }
+    get curFilled() { return this.slots[this.cur].size > 0; }
+    get canSubmit() { return this.answer.some((d) => d.length > 0); }
+    draw() {
+      const kids = this.slots.map((set, i) => {
+        const dots = [...set].sort((x, y) => x - y);
+        const blank = dots.length === 0 && i < this.last;
+        const b = h('button', {
+          class: 'slot sl' + (i === this.cur ? ' current' : '') + (dots.length ? ' filled' : '') + (blank ? ' is-blank' : ''), type: 'button', 'data-i': i,
+          'aria-current': i === this.cur ? 'true' : 'false',
+          'aria-label': STR.a11ySlot(i + 1, this.slots.length, blank ? STR.blankCell : dots.join(''), ''),
+          onclick: () => this.setCur(i),
+        }, blank ? h('span', { class: 'mini-cell blank', 'aria-hidden': 'true' }) : miniCellEl(dots, this.mirror, {}),
+        h('span', { class: 'slot-no num', 'aria-hidden': 'true', text: String(i + 1) }));
+        return b;
+      });
+      this.strip.replaceChildren(...kids);
+      this.strip.setAttribute('aria-label', STR.a11yWordCells(this.answer.length));
+      const c = this.strip.querySelector('.slot.current');
+      if (c && c.scrollIntoView) { try { c.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (_) { /* 忽略 */ } }
+    }
+    setCur(i) {
+      if (this.locked || i < 0 || i > this.last || i === this.cur) return;
+      this.cur = i;
+      this.inner.selected = this.slots[i];
+      this.inner.render();
+      this.draw();
+      if (this.onChange) this.onChange();
+    }
+    /** 确认当前方（非空）并去下一方；在末尾则新开一方。 */
+    next() {
+      if (this.locked || !this.curFilled) return;
+      if (this.cur === this.last) this.slots.push(new Set());
+      this.setCur(this.cur + 1);
+    }
+    /** 当前方记为空方并去下一方。 */
+    blank() {
+      if (this.locked) return;
+      this.slots[this.cur].clear();
+      this.inner.render();
+      if (this.cur === this.last) this.slots.push(new Set());
+      this.setCur(Math.min(this.cur + 1, this.last));
+      this.draw();
+      if (this.onChange) this.onChange();
+    }
+    /** 删除：当前方有点 → 清空；当前方是空的 → 退回上一方（去掉末尾草稿）。 */
+    del() {
+      if (this.locked) return;
+      if (this.curFilled) { this.slots[this.cur].clear(); this.inner.render(); this.draw(); if (this.onChange) this.onChange(); return; }
+      if (this.slots.length > 1 && this.cur === this.last) {
+        this.slots.pop();
+        this.cur = this.last;
+        this.inner.selected = this.slots[this.cur];
+        this.inner.render();
+        this.draw();
+        if (this.onChange) this.onChange();
+      }
+    }
+    toggle(n) { if (!this.locked) this.inner.toggle(n); }
+    setMirror(m) {
+      this.mirror = m;
+      if (this.revealStrip) { this.paintReveal(); return; }
+      this.strip.classList.toggle('rtl', m);
+      this.inner.setMirror(m);
+      this.draw();
+    }
+    paintReveal() {
+      const ans = this.answer;
+      const j = this.revealJudge;
+      const marks = ans.map((_, i) => (j.cells[i] && j.cells[i].correct ? 'ok' : 'bad'));
+      const strip = wordStripEl(ans, this.mirror, { marks, first: j.firstWrong });
+      strip.classList.add('answer-strip');
+      this.revealStrip.replaceWith(strip);
+      this.revealStrip = strip;
+    }
+    /** 预设作答（截图 / 测试用）。 */
+    set(all) {
+      this.slots = all.map((d) => new Set(d));
+      this.slots.push(new Set());
+      this.cur = this.last;
+      this.inner.selected = this.slots[this.cur];
+      this.inner.render();
+      this.draw();
+    }
+    /** 揭晓：锁定，隐藏大方，逐方标对错、标出第一个出错的方。 */
+    reveal(judge) {
+      this.locked = true;
+      this.el.classList.add('revealed');
+      this.revealJudge = judge;
+      this.revealStrip = this.strip;
+      this.paintReveal();
+    }
+  }
+
+  /** 规则卡（学习）：正面 = 编号 + 类别 + 页码 + 例词迷你点位串；背面 = 规则正文（默认 3 行，可展开）。 */
+  function ruleCardEl(card, o) {
+    const r = card.rule;
+    const ex = card.example;
+    const front = h('div', { class: 'face front rule-face' },
+      h('div', { class: 'rule-id num', text: r.id }),
+      h('div', { class: 'rule-meta' }, catTag(r.cat), h('span', { class: 'cat-tag pg', text: STR.rulePage(r.page) })),
+      ex ? h('div', { class: 'rule-example' }, h('div', { class: 'rule-chars', text: ex.chars }), wordStripEl(ex.cells, o.mirror, {})) : null);
+    const text = h('p', { class: 'rule-text clamped', text: r.text });
+    const note = r.note ? h('p', { class: 'rule-note', text: r.note }) : null;
+    const toggle = h('button', { class: 'btn sl text rule-more', type: 'button', 'aria-expanded': 'false', onclick: () => {
+      const open = text.classList.toggle('clamped') === false;
+      back.classList.toggle('open', open);
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.querySelector('span').textContent = open ? STR.collapse : STR.expand;
+    } }, h('span', { text: STR.expand }));
+    const back = h('div', { class: 'face back rule-face' },
+      h('div', { class: 'rule-head' }, h('span', { class: 'rule-id sm num', text: r.id }), catTag(r.cat), h('span', { class: 'cat-tag pg', text: STR.rulePage(r.page) })),
+      h('div', { class: 'rule-body' }, text, note), toggle);
+    const el = h('div', { class: 'card', 'aria-label': STR.a11yRuleCard(r.id, r.cat, r.page) }, h('div', { class: 'card-inner' }, front, back));
+    let flipped = false;
+    const set = (f) => {
+      flipped = f;
+      el.classList.toggle('flipped', f);
+      front.setAttribute('aria-hidden', String(f));
+      back.setAttribute('aria-hidden', String(!f));
+    };
+    set(!!o.flipped);
+    return { el, flip: () => { set(!flipped); if (o.onFlip) o.onFlip(el); return flipped; }, set, get flipped() { return flipped; } };
+  }
+
+  /** 规则说明条（揭晓时「错在哪条规则」）：编号 · 类别 · 页码 + 规则正文（默认 3 行，可展开）。 */
+  function ruleBoxEl(rule) {
+    const text = h('p', { class: 'rule-text clamped', text: rule.text });
+    const more = h('button', { class: 'btn sl text rule-more', type: 'button', 'aria-expanded': 'false', onclick: () => {
+      const open = text.classList.toggle('clamped') === false;
+      more.setAttribute('aria-expanded', String(open));
+      more.querySelector('span').textContent = open ? STR.collapse : STR.expand;
+    } }, h('span', { text: STR.expand }));
+    return h('div', { class: 'rule-box', role: 'group', 'aria-label': STR.ruleName(rule.id) },
+      h('div', { class: 'rule-box-head' }, h('span', { class: 'rule-id sm num', text: rule.id }), catTag(rule.cat), h('span', { class: 'cat-tag pg', text: STR.rulePage(rule.page) })),
+      text, more);
+  }
+
   root.BMW = {
     cellEl, miniCellEl, symbolChip, DotsInput, ChooseInput, cardEl, starsEl, btn, iconBtn, filterChip, assistChip, segmented, switchEl,
     hooks, topBar, navBar, verdictEl, legendGlyph, revealPanel, answerDigits, progressBar,
     catTag, seqStripEl, extSymbolChip, extCardEl, SeqDotsInput, SeqChooseInput, extRevealPanel,
+    wordStripEl, WordInput, ruleCardEl, ruleBoxEl,
   };
 })(typeof self !== 'undefined' ? self : this);

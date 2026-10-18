@@ -50,10 +50,10 @@ npx electron . --shot=learn-mirror --out=a.png --size=412x915 --font-scale=1.3 -
 | `data/rules.json` | 规则数据（rules[]：id、cat、page、text、可选 note / forms / examples，以及引擎执行用的 apply）；缺失时规则相关入口隐藏 |
 | `data/pinyin_map.json` | 拼音还原表（y/w、iu/ui/un、j/q/x 后 u→ü、v→ü、声母 / 韵母别名、声调符号、标点字符→符号名、数号规则）；引擎不另写任何拼音常量 |
 | `data/config.json` | 每课符号数、选项数、计分、题量、自动下题、防误触、闯关阈值 |
-| `src/core/` | backup（记录导出 / 导入校验 / 撤销）、seq（多方符号判分与扎写排列）、ext（扩展符号分组与选项）、ext-round（扩展符号练习轮次）、rules（规则数据校验）、pinyin（拼音解析）、translate（翻盲文引擎）、csv（解析校验）、cell（布局/判分）、config、pick（随机/加权/选项）、timer、progress（计分/存档模型）、round（练习/复习/错题）、course（分课/评星/单课流程）、palette（M3 配色/对比度） |
+| `src/core/` | backup（记录导出 / 导入校验 / 撤销）、seq（多方符号判分与扎写排列）、ext（扩展符号分组与选项）、ext-round（扩展符号练习轮次）、rules（规则数据校验）、pinyin（拼音解析）、translate（翻盲文引擎）、rule-items（规则 / 词句题目库与错因定位）、rule-round（规则 / 词句练习轮次）、csv（解析校验）、cell（布局/判分）、config、pick（随机/加权/选项）、timer、progress（计分/存档模型）、round（练习/复习/错题）、course（分课/评星/单课流程）、palette（M3 配色/对比度） |
 | `src/main/store.js` | 原子写入 + 损坏备份 |
 | `src/ui/` | dom（工具/图标）、theme（配色写入 CSS 变量）、widgets（M3 部件、盲文方） |
-| `src/views/` | learn、practice、course、me（4 个标签页）；round、result、lesson、lesson-result（全屏页）；common；ext（扩展符号的学习 / 练习内容）、extround（扩展符号答题） |
+| `src/views/` | learn、practice、course、me（4 个标签页）；round、result、lesson、lesson-result（全屏页）；common；ext（扩展符号的学习 / 练习内容）、extround（扩展符号答题）、rules（规则卡学习与词句练习内容）、ruleround（规则 / 词句答题） |
 | `src/app.js` | 路由、底部导航、键盘、存档、截图预设 |
 | `src/styles.css` | M3 样式与动效 |
 | `tests/` | node --test 测试 |

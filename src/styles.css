@@ -909,3 +909,70 @@ button.mini-cell:focus-visible { outline-offset: 3px; }
   .seq-slots { gap: 8px; }
   .slot { padding: 6px 8px 15px; }
 }
+
+/* ================= 规则 / 词句 ================= */
+/* 整个词的迷你点图：空方 = 虚线空框；扎写时整串从右往左（row-reverse，换行也从右边开始） */
+.word-strip { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 8px; max-width: 100%; }
+.word-strip.rtl, .word-slots.rtl { flex-direction: row-reverse; }
+.word-strip .mini-cell { --md: 8px; }
+.mini-cell.blank { background: none; outline: 1.5px dashed var(--outline); outline-offset: -3px; opacity: 0.8; }
+.ws-cell { position: relative; display: inline-flex; border-radius: 12px; padding: 2px; }
+.ws-cell.ok { box-shadow: inset 0 0 0 2px var(--primary); }
+.ws-cell.bad { box-shadow: inset 0 0 0 2px var(--error); background: var(--error-container); }
+.ws-cell.first { outline: 3px solid var(--error); outline-offset: 1px; }
+.prompt-read { flex-direction: column; }
+.prompt-read .word-strip .mini-cell { --md: clamp(8px, 4.2cqh, 13px); }
+.q-body.read-q .options { margin-top: 4px; }
+/* 题面：汉字 + 拼音 */
+.prompt-words, .prompt-judge { flex-direction: column; gap: 1.2cqh; }
+.q-chars { font-weight: 700; line-height: 1.15; text-align: center; overflow-wrap: anywhere; }
+.q-chars.s { font-size: min(5rem, 22cqh, 44cqw); }
+.q-chars.m { font-size: min(3.5rem, 18cqh, 20cqw); }
+.q-chars.l { font-size: min(2.2rem, 14cqh, 9cqw); }
+.rule-pinyin { font-size: var(--title-m); color: var(--on-surface-variant); text-align: center; overflow-wrap: anywhere; letter-spacing: 0.04em; }
+.py-syl.target { font-weight: 700; color: var(--on-secondary-container); background: var(--secondary-container); border-radius: 8px; padding: 0 6px; box-shadow: inset 0 0 0 2px var(--primary); }
+.judge-ask { font-size: var(--title-l); font-weight: 700; margin-top: 0.8cqh; }
+/* 逐方输入：已输入的小格可换行、可滚动 */
+.word-slots { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; flex: none; max-width: 100%; max-height: 118px; overflow-y: auto; padding: 2px; }
+.slot.is-blank { background: none; box-shadow: inset 0 0 0 1.5px var(--outline-variant); }
+.slot .mini-cell.blank { outline-offset: -2px; }
+.word-input.revealed .cell-card.input-cell { display: none; }
+.answer-strip { padding: 2px 0; }
+.expected-row { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; max-width: 100%; }
+.expected-row .k { font-size: var(--label-m); color: var(--on-surface-variant); letter-spacing: 0.2em; }
+.item-note { font-size: var(--label-m); color: var(--on-surface-variant); text-align: center; }
+.footer.word-actions { flex-wrap: wrap; gap: 8px; row-gap: 8px; }
+.footer.word-actions .btn:not(.fab) { height: 48px; padding: 0 16px; min-width: 0; }
+/* 「错在哪条规则」 */
+.explain { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 560px; margin: 4px auto 0; }
+.explain-line { text-align: center; font-size: var(--title-m); font-weight: 700; color: var(--error); }
+.explain-table { text-align: center; font-size: var(--label-m); color: var(--on-surface-variant); }
+.rule-box { background: var(--surface-container-low); border-radius: var(--r-l); padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.rule-box-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rule-id { font-weight: 700; font-size: var(--headline-m); color: var(--primary); line-height: 1; }
+.rule-id.sm { font-size: var(--title-m); }
+.cat-tag.pg { background: var(--surface-container-highest); color: var(--on-surface-variant); }
+.rule-text { margin: 0; font-size: var(--body-l); line-height: 1.5; text-align: left; }
+.rule-text.clamped { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.rule-more { min-height: 36px; height: 36px; padding: 0 8px; }
+.rule-note { margin: 6px 0 0; font-size: var(--label-m); color: var(--on-surface-variant); text-align: left; }
+/* 规则卡：正面 = 编号 / 类别 / 例词；背面 = 正文（默认 3 行，可展开滚动） */
+.rule-face { gap: 0; }
+.rule-face > * + * { margin-top: 2.5cqh; }
+.face.front .rule-id { font-size: min(4.5rem, 24cqh, 26cqw); }
+.rule-meta { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.rule-example { display: flex; flex-direction: column; align-items: center; gap: 1.2cqh; max-width: 100%; }
+.rule-chars { font-weight: 700; font-size: min(2rem, 10cqh, 10cqw); overflow-wrap: anywhere; text-align: center; }
+.rule-example .word-strip .mini-cell { --md: clamp(6px, 3cqh, 10px); }
+.rule-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; flex: none; }
+.rule-body { flex: 1 1 0; min-height: 0; width: 100%; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
+.face.back.open .rule-body { overflow-y: auto; justify-content: flex-start; }
+.face.back .rule-text { font-size: var(--body-l); }
+.result-col { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+/* 规则 / 词句答题：版面不随揭晓内容伸缩——题面与选项保持原位，说明出现在下方，内容多时整页滚动，操作区贴底 */
+.rule-round .q-page { justify-content: flex-start; }
+.rule-round .q-body:not(.card-holder) { container-type: normal; flex: none; justify-content: flex-start; gap: 18px; }
+.rule-round .q-body:not(.card-holder) > .prompt { flex: none; container-type: normal; width: 100%; padding: 6px 0; min-height: 0; }
+.rule-round .q-body.ext-dots .cell-card.input-cell { --dot: min(72px, 8.6vh, 22vw); }
+.rule-round .result { flex: none; }
+.rule-round .q-page .footer { position: sticky; bottom: 4px; z-index: 2; margin-top: auto; }
