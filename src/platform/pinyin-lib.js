@@ -7,13 +7,15 @@
   'use strict';
   let pending = null;
 
+  let words = [];
+  /** 设置额外的已知词（规则例词等），用于分词时合并被拆开的词。 */
+  function setWords(list) { words = Array.isArray(list) ? list : []; }
+
   /** @returns {Promise<{segment:Function}|null>} */
   function load() {
-    if (pending) return pending;
+    if (pending) return pending.then((ok) => (ok ? root.BMPinyinProvider.createProvider(root.pinyinPro, { words }) : null));
     pending = new Promise((resolve) => {
-      const done = () => {
-        try { resolve(root.pinyinPro && root.BMPinyinProvider ? root.BMPinyinProvider.createProvider(root.pinyinPro) : null); } catch (_) { resolve(null); }
-      };
+      const done = () => resolve(!!(root.pinyinPro && root.BMPinyinProvider));
       if (root.pinyinPro) return done();
       try {
         const s = root.document.createElement('script');
@@ -23,8 +25,8 @@
         root.document.head.append(s);
       } catch (_) { pending = null; resolve(null); }
     });
-    return pending;
+    return load();
   }
 
-  root.BMPinyinLib = { load };
+  root.BMPinyinLib = { load, setWords };
 })(typeof self !== 'undefined' ? self : this);

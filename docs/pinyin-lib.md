@@ -1,6 +1,6 @@
 # 拼音库（pinyin-pro）
 
-- 用途：只给「分词 + 带调拼音」，**从不给点位**。盲文一律由 `translate.js` 按 `data/` 里的规则与字表计算。
+- 用途：只给带调拼音（多音字按上下文），**从不给点位**。**注意：pinyin-pro 的 `segment()` 不是分词器**（它几乎一字一段，2.5.0–2.5.3 误用它导致每个字都被当成独立的词、词内插空方）。盲文一律由 `translate.js` 按 `data/` 里的规则与字表计算。
 - 版本：`pinyin-pro@3.29.5`（精确版本，MIT）。UMD 文件复制到 `src/vendor/pinyin-pro.js`，许可见 `src/vendor/pinyin-pro.LICENSE`，版本与 sha256 记录在 `src/vendor/VENDOR.json`。
 - 更新：`npm run vendor`（从 node_modules 复制并重写记录）；`node tools/vendor.js --check` 校验；`npm test` 也会校验 sha256。
 - 加载：第一次需要自动标注时才加载（`src/platform/pinyin-lib.js`），约 320KB；加载失败则只能手动输入拼音。

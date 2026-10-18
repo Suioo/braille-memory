@@ -480,6 +480,8 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
         ctx.ruleData = d.cards.length && root.BMRuleRound.availableTypes(d).length ? d : null;
       }
     } catch (_) { ctx.ruleData = null; }
+    // 拼音库分词时合并被通用分词器拆开的词：已知词 = 规则例词按其自身分写拆出的词块（只给分词，不给点位）
+    try { root.BMPinyinLib.setWords(ctx.ruleData ? root.BMPinyinProvider.exampleChunks(ctx.ruleData.words, ctx.translator.parse).flat() : []); } catch (_) { /* 无 */ }
     ctx.cats = root.BMCsv.categoriesOf(ctx.table);
     ctx.rowsById = new Map(ctx.table.map((r) => [r.id, r]));
     ctx.plan = root.BMCourse.planLessons(ctx.table, ctx.cfg.lessonSize);
