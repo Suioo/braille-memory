@@ -113,6 +113,10 @@
     modBase: '基础',
     modExt: '扩展',
     a11yModule: '范围',
+    groupLook: '外观',
+    groupPractice: '练习',
+    groupData: '数据',
+    groupAbout: '关于',
     // 规则 / 词句
     modRules: '规则',
     modWords: '词句',

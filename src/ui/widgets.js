@@ -863,7 +863,34 @@
     return { el, flip: () => { set(!flipped); if (o.onFlip) o.onFlip(el); return flipped; }, set, get flipped() { return flipped; } };
   }
 
-  /** 规则说明条（揭晓时「错在哪条规则」）：编号 · 类别 · 页码 + 规则正文（默认 3 行，可展开）。 */
+  let collapseSeq = 0;
+  /**
+   * 折叠区：标题行是一个按钮（aria-expanded / aria-controls），内容在下方；折叠时内容不可聚焦（inert）。
+   * 展开 / 折叠就地进行（不重建），动画由 CSS 完成（减弱动效下瞬时）。
+   * @param {{title: string|Node, open?: boolean, cls?: string, onToggle?: (open:boolean)=>void}} o
+   * @returns {HTMLElement} 带 setOpen(v) / isOpen()
+   */
+  function collapse(o, ...kids) {
+    const id = 'cb' + (++collapseSeq);
+    let open = !!o.open;
+    const body = h('div', { class: 'collapse-body', id, role: 'region' }, h('div', { class: 'collapse-inner' }, ...kids));
+    const head = h('button', { class: 'collapse-head sl', type: 'button', 'aria-controls': id, 'aria-expanded': String(open) },
+      h('span', { class: 'ch-title' }, o.title), h('span', { class: 'ch-chev', 'aria-hidden': 'true' }, ICON.next()));
+    const el = h('section', { class: 'collapse' + (o.cls ? ' ' + o.cls : '') + (open ? ' open' : '') }, head, body);
+    const apply = () => {
+      el.classList.toggle('open', open);
+      head.setAttribute('aria-expanded', String(open));
+      body.inert = !open;
+      if (!open) body.setAttribute('aria-hidden', 'true'); else body.removeAttribute('aria-hidden');
+    };
+    head.addEventListener('click', () => { open = !open; apply(); if (o.onToggle) o.onToggle(open); });
+    el.setOpen = (v) => { open = !!v; apply(); };
+    el.isOpen = () => open;
+    apply();
+    return el;
+  }
+
+  /** 规则说明条（揭晓时「错在哪条规则」）：标题行 = 编号 · 类别 · 页码，默认折叠；展开后是规则正文（默认 3 行，可再展开全文）。 */
   function ruleBoxEl(rule) {
     const text = h('p', { class: 'rule-text clamped', text: rule.text });
     const more = h('button', { class: 'btn sl text rule-more', type: 'button', 'aria-expanded': 'false', onclick: () => {
@@ -871,15 +898,14 @@
       more.setAttribute('aria-expanded', String(open));
       more.querySelector('span').textContent = open ? STR.collapse : STR.expand;
     } }, h('span', { text: STR.expand }));
-    return h('div', { class: 'rule-box', role: 'group', 'aria-label': STR.ruleName(rule.id) },
-      h('div', { class: 'rule-box-head' }, h('span', { class: 'rule-id sm num', text: rule.id }), catTag(rule.cat), h('span', { class: 'cat-tag pg', text: STR.rulePage(rule.page) })),
-      text, more);
+    const title = h('span', { class: 'rule-box-head' }, h('span', { class: 'rule-id sm num', text: rule.id }), catTag(rule.cat), h('span', { class: 'cat-tag pg', text: STR.rulePage(rule.page) }));
+    return collapse({ title, cls: 'rule-box', open: false }, text, more);
   }
 
   root.BMW = {
     cellEl, miniCellEl, symbolChip, DotsInput, ChooseInput, cardEl, starsEl, btn, iconBtn, filterChip, assistChip, segmented, switchEl,
     hooks, topBar, navBar, verdictEl, legendGlyph, revealPanel, answerDigits, progressBar,
     catTag, seqStripEl, extSymbolChip, extCardEl, SeqDotsInput, SeqChooseInput, extRevealPanel,
-    wordStripEl, WordInput, ruleCardEl, ruleBoxEl,
+    wordStripEl, WordInput, ruleCardEl, ruleBoxEl, collapse,
   };
 })(typeof self !== 'undefined' ? self : this);

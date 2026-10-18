@@ -177,6 +177,10 @@
     }));
     if (ctx.aboutOpen) openOnce();
 
+    let uiStore;
+    try { uiStore = root.BMUiState.createStore(root.localStorage); } catch (_) { uiStore = root.BMUiState.createStore(null); }
+    const grp = (id, title, kids, forceOpen) => W.collapse({ title, cls: 'list', open: !!forceOpen || uiStore.isOpen(id), onToggle: (o) => uiStore.set(id, o) }, ...kids);
+
     const el = h('div', { class: 'page me-page' },
       W.topBar(null, h('h1', { text: STR.tabMe }), null),
       h('div', { class: 'page-body' },
@@ -184,7 +188,8 @@
           stat(STR.weak, String(weak)),
           stat(STR.passedLabel, passed + '/' + status.length),
           stat(STR.starsLabel, stars + '/' + status.length * 3)),
-        h('section', { class: 'list' },
+        // 设置分组：默认只展开「练习」；展开 / 折叠就地进行，状态记在本机（不进存档、不导出）
+        grp('look', STR.groupLook, [
           seg(STR.theme, 'theme', [
             { value: 'system', text: STR.themeSystem }, { value: 'light', text: STR.themeLight }, { value: 'dark', text: STR.themeDark },
           ], (v) => ctx.setTheme(v)),
@@ -193,6 +198,8 @@
           ], (v) => ctx.setStyle(v)),
           item(STR.color, swatches, 'seed'),
           seg(STR.view, 'mirror', [{ value: false, text: STR.read }, { value: true, text: STR.mirror }], (v) => ctx.setMirror(v)),
+        ]),
+        grp('practice', STR.groupPractice, [
           seg(STR.roundLength, 'roundLength', ctx.cfg.round.lengths.map((n) => ({ value: n, text: String(n) }))),
           seg(STR.qtype, 'qtype', [
             { value: 'dots', text: STR.qtypeDots }, { value: 'choose', text: STR.qtypeChoose }, { value: 'mix', text: STR.qtypeMix },
@@ -201,9 +208,9 @@
           sw(STR.timing, 'timing'),
           sw(STR.fx, 'fx', () => ctx.fx.sync()),
           root.BMHaptics && root.BMHaptics.supported ? sw(STR.haptics, 'haptics') : null,
-          recordItem,
-          item(STR.clear, clearCtl, 'clear')),
-        about));
+        ]),
+        grp('data', STR.groupData, [recordItem, item(STR.clear, clearCtl, 'clear')], !!params.confirm),
+        grp('about', STR.groupAbout, [about])));
 
     function onKey(e) {
       if (e.key === 'Escape' && pending) { closeConfirm('button'); return true; }
