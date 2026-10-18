@@ -1,0 +1,69 @@
+# 进度
+
+> 视觉方向变更（用户要求）：纯黑白「辣眼睛」→ **Material Design 3（Material You）**：
+> 种子色色调板 + M3 角色变量、顶部应用栏 + 底部导航（学习/练习/闯关/我的）、胶囊按钮、筛选芯片、
+> 分段按钮（阅读/镜像）、开关、tonal 容器。W0 黑白样张（docs/samples/）已作废，仅留作记录。
+
+| 阶段 | 状态 | 说明 |
+|---|---|---|
+| W0 样张 | 完成（已被 M3 取代） | docs/samples/*.png |
+| W1 核心逻辑 | 完成 | src/core/{csv,cell,config,pick,timer,progress,round,course,palette}.js、src/main/store.js |
+| W2 页面 | 完成 | 8 个页面全部 M3（见下表） |
+| W3 动效 | 完成 | 状态层、点位回弹、翻卡、共享轴 / 淡入穿透、勾号描边、漏点错开、导航指示器、开关、星点；减少动态 → 瞬时 |
+| W4 验证 | 完成 | 52 个测试全过；138 张截图（23 页 × 浅/深 × 2 尺寸 + 陶土种子）已检查并修正；`--e2e` 冒烟验证存档写入/读入/损坏备份 |
+| W5 文档 | 完成 | README.md、report.md、contrast.md、design.md（M3 版） |
+
+## 页面
+
+| 页面 | 文件 | 状态 |
+|---|---|---|
+| 学习（标签） | src/views/learn.js | 完成 |
+| 练习（标签） | src/views/practice.js | 完成 |
+| 闯关 / 课程图（标签） | src/views/course.js | 完成 |
+| 我的 / 统计 + 设置（标签） | src/views/me.js | 完成 |
+| 答题（练习/复习/错题） | src/views/round.js | 完成 |
+| 一轮结果 | src/views/result.js | 完成 |
+| 单课（学→练→测） | src/views/lesson.js | 完成 |
+| 课结果 | src/views/lesson-result.js | 完成 |
+
+## 截图检查中修掉的问题
+
+- 课结果过关后不显示「下一课」（判断改为看本次结果）。
+- 结果页大片空白（内容垂直居中）。
+- 选错选项双层边框（只留虚线框）。
+- 单课学习卡被挤成窄条（卡片容器改为横向拉伸）。
+- 单课学习阶段出现空计时框、结果占位挤压卡片（学习/复习卡时隐藏）。
+- 陶土种子深色下「命中」与「多点」颜色接近（多点改为 error-container 实心 + 粗 error 外圈）。
+- 480×640 下课程图进度条被压成 0 高、提示符号贴住盲文方。
+
+## 图标与迷你预览点图（2026-10-17）
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| 应用图标 | 完成 | tools/make-icon.js（Electron 离屏渲染）+ tools/icon-lib.js（SVG、超椭圆、自写 ICO）；点位取 CSV 第一行；build/icon.{svg,png,ico}；窗口图标 src/assets/icon.ico；16 px 小号版加大点距 |
+| exe 图标 | 完成 | package.json win.icon + signExecutable:false；npm run pack 未产生新下载（Electron zip 来自本机缓存，未拉取 winCodeSign）；docs/shots/exe-icon.png |
+| 迷你预览点图 | 完成 | widgets.miniCellEl / symbolChip；core cellLayout 共用布局；学习卡背面、选符号题、揭晓后的点点位题与单课练/测、结果芯片 |
+| 测试 | 58 通过 | 新增 tests/icon.test.js（ICO、PNG 头、SVG 点数）与 cellLayout / 镜像测试 |
+| 截图 | 完成 | learn-back、practice-choose、practice-wrong、practice-correct、lesson-study、lesson-test-reveal（浅/深 × 720×960/480×640），另 result、lesson-result、practice-wrong-mirror、learn-mirror 重拍；icon-preview.png、exe-learn-back.png |
+
+截图中修掉：480×640 学习卡背面内容溢出卡片；选符号题迷你点图顶到进度条（改为放在大方格左侧）。
+
+## Android（Capacitor 8.5.2）+ Material 3 Expressive（进行中）
+
+| 步骤 | 状态 | 说明 |
+|---|---|---|
+| npm 安装 | 完成 | @capacitor/core、cli、android = 8.5.2（devDependencies，精确版本）；连带 52 个 cli 传递依赖 |
+| 平台适配 | 完成 | src/platform/web-store.js（localStorage，先写 .tmp 再换、损坏存 .corrupt）、src/platform/web.js（无 Electron preload 时提供 window.bm）；BMTheme.setMode |
+| www 组装 | 完成 | tools/build-www.js（src 不含 src/main + data 逐字节复制，校验 sha256） |
+| 返回键 | 完成 | app.js 用 history API：离开根标签「学习」时保留一条历史，popstate = Esc |
+| Android 工程 | 完成 | npx cap add android（模板默认：compile/target 36、min 24、AGP 8.13.0、Gradle 8.14.3）；capacitor.config.json（SystemBars insetsHandling=css、viewport-fit cover 提示） |
+| 首次构建 | 进行中 | tools/android-build.js（只在子进程设 JAVA_HOME/ANDROID_HOME），日志 dist/android-build.log |
+| 测试 | 65 通过 | 新增 web-store.test.js（假 localStorage）、build-www.test.js（字表逐字节） |
+
+## Material 3 Expressive 视觉/动效升级（2026-10-18）
+
+- 动效：CSS linear() 弹簧（fast 800/0.6 用于按压/选中/点位；default 380/0.8 用于页面/卡片；effects 1600/1.0 用于透明度/颜色），时长 200–480 ms；减少动态仍瞬时。
+- 形状变形：按钮/图标按钮/芯片/分段按钮/卡片/导航指示器按下变圆角方，选中更圆；盲文点由 circle 改为 rect(rx)，按下 rx 47→30 再弹回，静止仍为正圆。
+- 更大更粗：主按钮 72 px、普通 56 px；符号/关键数字/顶栏标题加大加粗；卡片更大圆角；答题页底部操作区为浮动工具栏。
+- 截图：docs/shots/expressive/（412x915，浅/深，6 页）。测试 65 通过。
+- 产物：dist\win-unpacked\盲文记忆.exe；dist\盲文记忆-debug.apk（versionCode 2 / 1.1）。无新增下载。

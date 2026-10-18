@@ -1,0 +1,30 @@
+# deps / build output
+node_modules/
+dist/
+www/
+# android generated
+android/app/build/
+android/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/captures/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/capacitor-cordova-android-plugins/build/
+*.apk
+*.aab
+# secrets / local
+private/
+*.keystore
+*.jks
+.env
+# screenshots (generated, heavy)
+docs/shots/
+# misc
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

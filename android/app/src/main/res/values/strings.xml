@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">盲文记忆</string>
+    <string name="title_activity_main">盲文记忆</string>
+    <string name="package_name">local.braillememory</string>
+    <string name="custom_url_scheme">local.braillememory</string>
+</resources>

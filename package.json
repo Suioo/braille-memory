@@ -1,0 +1,60 @@
+{
+  "name": "braille-memory",
+  "productName": "盲文记忆",
+  "version": "2.0.2",
+  "description": "汉语现行盲文点位记忆练习（Windows 桌面版）",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"tests/**/*.test.js\"",
+    "pack": "electron-builder --win dir",
+    "icon": "electron tools/make-icon.js",
+    "www": "node tools/build-www.js",
+    "android:icons": "electron tools/make-android-icons.js",
+    "android:sync": "node tools/build-www.js && cap sync android",
+    "android:build": "node tools/android-build.js"
+  },
+  "build": {
+    "appId": "local.braille-memory",
+    "productName": "盲文记忆",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "data",
+        "to": "data"
+      },
+      {
+        "from": "private",
+        "to": ".",
+        "filter": [
+          "contact.json"
+        ]
+      }
+    ],
+    "win": {
+      "target": "dir",
+      "icon": "build/icon.ico",
+      "signExecutable": false
+    },
+    "npmRebuild": false
+  },
+  "devDependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/cli": "8.5.2",
+    "@capacitor/core": "8.5.2",
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3"
+  },
+  "dependencies": {
+    "@capacitor/haptics": "8.0.2"
+  }
+}

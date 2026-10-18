@@ -1,0 +1,17 @@
+{
+  "lessonSize": 5,
+  "options": 4,
+  "score": { "min": 0, "max": 8, "right": -1, "wrong": 2 },
+  "round": { "lengths": [10, 20], "defaultLength": 10 },
+  "timing": { "autoNextMs": 900, "autoNextMirrorMs": 1500, "inputGuardMs": 150 },
+  "course": {
+    "cleanCorrect": 2,
+    "requeueGap": 2,
+    "testRepeats": 2,
+    "stars": [
+      { "acc": 0.8, "avgSec": 12 },
+      { "acc": 0.9, "avgSec": 9 },
+      { "acc": 1.0, "avgSec": 6 }
+    ]
+  }
+}

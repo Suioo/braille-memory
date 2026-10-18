@@ -1,0 +1,14 @@
+{
+  "appId": "local.braillememory",
+  "appName": "盲文记忆",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#F4FAFF"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}

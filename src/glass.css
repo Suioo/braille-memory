@@ -1,0 +1,122 @@
+/* 玻璃风格（设置「风格」= 玻璃；<html data-style="glass">）。在 styles.css 之后加载，只做样式覆盖。
+   受 Apple「Liquid Glass」设计语言启发的原创实现：DOM / 行为 / 无障碍名称与 Material 完全相同。
+   系统字体与应用自带 SVG 图标；不使用任何 Apple 字体、符号或商标。
+   模糊层只有：卡片、列表、底部标签栏、答题浮动工具栏（不给每个点、每个课卡、每个面加模糊；
+   翻卡的两个面在 3D 变换里，backdrop-filter 会破坏 preserve-3d，所以只用半透明填充）。
+   填充不透明度 --g-a / 色块强度 --g-blob 由 theme.js 从 palette.js 的 GLASS 写入，对比度实测见 docs/contrast.md。 */
+html[data-style="glass"] {
+  --g-a-use: var(--g-a, 0.72);
+  --g-base: var(--surface-container-lowest);
+  --g-fill: color-mix(in srgb, var(--g-base) calc(var(--g-a-use) * 100%), transparent);
+  --g-edge: rgba(255, 255, 255, 0.8);
+  --g-spec: rgba(255, 255, 255, 1);
+  --g-shadow: 0 14px 34px rgba(20, 30, 60, 0.18), 0 3px 8px rgba(20, 30, 60, 0.10);
+  --g-blur: blur(34px) saturate(240%);
+  --g-r: 32px;
+  --g-glass: inset 0 0 0 1px var(--g-edge), inset 0 1px 0 var(--g-spec), inset 0 12px 18px -10px rgba(255, 255, 255, 0.45), var(--g-shadow);
+  --g-tint: 82%;
+  --g-blob-a: calc(var(--g-blob, 0.3) * 100%);
+}
+html[data-style="glass"][data-mode="dark"] {
+  --g-base: var(--surface-container-high);
+  --g-edge: rgba(255, 255, 255, 0.24);
+  --g-spec: rgba(255, 255, 255, 0.5);
+  --g-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+/* 不支持 backdrop-filter：填充更不透明 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html[data-style="glass"] { --g-a-use: var(--g-a-fallback, 0.94); }
+}
+
+/* 背景：静态色块（由种子色派生），让模糊有东西可看 */
+html[data-style="glass"] .screen {
+  position: relative;
+  background:
+    radial-gradient(circle 78vmin at 96% 4%, color-mix(in srgb, var(--primary) var(--g-blob-a), transparent) 0 55%, transparent 100%),
+    radial-gradient(circle 70vmin at 0% 40%, color-mix(in srgb, var(--tertiary) var(--g-blob-a), transparent) 0 52%, transparent 100%),
+    radial-gradient(circle 84vmin at 92% 96%, color-mix(in srgb, var(--secondary) var(--g-blob-a), transparent) 0 52%, transparent 100%),
+    var(--surface);
+}
+
+/* 玻璃表面：半透明着色填充 + 1px 亮边 + 内部高光 */
+html[data-style="glass"] :is(.cell-card, .face, .list, .stats-card, .hero-card, .entry-card, .summary-card, .weak-card, .lesson-tile, .option, .nav-bar, .q-page .footer):not(:disabled):not(.dim) {
+  background: var(--g-fill);
+  box-shadow: var(--g-glass);
+}
+html[data-style="glass"] .face.back { background: color-mix(in srgb, var(--g-base) calc(var(--g-a-use) * 100% + 10%), transparent); }
+/* 文字区（卡片正反面、选项、题面卡）多一层着色，保证对比度 */
+html[data-style="glass"] :is(.face, .option, .cell-card):not(.dim):not(:disabled) { background-image: linear-gradient(180deg, color-mix(in srgb, var(--g-base) 22%, transparent), transparent 60%); }
+/* 只在这些层上做模糊 */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  html[data-style="glass"] :is(.cell-card, .list, .stats-card, .hero-card, .entry-card, .summary-card, .weak-card, .nav-bar, .q-page .footer) {
+    -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur);
+  }
+}
+/* 着色玻璃：容器色为主、近乎不透明，文字对比度同 Material */
+html[data-style="glass"] .hero-card { background: color-mix(in srgb, var(--primary-container) var(--g-tint), transparent); }
+html[data-style="glass"] .stats-card { background: color-mix(in srgb, var(--secondary-container) var(--g-tint), transparent); }
+html[data-style="glass"] .summary-card.passed,
+html[data-style="glass"] .lesson-tile.current,
+html[data-style="glass"] .option.right { background: color-mix(in srgb, var(--primary-container) var(--g-tint), transparent); }
+html[data-style="glass"] .option.wrong { background: color-mix(in srgb, var(--error-container) var(--g-tint), transparent); }
+html[data-style="glass"] :is(.lesson-tile, .entry-card):disabled,
+html[data-style="glass"] .option.dim { background: color-mix(in srgb, var(--g-base) 45%, transparent); box-shadow: inset 0 0 0 1px var(--g-edge); }
+
+/* 大圆角与胶囊 */
+html[data-style="glass"] :is(.cell-card, .face, .list, .stats-card, .hero-card, .summary-card) { border-radius: var(--g-r); }
+html[data-style="glass"] :is(.entry-card, .option, .weak-card, .option.right) { border-radius: 28px; }
+html[data-style="glass"] .lesson-tile, html[data-style="glass"] .lesson-tile.current { border-radius: 24px; }
+html[data-style="glass"] .option:active:not(:disabled), html[data-style="glass"] .entry-card:active:not(:disabled),
+html[data-style="glass"] .lesson-tile:active:not(:disabled) { border-radius: inherit; transform: scale(0.96); }
+html[data-style="glass"] .q-page .footer { border-radius: 999px; }
+
+/* 按钮：胶囊、轻微高光；按下是弹簧缩放而不是变形 */
+html[data-style="glass"] .btn { border-radius: 999px; }
+html[data-style="glass"] .btn:active:not(:disabled), html[data-style="glass"] .btn.fab:active:not(:disabled) { border-radius: 999px; transform: scale(0.95); }
+html[data-style="glass"] .btn.filled { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 16px color-mix(in srgb, var(--primary) 28%, transparent); }
+html[data-style="glass"] .btn.error { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+html[data-style="glass"] .btn.tonal { box-shadow: inset 0 0 0 1px var(--g-edge), inset 0 1px 0 var(--g-spec); }
+html[data-style="glass"] .btn:disabled { box-shadow: none; }
+html[data-style="glass"] .icon-btn, html[data-style="glass"] .icon-btn[aria-pressed="true"], html[data-style="glass"] .icon-btn:active:not(:disabled) { border-radius: 50%; }
+html[data-style="glass"] .icon-btn:active:not(:disabled) { transform: scale(0.92); }
+html[data-style="glass"] .icon-btn { transition: transform var(--t-morph) var(--spring-fast), background var(--t-state) var(--effects), color var(--t-state) var(--effects); }
+html[data-style="glass"] .icon-btn.tonal { box-shadow: inset 0 0 0 1px var(--g-edge), inset 0 1px 0 var(--g-spec); }
+html[data-style="glass"] :is(.chip, .chip.selected, .chip.assist, .chip:active:not(:disabled)) { border-radius: 999px; }
+html[data-style="glass"] .swatch, html[data-style="glass"] .swatch.selected, html[data-style="glass"] .swatch:active { border-radius: 50%; }
+html[data-style="glass"] .swatch:active { transform: scale(0.92); }
+html[data-style="glass"] .swatch.selected { box-shadow: 0 0 0 2px var(--g-base), 0 0 0 4px var(--on-surface); }
+
+/* 分段控件：胶囊轨道 + 弹出的胶囊滑块 */
+html[data-style="glass"] .segmented { border-radius: 999px; padding: 4px; gap: 2px; background: color-mix(in srgb, var(--g-base) 55%, transparent); box-shadow: inset 0 0 0 1px var(--outline), inset 0 1.5px 2px rgba(0, 0, 0, 0.06); }
+html[data-style="glass"] .seg, html[data-style="glass"] .seg.selected, html[data-style="glass"] .seg:active { border-radius: 999px; }
+html[data-style="glass"] .seg { transition: transform var(--t-morph) var(--spring-fast), background var(--t-state) var(--effects), color var(--t-state) var(--effects), box-shadow var(--t-state) var(--effects); }
+html[data-style="glass"] .seg-ind { top: 4px; bottom: 4px; border-radius: 999px; box-shadow: inset 0 1px 0 var(--g-spec), 0 3px 10px rgba(0, 0, 0, 0.14); }
+html[data-style="glass"] .seg.sl:active { transform: scale(0.94); }
+
+/* 列表：分隔线更淡 */
+html[data-style="glass"] .list { padding: 4px; }
+html[data-style="glass"] .list-item + .list-item { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--outline) 35%, transparent); }
+
+/* 大标题顶栏（标签页：没有返回键）；其余页面保持紧凑，背景透明 */
+html[data-style="glass"] .top-bar { background: transparent; }
+html[data-style="glass"] .top-bar:has(.tb-lead:empty) {
+  height: auto; min-height: calc(4.5rem + var(--sa-top)); align-items: flex-end; padding: var(--sa-top) 16px 6px 12px;
+}
+html[data-style="glass"] .top-bar:has(.tb-lead:empty) .tb-title h1 { font-size: 2.125rem; line-height: 1.25; letter-spacing: 0; }
+
+/* 悬浮胶囊标签栏：离开边缘，避开安全区；内容可滚动到它下面 */
+html[data-style="glass"] .nav-bar {
+  position: absolute; left: calc(14px + var(--sa-left)); right: calc(14px + var(--sa-right)); bottom: calc(10px + var(--sa-bottom));
+  height: 68px; padding: 6px 8px; border-radius: 999px; z-index: 5; align-items: center;
+}
+html[data-style="glass"] .screen.with-nav .page-body { padding-bottom: calc(100px + var(--sa-bottom)); }
+html[data-style="glass"] .nav-item { justify-content: center; gap: 2px; }
+html[data-style="glass"] .nav-ind { width: 64px; height: 32px; border-radius: 999px; transition: transform var(--t-morph) var(--spring-fast), background var(--t-state) var(--effects); }
+html[data-style="glass"] .nav-item.active .nav-ind, html[data-style="glass"] .nav-item:active .nav-ind { border-radius: 999px; }
+html[data-style="glass"] .nav-item.active .nav-ind { box-shadow: inset 0 1px 0 var(--g-spec), 0 2px 8px rgba(0, 0, 0, 0.12); }
+html[data-style="glass"] .nav-item:active .nav-ind { transform: scale(0.92); }
+html[data-style="glass"] .nav-label { font-size: 12px; }
+
+/* 盲文点：凸起 = 实心主色（不透明）；空 = 清晰细圈；揭晓形状（对勾 / 虚线圈+加号 / 叉）不变。点本身不做模糊 */
+html[data-style="glass"] .dot.on:not(.extra) .ring rect { fill: var(--primary); stroke: var(--primary); fill-opacity: 1; }
+html[data-style="glass"] .dot.on:not(.extra) { filter: drop-shadow(0 2px 3px color-mix(in srgb, var(--primary) 35%, transparent)); }
