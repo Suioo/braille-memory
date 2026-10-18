@@ -120,6 +120,45 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   ctx.setTheme = (t) => { ctx.settings.theme = t; root.bm.setTheme(t); ctx.save(); };
   ctx.setSeed = (name) => { ctx.settings.seed = name; root.BMTheme.setSeed(name); ctx.save(); };
   ctx.setStyle = (name) => { ctx.settings.style = name; root.BMTheme.setStyle(name); ctx.save(); };
+  /** 把当前设置重新应用到界面（导入 / 撤销后）。 */
+  function applySettings() {
+    root.bm.setTheme(ctx.settings.theme);
+    root.BMTheme.setSeed(ctx.settings.seed);
+    root.BMTheme.setStyle(ctx.settings.style);
+    ctx.fx.sync();
+  }
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  /** 导出当前记录。@returns {Promise<'ok'|'canceled'|'fail'>} */
+  ctx.exportRecord = async () => {
+    const r = await root.bm.exportRecord(root.BMBackup.buildExport(ctx.progress, ctx.version), root.BMBackup.defaultFileName());
+    return r && r.ok ? 'ok' : r && r.canceled ? 'canceled' : 'fail';
+  };
+  /** 选择并校验导入文件；不改动现有记录。@returns {Promise<{canceled:true}|{ok:false,reason:string}|{ok:true,progress,imported,skipped}>} */
+  ctx.pickImport = async () => {
+    const r = await root.bm.pickRecord();
+    if (!r || !r.ok) return r && r.canceled ? { canceled: true } : { ok: false, reason: (r && r.reason) || 'read' };
+    return root.BMBackup.parseImport(r.text, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name));
+  };
+  /** 确认后覆盖：先备份当前记录，写入失败自动恢复。@returns {Promise<boolean>} */
+  ctx.applyImport = async (next) => {
+    await saving;
+    const r = await root.BMBackup.applyImport(clone(ctx.progress), next, { saveBackup: root.bm.saveBackup, saveProgress: root.bm.saveProgress });
+    if (!r.ok) return false;
+    ctx.progress = next;
+    ctx.hasUndo = true;
+    applySettings();
+    return true;
+  };
+  /** 撤销上次导入：恢复到导入前的记录。 */
+  ctx.undoImport = async () => {
+    await saving;
+    const r = await root.BMBackup.undoImport({ loadBackup: root.bm.loadBackup, saveProgress: root.bm.saveProgress, clearBackup: root.bm.clearBackup });
+    if (!r.ok) { if (r.reason === 'none') ctx.hasUndo = false; return false; }
+    ctx.progress = P.normalizeProgress(r.data, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name));
+    ctx.hasUndo = false;
+    applySettings();
+    return true;
+  };
   ctx.clearProgress = () => { ctx.progress = P.clearProgress(ctx.progress, ctx.cfg); ctx.save(); };
 
   // ---------- 键盘 ----------
@@ -379,6 +418,8 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     ctx.progress = P.normalizeProgress(b.progress, ctx.table, ctx.plan, ctx.cfg, ctx.cats.map((c) => c.name));
     ctx.shot = !!b.shot;
     ctx.version = b.version || '';
+    ctx.hasUndo = false;
+    if (!b.shot) { try { ctx.hasUndo = !!(await root.bm.loadBackup()); } catch (_) { ctx.hasUndo = false; } }
     ctx.contact = b.contact || null; // 本机私有联系方式（可缺失）；不记录日志
     if (b.shot && b.fontScale) document.documentElement.style.fontSize = (b.fontScale * 100) + '%'; // 模拟安卓文字缩放
     shotStyle = b.style === 'glass' ? 'glass' : 'material';

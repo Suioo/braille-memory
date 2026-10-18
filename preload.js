@@ -9,6 +9,14 @@ contextBridge.exposeInMainWorld('bm', {
   boot: () => ipcRenderer.invoke('boot:get'),
   /** 保存进度（主进程原子写入）；返回是否成功 */
   saveProgress: (data) => ipcRenderer.invoke('progress:save', data),
+  /** 导出记录：保存对话框 + 写文件；返回 {ok, canceled?} */
+  exportRecord: (text, name) => ipcRenderer.invoke('backup:export', text, name),
+  /** 导入记录：打开对话框 + 读文件；返回 {ok, text} | {ok:false, canceled?, reason?} */
+  pickRecord: () => ipcRenderer.invoke('backup:import'),
+  /** 导入前的备份（供撤销）：保存 / 读取 / 清除 */
+  saveBackup: (data) => ipcRenderer.invoke('backup:save', data),
+  loadBackup: () => ipcRenderer.invoke('backup:load'),
+  clearBackup: () => ipcRenderer.invoke('backup:clear'),
   /** 设置主题来源：'system' | 'light' | 'dark' */
   setTheme: (source) => ipcRenderer.invoke('theme:set', source),
   /** 截图：页面已稳定 */

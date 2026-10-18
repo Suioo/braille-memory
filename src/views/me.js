@@ -66,6 +66,60 @@
         }, { variant: 'error' }))
       : W.btn(STR.clearBtn, () => { confirming = true; again(C.sel('data-key', 'clear') + ' .error-text'); }, { variant: 'error-text' });
 
+    // 记录：导出 / 导入 / 撤销。控件原位更新（不重建页面，保持滚动位置与焦点）；导入先校验，确认后才覆盖。
+    const recordKey = C.sel('data-key', 'record');
+    const ctl = h('div', { class: 'confirm-row' });
+    const recordItem = item(STR.record, ctl, 'record');
+    let pending = null; // 已校验、等待确认的导入结果
+    let confirmRow = null;
+    let busy = false;
+    const closeConfirm = (focus) => {
+      pending = null;
+      if (confirmRow) { confirmRow.remove(); confirmRow = null; }
+      if (focus) { const t = recordItem.querySelector(focus); if (t) t.focus({ preventScroll: true }); }
+    };
+    const guard = async (fn) => { if (busy) return; busy = true; try { await fn(); } finally { busy = false; } };
+    function drawRecordButtons() {
+      const btns = [
+        W.btn(STR.exportBtn, () => guard(async () => {
+          const r = await ctx.exportRecord();
+          if (r !== 'canceled') ctx.toast(r === 'ok' ? STR.exported : STR.exportFail);
+        }), { variant: 'text', label: STR.a11yExport }),
+        W.btn(STR.importBtn, () => guard(async () => {
+          closeConfirm();
+          const r = await ctx.pickImport();
+          if (r.canceled) return;
+          if (!r.ok) { ctx.toast(STR.importReason[r.reason] || STR.importFail); return; }
+          pending = r;
+          confirmRow = h('div', { class: 'list-item', 'data-key': 'record-confirm' },
+            h('span', { class: 'li-label wrap', role: 'alert', text: STR.importSummary(r.imported, r.skipped) }),
+            h('div', { class: 'li-ctl' }, h('div', { class: 'confirm-row' },
+              W.btn(STR.cancel, () => closeConfirm('button'), { variant: 'text' }),
+              W.btn(STR.overwrite, () => guard(async () => {
+                const next = pending && pending.progress;
+                closeConfirm();
+                if (!next) return;
+                const ok = await ctx.applyImport(next);
+                ctx.toast(ok ? STR.importDone : STR.importFail);
+                if (ok) again(recordKey + ' button');
+              }), { variant: 'error' }))));
+          recordItem.after(confirmRow);
+          confirmRow.scrollIntoView({ block: 'nearest' });
+          const cb = confirmRow.querySelector('button'); if (cb && !root.matchMedia('(pointer: coarse)').matches) cb.focus({ preventScroll: true });
+        }), { variant: 'text', label: STR.a11yImport }),
+      ];
+      if (ctx.hasUndo) {
+        btns.push(W.btn(STR.undoBtn, () => guard(async () => {
+          closeConfirm();
+          const ok = await ctx.undoImport();
+          ctx.toast(ok ? STR.undone : STR.undoFail);
+          again(recordKey + ' button');
+        }), { variant: 'text', label: STR.a11yUndo }));
+      }
+      ctl.replaceChildren(...btns);
+    }
+    drawRecordButtons();
+
     // 关于：只显示版本号；7 次点按（7 s 内）后再按住 2 s 才显示反馈行（无任何提前反馈）。
     // 联系方式只来自本机 contact.json（经 boot 传入 ctx.contact）；缺失则什么都不显示。屏内状态存在 ctx 上。
     const A = root.BMAbout;
@@ -147,10 +201,12 @@
           sw(STR.timing, 'timing'),
           sw(STR.fx, 'fx', () => ctx.fx.sync()),
           root.BMHaptics && root.BMHaptics.supported ? sw(STR.haptics, 'haptics') : null,
+          recordItem,
           item(STR.clear, clearCtl, 'clear')),
         about));
 
     function onKey(e) {
+      if (e.key === 'Escape' && pending) { closeConfirm('button'); return true; }
       if (e.key === 'Escape' && confirming) { confirming = false; again(C.sel('data-key', 'clear') + ' button'); return true; }
       return false;
     }

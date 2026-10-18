@@ -47,7 +47,7 @@ npx electron . --shot=learn-mirror --out=a.png --size=412x915 --font-scale=1.3 -
 | `preload.js` | `window.bm`：boot / saveProgress / setTheme / 截图回调（contextIsolation + sandbox） |
 | `data/braille_table.csv` | 字表（id, symbol, dots, source, category）——唯一点位来源 |
 | `data/config.json` | 每课符号数、选项数、计分、题量、自动下题、防误触、闯关阈值 |
-| `src/core/` | csv（解析校验）、cell（布局/判分）、config、pick（随机/加权/选项）、timer、progress（计分/存档模型）、round（练习/复习/错题）、course（分课/评星/单课流程）、palette（M3 配色/对比度） |
+| `src/core/` | backup（记录导出 / 导入校验 / 撤销）、csv（解析校验）、cell（布局/判分）、config、pick（随机/加权/选项）、timer、progress（计分/存档模型）、round（练习/复习/错题）、course（分课/评星/单课流程）、palette（M3 配色/对比度） |
 | `src/main/store.js` | 原子写入 + 损坏备份 |
 | `src/ui/` | dom（工具/图标）、theme（配色写入 CSS 变量）、widgets（M3 部件、盲文方） |
 | `src/views/` | learn、practice、course、me（4 个标签页）；round、result、lesson、lesson-result（全屏页）；common |

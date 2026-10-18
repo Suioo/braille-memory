@@ -55,6 +55,8 @@
     "electron-builder": "26.15.3"
   },
   "dependencies": {
-    "@capacitor/haptics": "8.0.2"
+    "@capacitor/filesystem": "8.1.4",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/share": "8.0.3"
   }
 }

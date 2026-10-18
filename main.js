@@ -12,13 +12,14 @@
  *   --e2e=<预设> --user-data=<dir>    冒烟：运行一个截图预设流程（会写存档到 dir）后退出
  *   截图模式一律使用临时数据目录且不写存档。
  */
-const { app, BrowserWindow, ipcMain, nativeTheme, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeTheme, Menu, dialog } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { parseTable } = require('./src/core/csv.js');
 const { mergeConfig } = require('./src/core/config.js');
 const { Store } = require('./src/main/store.js');
 const Pal = require('./src/core/palette.js');
+const { MAX_CHARS } = require('./src/core/backup.js');
 
 const THEMES = ['system', 'light', 'dark'];
 
@@ -169,6 +170,42 @@ ipcMain.handle('progress:save', (e, data) => {
   if (!fromOurWindow(e) || shotMode) return false; // 截图模式不写盘（e2e 写入 --user-data）
   if (!data || typeof data !== 'object') return false;
   try { store.save(data); return true; } catch (err) { console.error('[save] ' + err.message); return false; }
+});
+
+// ---------- 记录导出 / 导入 / 撤销备份 ----------
+const backupStore = new Store(app.getPath('userData'), 'progress.backup.json');
+const JSON_FILTER = [{ name: 'JSON', extensions: ['json'] }];
+ipcMain.handle('backup:export', async (e, text, name) => {
+  if (!fromOurWindow(e) || shotMode || typeof text !== 'string' || typeof name !== 'string') return { ok: false };
+  try {
+    const r = await dialog.showSaveDialog(win, { defaultPath: path.basename(name), filters: JSON_FILTER });
+    if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+    const tmp = r.filePath + '.tmp';
+    fs.writeFileSync(tmp, text, 'utf8');
+    fs.renameSync(tmp, r.filePath);
+    return { ok: true };
+  } catch (err) { console.error('[export] ' + err.message); return { ok: false }; }
+});
+ipcMain.handle('backup:import', async (e) => {
+  if (!fromOurWindow(e) || shotMode) return { ok: false };
+  try {
+    const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: JSON_FILTER });
+    if (r.canceled || !r.filePaths.length) return { ok: false, canceled: true };
+    if (fs.statSync(r.filePaths[0]).size > MAX_CHARS * 4) return { ok: false, reason: 'size' };
+    return { ok: true, text: fs.readFileSync(r.filePaths[0], 'utf8') };
+  } catch (err) { console.error('[import] ' + err.message); return { ok: false, reason: 'read' }; }
+});
+ipcMain.handle('backup:save', (e, data) => {
+  if (!fromOurWindow(e) || shotMode || !data || typeof data !== 'object') return false;
+  try { backupStore.save(data); return true; } catch (err) { console.error('[backup] ' + err.message); return false; }
+});
+ipcMain.handle('backup:load', (e) => {
+  if (!fromOurWindow(e) || shotMode) return null;
+  try { const r = backupStore.load(); return r.status === 'ok' ? r.data : null; } catch (_) { return null; }
+});
+ipcMain.handle('backup:clear', (e) => {
+  if (!fromOurWindow(e) || shotMode) return false;
+  try { fs.rmSync(backupStore.file, { force: true }); return true; } catch (_) { return false; }
 });
 ipcMain.handle('theme:set', (e, source) => {
   if (!fromOurWindow(e) || !THEMES.includes(source)) return nativeTheme.themeSource;

@@ -3,6 +3,8 @@
  * - boot：fetch 打包进 www 的 data/braille_table.csv 与 data/config.json，按同一规则解析校验；
  *   存档从 localStorage 读（BMWebStore）。
  * - setTheme：没有 nativeTheme，改为强制页面深浅色（BMTheme.setMode）；Android 上同步系统栏图标深浅。
+ * - 记录导出 / 导入 / 撤销备份：Android 用 Filesystem 写缓存文件再交给 Share；浏览器用 Blob 下载 / 文件选择；
+ *   撤销备份存在单独的 localStorage 键。
  * - 截图相关 API 为空操作。
  * 页面代码不区分平台，只调用 window.bm。
  */
@@ -23,6 +25,19 @@
     } catch (_) { /* 非原生环境 */ }
     return Promise.resolve();
   }
+  /** 同 nativeCall，但把失败抛给调用方（导出要知道是否成功）。 */
+  function nativeInvoke(plugin, method, options) {
+    const cap = root.Capacitor;
+    if (!cap || typeof cap.nativePromise !== 'function' || typeof cap.isNativePlatform !== 'function' || !cap.isNativePlatform()) {
+      return Promise.reject(new Error('no native'));
+    }
+    return cap.nativePromise(plugin, method, options);
+  }
+  const isNative = () => { try { return !!(root.Capacitor && root.Capacitor.isNativePlatform()); } catch (_) { return false; } };
+  const maxChars = () => (root.BMBackup ? root.BMBackup.MAX_CHARS : 2 * 1024 * 1024);
+  let backupStore = null;
+  try { backupStore = new root.BMWebStore.WebStore(root.localStorage, 'braille-memory.progress.backup'); } catch (_) { backupStore = null; }
+
   /** 系统栏图标：深色界面用浅色图标（SystemBars 的 DARK 样式），反之亦然。 */
   function syncSystemBars() {
     const dark = root.BMTheme ? root.BMTheme.isDark() : false;
@@ -71,6 +86,55 @@
       if (root.BMTheme) root.BMTheme.setMode(source);
       syncSystemBars();
       return source;
+    },
+    /** 导出记录文本。@returns {Promise<{ok:boolean, canceled?:boolean}>} */
+    async exportRecord(text, name) {
+      try {
+        if (isNative()) {
+          const w = await nativeInvoke('Filesystem', 'writeFile', { path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
+          await nativeInvoke('Share', 'share', { title: name, url: w.uri, dialogTitle: name });
+          return { ok: true };
+        }
+        const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+        const a = root.document.createElement('a');
+        a.href = url; a.download = name; a.style.display = 'none';
+        root.document.body.append(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        return { ok: true };
+      } catch (e) {
+        // 用户在分享面板里取消不算失败
+        return /cancel/i.test(String(e && (e.message || e))) ? { ok: false, canceled: true } : { ok: false };
+      }
+    },
+    /** 选择一个记录文件并读出文本。@returns {Promise<{ok:true,text:string}|{ok:false,canceled?:boolean,reason?:string}>} */
+    pickRecord() {
+      return new Promise((resolve) => {
+        try {
+          const input = root.document.createElement('input');
+          input.type = 'file'; input.accept = '.json,application/json'; input.style.display = 'none';
+          input.addEventListener('change', async () => {
+            const f = input.files && input.files[0];
+            input.remove();
+            if (!f) return resolve({ ok: false, canceled: true });
+            if (f.size > maxChars() * 4) return resolve({ ok: false, reason: 'size' });
+            try { resolve({ ok: true, text: await f.text() }); } catch (_) { resolve({ ok: false, reason: 'read' }); }
+          });
+          input.addEventListener('cancel', () => { input.remove(); resolve({ ok: false, canceled: true }); });
+          root.document.body.append(input);
+          input.click();
+        } catch (_) { resolve({ ok: false, reason: 'read' }); }
+      });
+    },
+    /** 导入前的完整备份（供「撤销」）：保存 / 读取 / 清除。 */
+    async saveBackup(data) {
+      if (!backupStore || !data || typeof data !== 'object') return false;
+      try { backupStore.save(data); return true; } catch (_) { return false; }
+    },
+    async loadBackup() {
+      try { const r = backupStore ? backupStore.load() : null; return r && r.status === 'ok' ? r.data : null; } catch (_) { return null; }
+    },
+    async clearBackup() {
+      try { if (backupStore) { backupStore.storage.removeItem(backupStore.key); backupStore.storage.removeItem(backupStore.tmpKey); } return true; } catch (_) { return false; }
     },
     shotReady() {},
     shotPages() {},
