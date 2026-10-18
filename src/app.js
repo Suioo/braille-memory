@@ -58,7 +58,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     $app.replaceChildren(screen);
     const navEl = screen.querySelector('.nav-bar');
     if (navEl && navEl.start) navEl.start(); // 导航指示块在首次绘制前就位
-    // 原地刷新（设置项改动等）保留滚动位置，否则「我的」页每点一下都会跳回顶部
+    // 原地刷新（设置项改动等）保留滚动位置，否则「设置」页每点一下都会跳回顶部
     if (keepScroll) { const nb = screen.querySelector('.page-body'); if (nb) nb.scrollTop = keepScroll; }
     const target = (params.focus && screen.querySelector(params.focus)) || (COARSE ? null : screen.querySelector('[data-autofocus]'));
     (target || screen).focus({ preventScroll: true });
@@ -343,13 +343,17 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
       const after = document.querySelector('.page-body').scrollTop;
       console.warn('me-scroll before=' + before + ' after=' + after + ' max=' + max0);
     },
-    /** 设置页底部「关于」：连点 5 次版本号后显示反馈行。 */
+    /** 设置页底部「关于」：点按 5 次版本号再按住约 1.5 秒后显示反馈行。 */
     'me-about': async () => {
       ctx.go('me');
       await new Promise((r) => setTimeout(r, 80));
       const v = document.querySelector('.about-ver');
-      for (let i = 0; i < 5; i++) v.click();
-      await new Promise((r) => setTimeout(r, 700));
+      const ev = (t) => v.dispatchEvent(new PointerEvent(t, { bubbles: true, button: 0, pointerType: 'mouse' }));
+      for (let i = 0; i < 5; i++) { ev('pointerdown'); await new Promise((r) => setTimeout(r, 60)); ev('pointerup'); await new Promise((r) => setTimeout(r, 150)); }
+      ev('pointerdown');
+      await new Promise((r) => setTimeout(r, 1700));
+      ev('pointerup');
+      await new Promise((r) => setTimeout(r, 300));
       const pb = document.querySelector('.page-body'); pb.style.scrollBehavior = 'auto'; pb.scrollTop = pb.scrollHeight;
       await new Promise((r) => setTimeout(r, 200));
     },

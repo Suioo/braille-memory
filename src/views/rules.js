@@ -28,7 +28,7 @@
       counter.textContent = (i + 1) + ' / ' + cards.length;
       prevBtn.disabled = i === 0;
       nextBtn.disabled = i === cards.length - 1;
-      ctx.say(STR.ruleName(c.id) + '，' + c.rule.cat);
+      ctx.say(STR.ruleName(c.id, c.rule.title) + '，' + c.rule.cat);
     }
     function move(d) {
       const j = i + d;
@@ -38,7 +38,7 @@
     }
     function flip() {
       const f = card.flip();
-      ctx.say(f ? cards[i].rule.text : STR.ruleName(cards[i].id));
+      ctx.say(f ? cards[i].rule.text : STR.ruleName(cards[i].id, cards[i].rule.title));
     }
     const items = [['all', STR.all, data.cards.length], ...data.cats.map((c) => [c.name, c.name, c.count])];
     if (!items.some(([k]) => k === ctx.ruleScope)) ctx.ruleScope = 'all';

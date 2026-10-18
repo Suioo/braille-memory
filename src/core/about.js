@@ -75,10 +75,13 @@
     };
   }
 
+  /** 「关于」彩蛋的参数：5 秒内点按 5 次，随后按住约 1.5 秒。 */
+  const SECRET = Object.freeze({ taps: 5, windowMs: 5000, holdMs: 1500 });
+
   /** 显示用版本：package.json 的 "1.9.0" 显示为 "1.9"；其他原样。 */
   function displayVersion(v) {
     return String(v || '').replace(/^(\d+\.\d+)\.0$/, '$1');
   }
 
-  return { createTapCounter, createSecretSequence, displayVersion };
+  return { createTapCounter, createSecretSequence, displayVersion, SECRET };
 });

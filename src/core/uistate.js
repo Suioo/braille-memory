@@ -9,7 +9,7 @@
   'use strict';
 
   const KEY = 'braille-memory.ui';
-  /** 「我的」页的设置分组（AI 在对应阶段才出现）。 */
+  /** 「设置」页的设置分组（AI 在对应阶段才出现）。 */
   const GROUPS = ['look', 'practice', 'data', 'ai', 'about'];
   /** 默认只展开常用的一组。 */
   const DEFAULT_OPEN = { practice: true };

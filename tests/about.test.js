@@ -72,3 +72,55 @@ test('secret: arming times out; cancel resets', () => {
   b.down(u); b.cancel();
   b.down(u + 100); assert.equal(b.poll(u + 2500), false);
 });
+
+// 现行参数（SECRET）：5 秒内点按 5 次，随后按住约 1.5 秒
+const { SECRET } = require('../src/core/about.js');
+const mkSecret = () => createSecretSequence(SECRET);
+
+test('SECRET is 5 taps in 5 s then a 1.5 s hold', () => {
+  assert.deepEqual({ ...SECRET }, { taps: 5, windowMs: 5000, holdMs: 1500 });
+});
+
+test('secret (5/1.5): 5 taps within 5 s, then 1.5 s hold completes via poll or release', () => {
+  const s = mkSecret();
+  const t = tapN(s, 5, 0, 800);
+  s.down(t + 100);
+  assert.equal(s.poll(t + 1500), false);
+  assert.equal(s.poll(t + 1600), true);
+  assert.equal(s.poll(t + 1700), false); // 清零
+  const r = mkSecret();
+  const u = tapN(r, 5, 0, 800);
+  r.down(u); assert.equal(r.up(u + 1500), true);
+});
+
+test('secret (5/1.5): 4 taps, taps spread over more than 5 s, or a hold shorter than 1.5 s do not complete', () => {
+  const a = mkSecret();
+  let t = tapN(a, 4, 0, 500);
+  a.down(t); assert.equal(a.poll(t + 3000), false);
+  const b = mkSecret();
+  t = tapN(b, 5, 0, 1300); // 第 1 与第 5 次按下相隔 5.2 s（抬起相隔 5.2 s）
+  b.down(t); assert.equal(b.poll(t + 3000), false);
+  const c = mkSecret();
+  t = tapN(c, 5, 0, 500);
+  c.down(t); assert.equal(c.up(t + 1400), false);
+  c.down(t + 2000); assert.equal(c.poll(t + 3600), false, 'an early release clears the taps');
+});
+
+test('secret (5/1.5): giving the hold too late (after the arm window) starts over; works again after a failed attempt', () => {
+  const s = mkSecret();
+  let t = tapN(s, 5, 0, 500);
+  s.down(t + 9000); assert.equal(s.poll(t + 11000), false);
+  s.up(t + 11000);
+  t = tapN(s, 5, 20000, 500);
+  s.down(t); assert.equal(s.poll(t + 1500), true);
+});
+
+test('secret (5/1.5): a cancel (pointer left, blur) after arming clears it; a further short tap after arming also starts over', () => {
+  const s = mkSecret();
+  let t = tapN(s, 5, 0, 400);
+  s.down(t); s.cancel();
+  s.down(t + 100); assert.equal(s.poll(t + 2000), false);
+  const e = mkSecret();
+  t = tapN(e, 6, 0, 400); // 第 6 次短按在武装之后：整体清零
+  e.down(t); assert.equal(e.poll(t + 1500), false);
+});

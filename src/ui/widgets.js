@@ -833,11 +833,18 @@
   }
 
   /** 规则卡（学习）：正面 = 编号 + 类别 + 页码 + 例词迷你点位串；背面 = 规则正文（默认 3 行，可展开）。 */
+  /** 规则的主标题 + 编号小标签（没有 title 时退回只显示编号）。sm = 紧凑版（背面标题行、说明条）。 */
+  function ruleHeadEl(r, sm) {
+    const no = h('span', { class: 'rule-no num', text: r.id });
+    if (!r.title) return h('span', { class: 'rule-id num' + (sm ? ' sm' : ''), text: r.id });
+    return h('span', { class: 'rule-titleline' + (sm ? ' sm' : '') }, h('span', { class: 'rule-title', text: r.title }), no);
+  }
+
   function ruleCardEl(card, o) {
     const r = card.rule;
     const ex = card.example;
     const front = h('div', { class: 'face front rule-face' },
-      h('div', { class: 'rule-id num', text: r.id }),
+      h('div', { class: 'rule-front-head' }, ruleHeadEl(r, false)),
       h('div', { class: 'rule-meta' }, catTag(r.cat), h('span', { class: 'cat-tag pg', text: STR.rulePage(r.page) })),
       ex ? h('div', { class: 'rule-example' }, h('div', { class: 'rule-chars', text: ex.chars }), wordStripEl(ex.cells, o.mirror, {})) : null);
     const text = h('p', { class: 'rule-text clamped', text: r.text });
@@ -849,9 +856,9 @@
       toggle.querySelector('span').textContent = open ? STR.collapse : STR.expand;
     } }, h('span', { text: STR.expand }));
     const back = h('div', { class: 'face back rule-face' },
-      h('div', { class: 'rule-head' }, h('span', { class: 'rule-id sm num', text: r.id }), catTag(r.cat), h('span', { class: 'cat-tag pg', text: STR.rulePage(r.page) })),
+      h('div', { class: 'rule-head' }, ruleHeadEl(r, true), catTag(r.cat), h('span', { class: 'cat-tag pg', text: STR.rulePage(r.page) })),
       h('div', { class: 'rule-body' }, text, note), toggle);
-    const el = h('div', { class: 'card', 'aria-label': STR.a11yRuleCard(r.id, r.cat, r.page) }, h('div', { class: 'card-inner' }, front, back));
+    const el = h('div', { class: 'card', 'aria-label': STR.a11yRuleCard(r.id, r.cat, r.page, r.title) }, h('div', { class: 'card-inner' }, front, back));
     let flipped = false;
     const set = (f) => {
       flipped = f;
@@ -873,7 +880,7 @@
   function collapse(o, ...kids) {
     const id = 'cb' + (++collapseSeq);
     let open = !!o.open;
-    const body = h('div', { class: 'collapse-body', id, role: 'region' }, h('div', { class: 'collapse-inner' }, ...kids));
+    const body = h('div', { class: 'collapse-body', id, role: 'region' }, h('div', { class: 'collapse-inner' }, h('div', { class: 'collapse-pad' }, ...kids)));
     const head = h('button', { class: 'collapse-head sl', type: 'button', 'aria-controls': id, 'aria-expanded': String(open) },
       h('span', { class: 'ch-title' }, o.title), h('span', { class: 'ch-chev', 'aria-hidden': 'true' }, ICON.next()));
     const el = h('section', { class: 'collapse' + (o.cls ? ' ' + o.cls : '') + (open ? ' open' : '') }, head, body);
@@ -898,7 +905,7 @@
       more.setAttribute('aria-expanded', String(open));
       more.querySelector('span').textContent = open ? STR.collapse : STR.expand;
     } }, h('span', { text: STR.expand }));
-    const title = h('span', { class: 'rule-box-head' }, h('span', { class: 'rule-id sm num', text: rule.id }), catTag(rule.cat), h('span', { class: 'cat-tag pg', text: STR.rulePage(rule.page) }));
+    const title = h('span', { class: 'rule-box-head' }, ruleHeadEl(rule, true), catTag(rule.cat), h('span', { class: 'cat-tag pg', text: STR.rulePage(rule.page) }));
     return collapse({ title, cls: 'rule-box', open: false }, text, more);
   }
 

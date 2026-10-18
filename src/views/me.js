@@ -1,4 +1,4 @@
-/** 「我的」标签页：统计 + 设置（主题、颜色、视角、题量、题型、自动下题、计时、清除进度）。 */
+/** 「设置」标签页：统计 + 设置（主题、颜色、视角、题量、题型、自动下题、计时、清除进度）。 */
 (function (root) {
   'use strict';
   const { h } = root.BMDom;
@@ -120,12 +120,12 @@
     }
     drawRecordButtons();
 
-    // 关于：只显示版本号；7 次点按（7 s 内）后再按住 2 s 才显示反馈行（无任何提前反馈）。
+    // 关于：只显示「版本 x.y.z」；5 次点按（5 s 内）后再按住约 1.5 s 才显示反馈行（中途没有任何提示或反馈）。
     // 联系方式只来自本机 contact.json（经 boot 传入 ctx.contact）；缺失则什么都不显示。屏内状态存在 ctx 上。
     const A = root.BMAbout;
     const contact = ctx.contact && typeof ctx.contact.qq === 'string' && ctx.contact.qq ? ctx.contact : null;
-    const seq = ctx.aboutSeq || (ctx.aboutSeq = A.createSecretSequence({ taps: 7, windowMs: 7000, holdMs: 2000 }));
-    const verText = ctx.version ? A.displayVersion(ctx.version) : '';
+    const seq = ctx.aboutSeq || (ctx.aboutSeq = A.createSecretSequence(A.SECRET));
+    const verText = ctx.version || '';
     const about = h('section', { class: 'about' });
     function copyQq() {
       const n = contact.qq;
@@ -159,23 +159,27 @@
     }
     let holdTimer = null;
     const stopHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
+    let pressed = false; // 松开后紧跟的 pointerleave 不能把刚「武装」的序列清掉
     const press = () => {
+      pressed = true;
       seq.down(Date.now());
       stopHold();
-      holdTimer = setTimeout(() => { holdTimer = null; if (seq.poll(Date.now())) revealFeedback(); }, 2010);
+      holdTimer = setTimeout(() => { holdTimer = null; if (seq.poll(Date.now())) revealFeedback(); }, A.SECRET.holdMs + 10);
     };
-    const release = () => { stopHold(); if (seq.up(Date.now())) revealFeedback(); };
-    const abort = () => { stopHold(); seq.cancel(); };
+    const release = () => { if (!pressed) return; pressed = false; stopHold(); if (seq.up(Date.now())) revealFeedback(); };
+    const abort = () => { if (!pressed) return; pressed = false; stopHold(); seq.cancel(); };
     const isAct = (e) => e.key === 'Enter' || e.key === ' ';
-    // 班级内小范围分发：点一下版本号即显示联系方式（7 连点 + 长按的深度彩蛋逻辑保留在 core/about.js，转公开时可切回）
-    void press; void release; void abort; void isAct;
-    let opened = false;
-    const openOnce = () => { if (opened) return; opened = true; revealFeedback(); };
-    about.append(h('button', {
-      class: 'about-ver', type: 'button', 'aria-label': STR.a11yVersion(verText), text: verText,
-      onclick: openOnce,
-    }));
-    if (ctx.aboutOpen) openOnce();
+    const verBtn = h('button', {
+      class: 'about-ver', type: 'button', 'aria-label': verText ? STR.a11yVersion(verText) : null, text: verText ? STR.versionLabel(verText) : '',
+      onpointerdown: (e) => { if (e.button === 0 || e.pointerType === 'touch') press(); },
+      onpointerup: release, onpointercancel: abort, onpointerleave: abort,
+      onkeydown: (e) => { if (isAct(e)) { if (!e.repeat) press(); e.preventDefault(); } },
+      onkeyup: (e) => { if (isAct(e)) { release(); e.preventDefault(); } },
+      onblur: abort,
+      oncontextmenu: (e) => e.preventDefault(),
+    });
+    about.append(verBtn);
+    if (ctx.aboutOpen) revealFeedback();
 
     let uiStore;
     try { uiStore = root.BMUiState.createStore(root.localStorage); } catch (_) { uiStore = root.BMUiState.createStore(null); }
