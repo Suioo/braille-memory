@@ -49,7 +49,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     currentName = name;
     const isTab = !!view.tab;
     const screen = h('main', { class: 'screen' + (isTab ? ' with-nav' : ''), tabindex: '-1' }, view.el,
-      isTab ? W.navBar(TABS, view.tab, (k) => ctx.go(k, {}, { dir: 'tab' })) : null);
+      isTab ? W.navBar(TABS, view.tab, (k, byKey) => ctx.go(k, byKey ? { focus: '.nav-item.active' } : {}, { dir: 'tab' })) : null);
     let dir = opts && opts.dir;
     if (dir == null) dir = isTab ? (wasTab ? 'tab' : 'back') : 'fwd';
     if (dir !== 'none') screen.classList.add('anim-' + dir);

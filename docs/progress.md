@@ -77,3 +77,15 @@
 | 测试 | 107 通过 | 新增 backup.test.js、web-backup.test.js |
 | 正式签名 | 完成（本机打包） | android/app/build.gradle 读 android/keystore.properties；npm run android:release 打包并用 apksigner 验证；密钥与配置均在 git 忽略范围内，云端不生成、不接触 |
 | 版本 | 2.1.0 | package.json version、build.gradle versionName 2.1.0，versionCode 14 |
+
+## 导航滑动指示块与动画排查（2.2.0，2026-10-18）
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| 底部导航 | 完成 | 选中底板是会滑动的指示块：点按从上一标签滑入，按住拖动吸附、松手才跳转；宽窗口里标签收拢在 560 px 内 |
+| 分段按钮触屏拖动 | 已修 | 触屏隐式捕获导致拖动一开始就被取消；现在忽略冒泡上来的 lostpointercapture |
+| 键盘切标签 | 已修 | 用 Enter / 空格切换后焦点留在当前导航项 |
+| 课程卡符号预览 | 已改 | 最多两行显示（不缩小字号），超出才省略 |
+| 排查 | 完成 | 无头浏览器：风格 × 浅深 × 1000 / 375 px，覆盖翻卡、切标签、答题反馈、设置项、课程页；未发现翻卡残影 / 闪空、版面跳动 |
+| 未修 | 记录 | 切换 Material ↔ 玻璃时设置列表瞬间位移 8 px（整页换肤，无过渡） |
+| 版本 | 2.2.0 | versionCode 15 |

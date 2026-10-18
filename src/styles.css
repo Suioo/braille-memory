@@ -92,6 +92,8 @@ h1, h2 { margin: 0; font-weight: 700; }
   background: var(--surface-container);
   display: grid; grid-template-columns: repeat(4, 1fr);
   padding: 12px 0 16px;
+  /* 宽窗口：四个标签收拢在内容列宽度内（背景条仍铺满） */
+  padding-inline: max(0px, calc((100% - 560px) / 2));
   position: relative; overflow: hidden; overflow: clip; touch-action: pan-y; -webkit-user-select: none; user-select: none;
 }
 .nav-bar.dragging, .nav-bar.dragging .nav-item { cursor: grabbing; }
@@ -496,7 +498,8 @@ button { font: inherit; color: inherit; }
 .lesson-tile.current { background: var(--primary-container); color: var(--on-primary-container); }
 .lesson-tile.current .stars i { box-shadow: inset 0 0 0 2px var(--on-primary-container); }
 .lesson-tile .ln { font-size: var(--headline-s); font-weight: 700; line-height: 1; }
-.lesson-tile .preview { font-size: var(--label-m); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; }
+.lesson-tile .preview { font-size: var(--label-m); max-width: 100%; overflow: hidden; color: inherit; line-height: 1.3; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .lesson-tile:disabled { cursor: default; background: var(--surface-container-low); color: var(--outline); }
 .lesson-tile .lock svg { width: 20px; height: 20px; }
 

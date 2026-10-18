@@ -106,7 +106,7 @@ html[data-style="glass"] .top-bar:has(.tb-lead:empty) .tb-title h1 { font-size: 
 
 /* 悬浮胶囊标签栏：离开边缘，避开安全区；内容可滚动到它下面 */
 html[data-style="glass"] .nav-bar {
-  position: absolute; left: calc(14px + var(--sa-left)); right: calc(14px + var(--sa-right)); bottom: calc(10px + var(--sa-bottom));
+  position: absolute; left: max(calc(14px + var(--sa-left)), calc((100% - 560px) / 2)); right: max(calc(14px + var(--sa-right)), calc((100% - 560px) / 2)); bottom: calc(10px + var(--sa-bottom));
   height: 68px; padding: 6px 8px; border-radius: 999px; z-index: 5; align-items: center;
 }
 html[data-style="glass"] .screen.with-nav .page-body { padding-bottom: calc(100px + var(--sa-bottom)); }

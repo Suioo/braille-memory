@@ -340,7 +340,8 @@
     };
     group.addEventListener('pointerup', (e) => finish(e, true));
     group.addEventListener('pointercancel', (e) => finish(e, false));
-    group.addEventListener('lostpointercapture', (e) => finish(e, false));
+    // 触屏有隐式捕获：改由 group 捕获时按钮的 lostpointercapture 会冒泡上来，必须忽略，否则拖动一开始就被取消
+    group.addEventListener('lostpointercapture', (e) => { if (e.target === group) finish(e, false); });
     return group;
   }
   /** 开关（role=switch）。返回的元素带 setChecked(v)：就地改状态，滑块 / 轨道颜色 / ✓ 随 CSS 过渡。 */
@@ -378,7 +379,7 @@
       const b = h('button', {
         class: 'nav-item' + (it.key === current ? ' active' : ''), type: 'button', 'data-nav': 'navbar',
         'aria-current': it.key === current ? 'page' : null, 'data-tab': it.key,
-        onclick: () => { if (Date.now() - dragEnd > 150 && it.key !== current) onSelect(it.key); },
+        onclick: (e) => { if (Date.now() - dragEnd > 150 && it.key !== current) onSelect(it.key, e.detail === 0); }, // detail 0 = 键盘触发
       }, h('span', { class: 'nav-ind sl' }, it.icon()), h('span', { class: 'nav-label', text: it.label }));
       b._key = it.key;
       nav.append(b);
