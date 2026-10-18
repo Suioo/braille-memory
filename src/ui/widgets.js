@@ -871,16 +871,27 @@
   }
 
   let collapseSeq = 0;
+  /** 折叠动画参数（与 styles.css 里箭头的过渡一致）：展开慢而柔，收起更利落。 */
+  const COLLAPSE_OPEN = { ms: 360, ease: 'cubic-bezier(0.2, 0, 0, 1)', fromY: -6 };
+  const COLLAPSE_CLOSE = { ms: 260, ease: 'cubic-bezier(0.3, 0, 0.2, 1)', toY: -4 };
+  const COLLAPSE_MIN_MS = 120; // 中途反向时按剩余距离缩短，但不低于此值
+  const reducedMotion = () => { try { return !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (_) { return false; } };
+  const translateY = (node) => { try { return new DOMMatrix(getComputedStyle(node).transform).m42 || 0; } catch (_) { return 0; } };
+
   /**
    * 折叠区：标题行是一个按钮（aria-expanded / aria-controls），内容在下方；折叠时内容不可聚焦（inert）。
-   * 展开 / 折叠就地进行（不重建），动画由 CSS 完成（减弱动效下瞬时）。
+   * 展开 / 折叠就地进行（不重建）。动画用 Web Animations API：对 height 做 当前高度 ↔ 目标高度 的动画（动画期间 overflow: clip，
+   * 结束后回到 height: auto），内容同步淡入 / 淡出并微移；连点时从当前位置反向，不跳。减弱动效下瞬时完成。
+   * 展开：360 ms，cubic-bezier(0.2,0,0,1)，内容 opacity 0→1、translateY -6px→0；收起：260 ms，cubic-bezier(0.3,0,0.2,1)，内容 1→0、上移 4px。
    * @param {{title: string|Node, open?: boolean, cls?: string, onToggle?: (open:boolean)=>void}} o
-   * @returns {HTMLElement} 带 setOpen(v) / isOpen()
+   * @returns {HTMLElement} 带 setOpen(v)（不播放动画）/ isOpen()
    */
   function collapse(o, ...kids) {
     const id = 'cb' + (++collapseSeq);
     let open = !!o.open;
-    const body = h('div', { class: 'collapse-body', id, role: 'region' }, h('div', { class: 'collapse-inner' }, h('div', { class: 'collapse-pad' }, ...kids)));
+    let anims = [];
+    const pad = h('div', { class: 'collapse-pad' }, ...kids);
+    const body = h('div', { class: 'collapse-body', id, role: 'region' }, pad);
     const head = h('button', { class: 'collapse-head sl', type: 'button', 'aria-controls': id, 'aria-expanded': String(open) },
       h('span', { class: 'ch-title' }, o.title), h('span', { class: 'ch-chev', 'aria-hidden': 'true' }, ICON.next()));
     const el = h('section', { class: 'collapse' + (o.cls ? ' ' + o.cls : '') + (open ? ' open' : '') }, head, body);
@@ -890,8 +901,35 @@
       body.inert = !open;
       if (!open) body.setAttribute('aria-hidden', 'true'); else body.removeAttribute('aria-hidden');
     };
-    head.addEventListener('click', () => { open = !open; apply(); if (o.onToggle) o.onToggle(open); });
-    el.setOpen = (v) => { open = !!v; apply(); };
+    const stop = () => { for (const a of anims) a.cancel(); anims = []; el.classList.remove('collapsing'); };
+    /** 切换到 open，animate 时从「当前看到的位置」开始动画。 */
+    function go(next, animate) {
+      const can = animate && !reducedMotion() && typeof body.animate === 'function';
+      // 先读当前（可能正在动画中的）高度、透明度、位移，再取消动画
+      const fromH = can ? body.getBoundingClientRect().height : 0;
+      const fromOp = can ? parseFloat(getComputedStyle(pad).opacity) : 0;
+      const fromY = can ? translateY(pad) : 0;
+      stop();
+      open = next;
+      apply();
+      if (!can) return;
+      const full = pad.offsetHeight; // 内容的自然高度（折叠时它在 height:0 的裁剪盒里照常排版）
+      const toH = open ? full : 0;
+      if (Math.abs(toH - fromH) < 1) return;
+      const cfg = open ? COLLAPSE_OPEN : COLLAPSE_CLOSE;
+      const dur = Math.round(Math.max(COLLAPSE_MIN_MS, cfg.ms * Math.min(1, Math.abs(toH - fromH) / Math.max(full, 1))));
+      const opts = { duration: dur, easing: cfg.ease };
+      const startY = open && fromOp < 0.01 ? COLLAPSE_OPEN.fromY : fromY;
+      el.classList.add('collapsing');
+      anims = [
+        body.animate([{ height: fromH + 'px' }, { height: toH + 'px' }], opts),
+        pad.animate([{ opacity: fromOp, transform: 'translateY(' + startY + 'px)' }, open ? { opacity: 1, transform: 'translateY(0px)' } : { opacity: 0, transform: 'translateY(' + COLLAPSE_CLOSE.toY + 'px)' }], opts),
+      ];
+      const mine = anims;
+      Promise.all(mine.map((a) => a.finished)).then(() => { if (anims === mine) stop(); }, () => { /* 被新一次切换取消 */ });
+    }
+    head.addEventListener('click', () => { go(!open, true); if (o.onToggle) o.onToggle(open); });
+    el.setOpen = (v) => go(!!v, false);
     el.isOpen = () => open;
     apply();
     return el;
