@@ -62,6 +62,8 @@
       } catch (e) {
         table = { ok: false, rows: [], errors: ['read:' + e.message] };
       }
+      let extra;
+      try { extra = root.BMCsv.loadExtra(await fetchText('data/braille_extra.csv'), table.rows); } catch (_) { extra = root.BMCsv.loadExtra(null, table.rows); }
       let raw = null;
       try { raw = JSON.parse(await fetchText('data/config.json')); } catch (_) { raw = null; }
       const config = root.BMConfig.mergeConfig(raw).config;
@@ -74,7 +76,7 @@
       try { version = JSON.parse(await fetchText('version.json')).version || ''; } catch (_) { version = ''; }
       let contact = null;
       try { contact = JSON.parse(await fetchText('contact.json')); } catch (_) { contact = null; }
-      return { shot: null, version, contact, table, config, progress: saved.data, storeStatus: saved.status, themeSource, seed: null };
+      return { shot: null, version, contact, table, extra, config, progress: saved.data, storeStatus: saved.status, themeSource, seed: null };
     },
     async saveProgress(data) {
       if (!store || !data || typeof data !== 'object') return false;

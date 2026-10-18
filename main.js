@@ -15,7 +15,7 @@
 const { app, BrowserWindow, ipcMain, nativeTheme, Menu, dialog } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
-const { parseTable } = require('./src/core/csv.js');
+const { parseTable, loadExtra: loadExtraText } = require('./src/core/csv.js');
 const { mergeConfig } = require('./src/core/config.js');
 const { Store } = require('./src/main/store.js');
 const Pal = require('./src/core/palette.js');
@@ -86,6 +86,17 @@ function loadTable() {
   }
 }
 
+/** 扩展符号表（可缺失：缺失时对应功能隐藏）。 */
+function loadExtra(mainRows) {
+  let text = null;
+  try { text = fs.readFileSync(resPath('data', 'braille_extra.csv'), 'utf8'); } catch (e) {
+    if (e.code !== 'ENOENT') return { ok: false, rows: [], errors: ['read:' + (e.code || e.message)] };
+  }
+  const res = loadExtraText(text, mainRows);
+  if (res.warnings && res.warnings.length) console.warn('[extra] ' + res.warnings.join(' '));
+  return res;
+}
+
 function loadConfig() {
   let raw = null;
   try { raw = JSON.parse(fs.readFileSync(resPath('data', 'config.json'), 'utf8')); } catch (e) {
@@ -152,9 +163,11 @@ const fromOurWindow = (e) => win && e.sender === win.webContents;
 
 ipcMain.handle('boot:get', (e) => {
   if (!fromOurWindow(e)) return null;
+  const table = loadTable();
   return {
     shot: shot || (shotAll ? '*batch*' : null) || (e2e ? 'e2e:' + e2e : null),
-    table: loadTable(),
+    table,
+    extra: loadExtra(table.rows),
     config: loadConfig(),
     progress: shotMode ? null : saved.data,
     storeStatus: shotMode ? 'shot' : saved.status,
