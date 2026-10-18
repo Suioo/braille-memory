@@ -11,7 +11,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 
 const ROOT = path.join(__dirname, '..');
-const DATA_FILES = ['braille_table.csv', 'braille_extra.csv', 'config.json'];
+const DATA_FILES = ['braille_table.csv', 'braille_extra.csv', 'rules.json', 'pinyin_map.json', 'config.json'];
 const EXCLUDE_DIRS = new Set(['main']);
 
 const sha256 = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');

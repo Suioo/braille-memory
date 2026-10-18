@@ -16,6 +16,8 @@ const { app, BrowserWindow, ipcMain, nativeTheme, Menu, dialog } = require('elec
 const path = require('node:path');
 const fs = require('node:fs');
 const { parseTable, loadExtra: loadExtraText } = require('./src/core/csv.js');
+const Rules = require('./src/core/rules.js');
+const Pinyin = require('./src/core/pinyin.js');
 const { mergeConfig } = require('./src/core/config.js');
 const { Store } = require('./src/main/store.js');
 const Pal = require('./src/core/palette.js');
@@ -97,6 +99,24 @@ function loadExtra(mainRows) {
   return res;
 }
 
+/** 规则数据与拼音还原表（可缺失：缺失时规则相关入口隐藏）。返回 {ok, missing, errors, warnings, text}，text 只在通过校验时带上。 */
+function readOptionalText(name) {
+  try { return fs.readFileSync(resPath('data', name), 'utf8'); } catch (e) { return e.code === 'ENOENT' ? null : { error: 'read:' + (e.code || e.message) }; }
+}
+function loadRulesData() {
+  const text = readOptionalText('rules.json');
+  if (text && typeof text === 'object') return { ok: false, errors: [text.error], warnings: [], text: null };
+  const r = Rules.loadRules(text);
+  if (r.warnings.length) console.warn('[rules] ' + r.warnings.join(' '));
+  return { ok: r.ok, missing: !!r.missing, errors: r.errors, warnings: r.warnings, text: r.ok ? text : null };
+}
+function loadPinyinMapData() {
+  const text = readOptionalText('pinyin_map.json');
+  if (text && typeof text === 'object') return { ok: false, errors: [text.error], text: null };
+  const r = Pinyin.loadMap(text);
+  return { ok: r.ok, missing: !!r.missing, errors: r.errors, text: r.ok ? text : null };
+}
+
 function loadConfig() {
   let raw = null;
   try { raw = JSON.parse(fs.readFileSync(resPath('data', 'config.json'), 'utf8')); } catch (e) {
@@ -168,6 +188,8 @@ ipcMain.handle('boot:get', (e) => {
     shot: shot || (shotAll ? '*batch*' : null) || (e2e ? 'e2e:' + e2e : null),
     table,
     extra: loadExtra(table.rows),
+    rules: loadRulesData(),
+    pinyinMap: loadPinyinMapData(),
     config: loadConfig(),
     progress: shotMode ? null : saved.data,
     storeStatus: shotMode ? 'shot' : saved.status,

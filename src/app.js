@@ -18,7 +18,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   /** 共享上下文（页面只通过它读写状态）。 */
   const ctx = {
     table: [], cats: [], rowsById: new Map(), plan: [], cfg: null, progress: null,
-    extraRows: null, ext: null, module: 'base', extScope: 'all', // 扩展符号：extraRows 为 null = 无扩展表，相关入口隐藏
+    extraRows: null, ext: null, translator: null, module: 'base', extScope: 'all', // 扩展符号：extraRows 为 null = 无扩展表，相关入口隐藏
     shot: false, rng: Math.random,
     get settings() { return ctx.progress.settings; },
   };
@@ -418,6 +418,16 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     // 扩展符号表：缺失或有错时 ctx.extraRows = null，相关功能隐藏，且已有扩展记录原样保留
     ctx.extraRows = b.extra && b.extra.ok ? b.extra.rows : null;
     ctx.ext = ctx.extraRows ? root.BMExt.build(ctx.extraRows) : null;
+    // 翻盲文引擎：规则数据、拼音还原表、两张字表都就绪才有；否则为 null，规则相关入口隐藏
+    ctx.translator = null;
+    try {
+      if (b.rules && b.rules.ok && b.pinyinMap && b.pinyinMap.ok && ctx.extraRows) {
+        const t = root.BMTranslate.createTranslator({
+          table: ctx.table, extra: ctx.extraRows, rules: root.BMRules.parseRules(b.rules.text), map: JSON.parse(b.pinyinMap.text),
+        });
+        ctx.translator = t.ok ? t : null;
+      }
+    } catch (_) { ctx.translator = null; }
     ctx.cats = root.BMCsv.categoriesOf(ctx.table);
     ctx.rowsById = new Map(ctx.table.map((r) => [r.id, r]));
     ctx.plan = root.BMCourse.planLessons(ctx.table, ctx.cfg.lessonSize);

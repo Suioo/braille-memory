@@ -7,6 +7,9 @@ const { DEFAULTS, mergeConfig } = require('../../src/core/config.js');
 const { planLessons } = require('../../src/core/course.js');
 const { loadExtra } = require('../../src/core/csv.js');
 const Ext = require('../../src/core/ext.js');
+const Rules = require('../../src/core/rules.js');
+const Pinyin = require('../../src/core/pinyin.js');
+const Translate = require('../../src/core/translate.js');
 
 const ROOT = path.join(__dirname, '..', '..');
 const table = parseTable(fs.readFileSync(path.join(ROOT, 'data', 'braille_table.csv'), 'utf8')).rows;
@@ -23,4 +26,13 @@ function wrongDots(row) {
   if (row.dots.length > 1) return row.dots.slice(1);
   return [row.dots[0] === 1 ? 2 : 1];
 }
-module.exports = { ROOT, table, cats, cfg, rowsById, plan, wrongDots, extraRes, extra, ext };
+/** 规则数据、拼音还原表与翻盲文引擎（都读 data/ 下的真实文件）。 */
+const rulesText = fs.readFileSync(path.join(ROOT, 'data', 'rules.json'), 'utf8');
+const mapText = fs.readFileSync(path.join(ROOT, 'data', 'pinyin_map.json'), 'utf8');
+const rules = Rules.parseRules(rulesText);
+const pmap = Pinyin.loadMap(mapText).map;
+const translator = Translate.createTranslator({ table, extra, rules, map: pmap });
+/** 全部带汉字的例词（跳过说明里写「暂不支持」的）：{rule, chars, pinyin, note}。 */
+const examples = rules.rules.flatMap((r) => (r.examples || []).filter((e) => !(e[2] || '').includes(Rules.UNSUPPORTED_MARK))
+  .map((e) => ({ rule: r.id, chars: e[0], pinyin: e[1], note: e[2] || '' })));
+module.exports = { ROOT, table, cats, cfg, rowsById, plan, wrongDots, extraRes, extra, ext, rulesText, mapText, rules, pmap, translator, examples };

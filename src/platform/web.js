@@ -64,6 +64,15 @@
       }
       let extra;
       try { extra = root.BMCsv.loadExtra(await fetchText('data/braille_extra.csv'), table.rows); } catch (_) { extra = root.BMCsv.loadExtra(null, table.rows); }
+      // 规则数据与拼音还原表（可缺失：缺失时规则相关入口隐藏）；text 只在通过校验时带上
+      let rulesText = null;
+      let mapText = null;
+      try { rulesText = await fetchText('data/rules.json'); } catch (_) { rulesText = null; }
+      try { mapText = await fetchText('data/pinyin_map.json'); } catch (_) { mapText = null; }
+      const rr = root.BMRules.loadRules(rulesText);
+      const mm = root.BMPinyin.loadMap(mapText);
+      const rulesData = { ok: rr.ok, missing: !!rr.missing, errors: rr.errors, warnings: rr.warnings, text: rr.ok ? rulesText : null };
+      const pinyinMap = { ok: mm.ok, missing: !!mm.missing, errors: mm.errors, text: mm.ok ? mapText : null };
       let raw = null;
       try { raw = JSON.parse(await fetchText('data/config.json')); } catch (_) { raw = null; }
       const config = root.BMConfig.mergeConfig(raw).config;
@@ -76,7 +85,7 @@
       try { version = JSON.parse(await fetchText('version.json')).version || ''; } catch (_) { version = ''; }
       let contact = null;
       try { contact = JSON.parse(await fetchText('contact.json')); } catch (_) { contact = null; }
-      return { shot: null, version, contact, table, extra, config, progress: saved.data, storeStatus: saved.status, themeSource, seed: null };
+      return { shot: null, version, contact, table, extra, rules: rulesData, pinyinMap, config, progress: saved.data, storeStatus: saved.status, themeSource, seed: null };
     },
     async saveProgress(data) {
       if (!store || !data || typeof data !== 'object') return false;
