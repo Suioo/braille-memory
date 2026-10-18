@@ -54,7 +54,7 @@ npx electron . --shot=learn-mirror --out=a.png --size=412x915 --font-scale=1.3 -
 | `src/app.js` | 路由、底部导航、键盘、存档、截图预设 |
 | `src/styles.css` | M3 样式与动效 |
 | `tests/` | node --test 测试 |
-| `tools/` | shots.js、contrast.js |
+| `tools/` | shots.js、contrast.js、build-www.js、android-build.js（调试版 / `--release` 正式签名版） |
 | `docs/` | design.md（设计）、progress.md、report.md、contrast.md、shots/、samples/（W0 黑白旧样张，已作废） |
 
 ## 键盘
@@ -85,5 +85,28 @@ npm run pack            # electron-builder --win dir → dist\win-unpacked\盲�
 
 ## 平台适配
 
-页面只通过 `preload.js` 暴露的 `window.bm`（boot / saveProgress / setTheme / 截图回调）与平台交互；
-存档读写只在主进程 `src/main/store.js`。以后做 Capacitor（Android）时只需替换这一层适配。
+页面只通过 `window.bm` 与平台交互，不直接调用 Electron 或 Capacitor：
+
+- Electron：`preload.js` 暴露 `window.bm`，存档读写在主进程 `src/main/store.js`。
+- Web / Capacitor（Android）：`src/platform/web.js` 在没有 preload 时提供同一套 API，存档用 `src/platform/web-store.js`（localStorage）；原生能力经 `Capacitor.nativePromise` 调用（haptics、filesystem、share）。
+- API：boot / saveProgress / setTheme / 截图回调 / exportRecord / pickRecord / saveBackup / loadBackup / clearBackup。
+
+### 记录导出 / 导入 / 撤销
+
+- 纯逻辑 `src/core/backup.js`：`buildExport`、`parseImport`（格式 / 版本 / 大小校验，再交给 `normalizeProgress` 清洗）、`applyImport`（先备份、失败自动恢复）、`undoImport`。
+- 导出文件：`{app, kind, format, exportedAt, appVersion, progress}`，`progress` 即完整存档。
+- Electron：`dialog.showSaveDialog / showOpenDialog`；撤销备份是 userData 下的 `progress.backup.json`。
+- Android / Web：导出走 Filesystem（缓存目录）+ Share，导入用文件选择；撤销备份存在单独的 localStorage 键 `braille-memory.progress.backup`。
+- 测试：`tests/backup.test.js`、`tests/web-backup.test.js`。
+
+## Android 构建与签名
+
+```
+npm run android:sync       # 组装 www/ 并 cap sync（改了原生插件后必须运行）
+npm run android:build      # 调试 APK → dist\盲文记忆-debug.apk
+npm run android:release    # 正式签名 APK → dist\盲文记忆-<版本>.apk，并用 apksigner 验证
+```
+
+- 正式签名读 `android/keystore.properties`（模板 `keystore.properties.example`；该文件与 `private/` 下的密钥都已被 git 忽略，只在本机）。配置缺失时调试版照常构建，打正式版会报错。
+- 版本号：`package.json` 的 `version` 与 `android/app/build.gradle` 的 `versionName` 必须一致（脚本检查），`versionCode` 每次发布递增（脚本不检查，需手动确认）。
+- 验证结果写入 `dist\android-verify.txt`；验证失败或仍是调试证书则不复制到 dist。

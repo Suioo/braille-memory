@@ -67,3 +67,13 @@
 - 更大更粗：主按钮 72 px、普通 56 px；符号/关键数字/顶栏标题加大加粗；卡片更大圆角；答题页底部操作区为浮动工具栏。
 - 截图：docs/shots/expressive/（412x915，浅/深，6 页）。测试 65 通过。
 - 产物：dist\win-unpacked\盲文记忆.exe；dist\盲文记忆-debug.apk（versionCode 2 / 1.1）。无新增下载。
+
+## 记录导出 / 导入 / 撤销 与 正式签名（2.1.0，2026-10-18）
+
+| 项 | 状态 | 说明 |
+|---|---|---|
+| 导出 / 导入 / 撤销 | 完成 | 「我的 → 记录」；src/core/backup.js；导入先校验再确认，覆盖前自动备份、失败自动恢复；提示「导入 N 项，跳过 M 项」 |
+| 平台层 | 完成 | Electron：保存 / 打开对话框 + IPC；安卓：@capacitor/filesystem 8.1.4 + @capacitor/share 8.0.3（精确版本）；页面只调用 window.bm |
+| 测试 | 107 通过 | 新增 backup.test.js、web-backup.test.js |
+| 正式签名 | 完成（本机打包） | android/app/build.gradle 读 android/keystore.properties；npm run android:release 打包并用 apksigner 验证；密钥与配置均在 git 忽略范围内，云端不生成、不接触 |
+| 版本 | 2.1.0 | package.json version、build.gradle versionName 2.1.0，versionCode 14 |
