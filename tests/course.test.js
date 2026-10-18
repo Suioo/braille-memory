@@ -121,3 +121,34 @@ test('LessonSession test result: mistakes counted, timing off ignores time', () 
   assert.equal(off.avgSec, null);
   assert.equal(off.stars, starsFor((total - 1) / total, null, C.course.stars, false));
 });
+
+test('lessonStatus: a lesson that already has stars stays unlocked even if the one before it has none', () => {
+  // 模拟「字表增补后课程表中间插入新课」：第一类别末尾的两课没有记录，其后的课都已通关
+  const first = plan[0].category;
+  const firstCat = plan.filter((l) => l.category === first);
+  assert.ok(firstCat.length >= 3 && plan.length > firstCat.length);
+  const fresh = firstCat.slice(-2).map((l) => l.key);
+  const p = P.createProgress(C);
+  plan.forEach((l, i) => { if (!fresh.includes(l.key)) p.lessons[l.key] = { sig: l.sig, stars: 1 + (i % 3), bestAcc: 1, bestAvgSec: 5, plays: 1 }; });
+  const st = lessonStatus(plan, p);
+  const afterFresh = plan.findIndex((l) => l.category !== first);
+  assert.equal(st[afterFresh - 2].unlocked, true);   // 前一课已过关
+  assert.equal(st[afterFresh - 1].unlocked, false);  // 前一课没过关，自己也没有星
+  assert.equal(st[afterFresh].unlocked, true);       // 前一课没过关，但自己有星 → 仍解锁
+  for (let i = afterFresh; i < plan.length; i++) {
+    assert.equal(st[i].unlocked, true, plan[i].key);
+    assert.equal(st[i].stars, p.lessons[plan[i].key].stars, '星星不变');
+    assert.equal(st[i].passed, true);
+  }
+});
+
+test('lessonStatus: locking rules for lessons without stars are unchanged', () => {
+  const p = P.createProgress(C);
+  const st = lessonStatus(plan, p);
+  assert.equal(st[0].unlocked, true);
+  for (let i = 1; i < plan.length; i++) assert.equal(st[i].unlocked, false);
+  p.lessons[plan[0].key] = { sig: plan[0].sig, stars: 1, bestAcc: 1, bestAvgSec: 5, plays: 1 };
+  const st2 = lessonStatus(plan, p);
+  assert.equal(st2[1].unlocked, true);
+  assert.equal(st2[2].unlocked, false);
+});

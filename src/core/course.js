@@ -39,7 +39,8 @@
   }
 
   /**
-   * 每课状态：顺序解锁（第一课总是解锁；前一课 ≥1 星则解锁）。
+   * 每课状态：顺序解锁（第一课总是解锁；前一课 ≥1 星则解锁）；已有星星的课永远解锁
+   * （字表增补后课程表中间插入新课，已通关的后续课不能因此被重新锁住）。
    * @returns {{lesson:object, stars:number, unlocked:boolean, passed:boolean}[]}
    */
   function lessonStatus(plan, progress) {
@@ -47,7 +48,7 @@
     for (let i = 0; i < plan.length; i++) {
       const e = progress.lessons[plan[i].key];
       const stars = e ? e.stars : 0;
-      const unlocked = i === 0 || out[i - 1].passed;
+      const unlocked = i === 0 || out[i - 1].passed || stars >= 1;
       out.push({ lesson: plan[i], stars, unlocked, passed: stars >= 1 });
     }
     return out;
