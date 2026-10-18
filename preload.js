@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('bm', {
   saveProgress: (data) => ipcRenderer.invoke('progress:save', data),
   /** 保存自定义文本库（主进程原子写入 texts.json）；返回是否成功 */
   saveTexts: (data) => ipcRenderer.invoke('texts:save', data),
+  /** 选 .txt 文件：{ok, bytes} | {ok:false, canceled?, reason?} */
+  pickText: () => ipcRenderer.invoke('texts:pick'),
   /** 导出记录：保存对话框 + 写文件；返回 {ok, canceled?} */
   exportRecord: (text, name) => ipcRenderer.invoke('backup:export', text, name),
   /** 导入记录：打开对话框 + 读文件；返回 {ok, text} | {ok:false, canceled?, reason?} */

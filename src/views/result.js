@@ -13,12 +13,16 @@
     const sm = params.summary;
     const leave = () => ctx.go('practice', {}, { dir: 'back' });
     const stat = (k, v) => h('div', { class: 'stat' }, h('span', { class: 'v num', text: v }), h('span', { class: 'k', text: k }));
+    const isTexts = params.module === 'texts' && !!ctx.textData;
     const isRules = params.module === 'rules' && !!ctx.ruleData;
     const isExt = params.module === 'ext' && !!ctx.ext;
-    const wrongRows = isRules ? [] : sm.wrongIds.map((id) => (isExt ? ctx.ext.byId.get(id) : ctx.rowsById.get(id))).filter(Boolean);
-    const wrongItems = isRules ? (sm.wrongKeys || []).map((k) => ctx.ruleData.byKey.get(k)).filter(Boolean) : [];
-    const ruleChip = (it) => W.assistChip(it.family ? (it.family === 'tone' ? it.raw : it.char) + ' · ' + it.word.chars : it.chars);
-    const canAgain = sm.mode !== 'wrong' || (isRules
+    const wrongRows = isRules || isTexts ? [] : sm.wrongIds.map((id) => (isExt ? ctx.ext.byId.get(id) : ctx.rowsById.get(id))).filter(Boolean);
+    const wrongItems = isRules ? (sm.wrongKeys || []).map((k) => ctx.ruleData.byKey.get(k)).filter(Boolean)
+      : isTexts ? (sm.wrongKeys || []).map((k) => ctx.textData.byKey.get(k)).filter(Boolean) : [];
+    const ruleChip = (it) => W.assistChip(isTexts ? Array.from(it.chars).slice(0, 10).join('') + (Array.from(it.chars).length > 10 ? '…' : '') : it.family ? (it.family === 'tone' ? it.raw : it.char) + ' · ' + it.word.chars : it.chars);
+    const canAgain = sm.mode !== 'wrong' || (isTexts
+      ? root.BMProgress.textWeakItems(ctx.progress, ctx.textRoundData(params.textId || 'all').words).length > 0
+      : isRules
       ? root.BMProgress.ruleWeakItems(ctx.progress, root.BMRuleRound.availableTypes(ctx.ruleData).flatMap((t) => root.BMRuleRound.poolOf(ctx.ruleData, t))).length > 0
       : isExt
         ? root.BMProgress.extWeakRows(ctx.progress, C.extScopeRows(ctx)).length > 0
@@ -40,7 +44,7 @@
           h('div', { class: 'chip-row wrap', role: 'list', 'aria-label': STR.a11yIncorrect }, wrongItems.map(ruleChip), wrongRows.map((r) => (isExt ? W.extSymbolChip(r, ctx.settings.mirror) : W.symbolChip(r, ctx.settings.mirror))))) : null,
         h('div', { class: 'footer two' },
           W.btn(STR.back, leave, { variant: 'outlined', autofocus: !canAgain }),
-          canAgain ? W.btn(STR.again, () => ctx.go(isRules ? 'ruleround' : isExt ? 'extround' : 'round', { mode: sm.mode }), { variant: 'filled', icon: ICON.review(), autofocus: true }) : null)));
+          canAgain ? W.btn(STR.again, () => ctx.go(isRules || isTexts ? 'ruleround' : isExt ? 'extround' : 'round', isTexts ? { mode: sm.mode, scope: 'text', textId: params.textId } : { mode: sm.mode }), { variant: 'filled', icon: ICON.review(), autofocus: true }) : null)));
     ctx.fx.countUp(el.querySelector('.big-num'));
     ctx.say(STR.pct(sm.acc));
 

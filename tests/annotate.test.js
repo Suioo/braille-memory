@@ -48,10 +48,14 @@ test('tokenize: the provider must return exactly the text it was given; its erro
   const bad = { segment: (run) => [{ chars: run.slice(1), pinyin: 'a' }] };
   assert.deepEqual(A.tokenize(w2[0], { map: pmap, provider: bad }), { ok: false, reason: 'provider', detail: 'mismatch' });
   assert.equal(A.tokenize(w2[0], { map: pmap, provider: { segment: () => [{ chars: w2[0], pinyin: '' }] } }).reason, 'provider');
-  const boom = A.tokenize('鑫', { map: pmap, provider: dictProvider });
-  assert.equal(boom.ok, false);
-  assert.equal(boom.reason, 'provider');
-  assert.match(boom.detail, /no pinyin/);
+  // 库对某个字给不出拼音：只有那个字被单独标出（x，原因 no-pinyin），其余照常；不拖垮整句
+  const boom = A.tokenize([...dict.keys()].find((k) => Array.from(k).length === 1) + '鑫', { map: pmap, provider: dictProvider });
+  assert.equal(boom.ok, true);
+  assert.deepEqual(boom.tokens.slice(-1), [{ k: 'x', c: '鑫' }]);
+  assert.ok(boom.tokens.some((t) => t.k === 'w'));
+  const c = A.check(boom.tokens, tr);
+  assert.equal(c.ok, false);
+  assert.deepEqual(c.issues.map((x) => [x.kind, x.reason, x.detail]), [['unsupported', 'no-pinyin', '鑫']]);
 });
 
 test('check: a sentence made of example words translates, and equals the engine on the same words', () => {

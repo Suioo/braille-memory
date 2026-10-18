@@ -83,11 +83,18 @@
         while (j < a.length && CJK.test(a[j])) j++;
         const run = a.slice(i, j).join('');
         let words;
-        try { words = o.provider.segment(run); } catch (e) { return { ok: false, reason: 'provider', detail: String(e && e.message || e) }; }
-        if (!Array.isArray(words) || words.map((w) => w.chars).join('') !== run || words.some((w) => !w.chars || typeof w.pinyin !== 'string' || !w.pinyin)) {
+        try { words = o.provider.segment(run); } catch (_) { words = null; }
+        if (words === null) {
+          // 库对整段给不出拼音：逐字再试，仍不行的字单独标成「没有拼音」的不支持原文（逐处标出，不静默跳过、不拖垮整句）
+          words = [];
+          for (const ch of chars(run)) {
+            try { const one = o.provider.segment(ch); words.push(Array.isArray(one) && one.length === 1 && one[0].chars === ch ? one[0] : { chars: ch, pinyin: null }); } catch (_) { words.push({ chars: ch, pinyin: null }); }
+          }
+        }
+        if (!Array.isArray(words) || words.map((w) => w.chars).join('') !== run || words.some((w) => !w.chars || (w.pinyin !== null && (typeof w.pinyin !== 'string' || !w.pinyin)))) {
           return { ok: false, reason: 'provider', detail: 'mismatch' };
         }
-        for (const w of words) tokens.push({ k: 'w', c: w.chars, p: w.pinyin.normalize('NFC').toLowerCase(), a: 'auto' });
+        for (const w of words) tokens.push(w.pinyin === null ? { k: 'x', c: w.chars } : { k: 'w', c: w.chars, p: w.pinyin.normalize('NFC').toLowerCase(), a: 'auto' });
         i = j;
         continue;
       }
@@ -107,7 +114,7 @@
     return { ok: true, tokens };
   }
 
-  const classify = (c) => (/[A-Za-z]/.test(c) ? 'latin' : /[０-９]/.test(c) ? 'fullwidth-digit' : /[\u0000-\u007f]/.test(c) ? 'ascii-symbol' : 'symbol');
+  const classify = (c) => (CJK.test(c) ? 'no-pinyin' : /[A-Za-z]/.test(c) ? 'latin' : /[０-９]/.test(c) ? 'fullwidth-digit' : /[\u0000-\u007f]/.test(c) ? 'ascii-symbol' : 'symbol');
 
   /**
    * 引擎输入：连续的词 → 一个 text 记号（词间空格 = 词间空方）；标点 / 数 / 空方各自一个记号；skip 的不支持原文不进答案。

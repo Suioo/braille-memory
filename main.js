@@ -216,6 +216,17 @@ ipcMain.handle('texts:save', (e, data) => {
   try { textsStore.save(data); return true; } catch (err) { console.error('[texts] ' + err.message); return false; }
 });
 
+// 选一个 .txt 文件，返回原始字节（由渲染进程按严格 UTF-8 解码并校验大小）
+ipcMain.handle('texts:pick', async (e) => {
+  if (!fromOurWindow(e) || shotMode) return { ok: false };
+  try {
+    const r = await dialog.showOpenDialog(win, { properties: ['openFile'], filters: [{ name: 'TXT', extensions: ['txt'] }] });
+    if (r.canceled || !r.filePaths.length) return { ok: false, canceled: true };
+    if (fs.statSync(r.filePaths[0]).size > 200 * 1024) return { ok: false, reason: 'size' };
+    return { ok: true, bytes: new Uint8Array(fs.readFileSync(r.filePaths[0])) };
+  } catch (err) { console.error('[texts] ' + err.message); return { ok: false, reason: 'read' }; }
+});
+
 // ---------- 记录导出 / 导入 / 撤销备份 ----------
 const backupStore = new Store(app.getPath('userData'), 'progress.backup.json');
 const JSON_FILTER = [{ name: 'JSON', extensions: ['json'] }];

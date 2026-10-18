@@ -144,6 +144,25 @@
         } catch (_) { resolve({ ok: false, reason: 'read' }); }
       });
     },
+    /** 选一个 .txt 文件并读出原始字节。@returns {Promise<{ok:true,bytes:Uint8Array}|{ok:false,canceled?:boolean,reason?:string}>} */
+    pickText() {
+      return new Promise((resolve) => {
+        try {
+          const input = root.document.createElement('input');
+          input.type = 'file'; input.accept = '.txt,text/plain'; input.style.display = 'none';
+          input.addEventListener('change', async () => {
+            const f = input.files && input.files[0];
+            input.remove();
+            if (!f) return resolve({ ok: false, canceled: true });
+            if (f.size > 200 * 1024) return resolve({ ok: false, reason: 'size' });
+            try { resolve({ ok: true, bytes: new Uint8Array(await f.arrayBuffer()) }); } catch (_) { resolve({ ok: false, reason: 'read' }); }
+          });
+          input.addEventListener('cancel', () => { input.remove(); resolve({ ok: false, canceled: true }); });
+          root.document.body.append(input);
+          input.click();
+        } catch (_) { resolve({ ok: false, reason: 'read' }); }
+      });
+    },
     /** 导入前的完整备份（供「撤销」）：保存 / 读取 / 清除。 */
     async saveBackup(data) {
       if (!backupStore || !data || typeof data !== 'object') return false;

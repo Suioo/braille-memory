@@ -34,8 +34,9 @@ test('createText refusals: empty, too long, too many, provider failure, store si
   assert.equal(mk(s0, '  \n ').reason, 'empty');
   assert.equal(mk(s0, null).reason, 'empty');
   assert.equal(mk(s0, '甲'.repeat(T.LIMITS.textChars + 1)).reason, 'too-long');
-  assert.equal(mk(s0, '鑫').reason, 'provider');
-  assert.equal(mk(s0, '鑫').ok, false);
+  assert.equal(mk(s0, '鑫').ok, true, 'a char without pinyin is flagged in the text, not refused');
+  assert.equal(mk(s0, 'x', { provider: { segment: (r) => [{ chars: r.slice(1), pinyin: 'a' }] } }).ok, true, 'non-CJK input never reaches the provider');
+  assert.equal(mk(s0, '甲乙', { provider: { segment: () => [{ chars: '丙', pinyin: 'a' }] } }).reason, 'provider');
   let full = T.emptyStore();
   for (let i = 0; i < T.LIMITS.texts; i++) full = T.addText(full, Object.assign({}, mk(full, sample()).text, { id: 't_' + String(i).padStart(5, '0') }));
   assert.equal(mk(full, sample()).reason, 'too-many');

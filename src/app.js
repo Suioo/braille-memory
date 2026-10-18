@@ -18,7 +18,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   /** 共享上下文（页面只通过它读写状态）。 */
   const ctx = {
     table: [], cats: [], rowsById: new Map(), plan: [], cfg: null, progress: null,
-    extraRows: null, ext: null, translator: null, ruleData: null, module: 'base', extScope: 'all', ruleScope: 'all', ruleQtype: 'mix', // 扩展符号：extraRows 为 null = 无扩展表，相关入口隐藏
+    extraRows: null, ext: null, translator: null, ruleData: null, module: 'base', extScope: 'all', ruleScope: 'all', ruleQtype: 'mix', textScope: 'all', // 扩展符号：extraRows 为 null = 无扩展表，相关入口隐藏
     shot: false, rng: Math.random,
     get settings() { return ctx.progress.settings; },
   };
@@ -137,6 +137,11 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     ctx.textData = null;
     try { if (ctx.translator) ctx.textData = root.BMTexts.buildItems(ctx.texts, ctx.translator); } catch (_) { ctx.textData = null; }
   };
+  /** 文本练习用的题目池（scope 'all' 或某一篇）；没有引擎时为 null。 */
+  ctx.textRoundData = (textId) => (ctx.textData ? {
+    words: ctx.textData.items.filter((i) => !textId || textId === 'all' || i.textId === textId), judge: [],
+    rule: ctx.ruleData ? ctx.ruleData.rule : () => null, byKey: ctx.textData.byKey,
+  } : null);
   const textEntries = () => (ctx.textData ? ctx.textData.entries : undefined);
   /** 清洗记录时用的当前 textEntries（文本库不可用 = undefined，记录原样保留）。 */
   ctx.normProgress = (raw) => P.normalizeProgress(raw, ctx.table, ctx.plan, ctx.cfg, catNames(), ctx.extraRows || undefined, ctx.ruleData ? ctx.ruleData.entries : undefined, textEntries());

@@ -91,7 +91,7 @@ test('export / import: rule records go along, count as entries, and old exports 
   P.recordAnswer(p, table[0], false, C);
   P.recordRuleAnswer(p, d.words[0], false, C);
   P.recordRuleAnswer(p, d.judge[1], false, C);
-  const text = B.buildExport(p, '2.4.0');
+  const text = B.buildExport(p, '2.5.0');
   const r = B.parseImport(text, table, plan, C, catNames, extra, d.entries);
   assert.equal(r.ok, true);
   assert.deepEqual(r.progress, p);

@@ -15,6 +15,11 @@
   'use strict';
 
   const MODES = ['practice', 'review', 'wrong'];
+  /** 进度读写：词句用 progress.rules，自定义文本（scope:'text'）用 progress.texts；两处的算分一致。 */
+  const PROG = {
+    rule: { state: Prog.ruleState, weak: Prog.ruleWeakItems, record: Prog.recordRuleAnswer },
+    text: { state: Prog.textState, weak: Prog.textWeakItems, record: Prog.recordTextAnswer },
+  };
   const TYPES = ['translate', 'read', 'judge'];
 
   /** 各题型的题目池。 */
@@ -31,7 +36,8 @@
     /**
      * @param {object} o
      * @param {'practice'|'review'|'wrong'} o.mode
-     * @param {object} o.data Items.build 的结果
+     * @param {object} o.data Items.build 的结果（scope:'text' 时是 {words: 文本题目, judge: []}）
+     * @param {'rule'|'text'} [o.scope]
      * @param {object} o.translator
      * @param {object} o.progress
      * @param {object} o.cfg
@@ -42,6 +48,9 @@
     constructor(o) {
       if (!MODES.includes(o.mode)) throw new Error('mode ' + o.mode);
       Object.assign(this, o);
+      this.scope = o.scope === 'text' ? 'text' : 'rule';
+      this.P = PROG[this.scope];
+      if (this.scope === 'text') this.qtype = 'translate'; // 文本只练翻盲文
       this.index = 0;
       this.current = null;
       this.log = [];
@@ -53,11 +62,11 @@
     types() {
       const avail = availableTypes(this.data);
       const want = this.qtype === 'mix' ? avail : avail.filter((t) => t === this.qtype);
-      return this.mode === 'wrong' ? want.filter((t) => Prog.ruleWeakItems(this.progress, poolOf(this.data, t)).length > 0) : want;
+      return this.mode === 'wrong' ? want.filter((t) => this.P.weak(this.progress, poolOf(this.data, t)).length > 0) : want;
     }
     pool(type) {
       const all = poolOf(this.data, type);
-      return this.mode === 'wrong' ? Prog.ruleWeakItems(this.progress, all) : all;
+      return this.mode === 'wrong' ? this.P.weak(this.progress, all) : all;
     }
 
     /**
@@ -73,7 +82,7 @@
       const pool = this.pool(type);
       let item = force && force.key ? pool.find((x) => x.key === force.key) : null;
       if (!item) {
-        const weight = this.mode === 'practice' ? () => 1 : (x) => 1 + Prog.ruleState(this.progress, x).score;
+        const weight = this.mode === 'practice' ? () => 1 : (x) => 1 + this.P.state(this.progress, x).score;
         item = Pick.pickWeighted(pool, weight, this.rng, this.lastKey);
       }
       const q = { type, item };
@@ -113,7 +122,7 @@
         correct = answer.choice === q.item.answer;
         explain = { rules: q.item.rules.slice() };
       }
-      Prog.recordRuleAnswer(this.progress, q.item, correct, this.cfg);
+      this.P.record(this.progress, q.item, correct, this.cfg);
       this.log.push({ key: q.item.key, correct, ms: Math.max(0, ms) });
       this.current = null;
       return { correct, type: q.type, item: q.item, judge, explain };

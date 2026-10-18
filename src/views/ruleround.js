@@ -16,10 +16,11 @@
   Views.ruleround = function (ctx, params) {
     const S = ctx.settings;
     const mode = params.mode;
-    const data = ctx.ruleData;
+    const isText = params.scope === 'text';
+    const data = isText ? ctx.textRoundData(params.textId || 'all') : ctx.ruleData;
     const tr = ctx.translator;
     const round = new root.BMRuleRound.RuleRound({
-      mode, data, translator: tr, progress: ctx.progress, cfg: ctx.cfg, length: S.roundLength, qtype: ctx.ruleQtype, rng: ctx.rng,
+      mode, data, scope: isText ? 'text' : 'rule', translator: tr, progress: ctx.progress, cfg: ctx.cfg, length: S.roundLength, qtype: ctx.ruleQtype, rng: ctx.rng,
     });
     const sw = new root.BMTimer.Stopwatch(() => performance.now());
     let q = null;
@@ -42,8 +43,10 @@
     const body = h('div', { class: 'q-body' });
     const resultEl = h('div', { class: 'result' });
     const footer = h('div', { class: 'footer' });
-    const el = h('div', { class: 'page round-page rule-round mode-' + mode },
-      W.topBar(C.backBtn(leave), h('h1', {}, h('span', { text: MODE_LABEL()[mode] }), titleNum), h('div', { class: 'actions' }, streakEl, counter, mirrorBtn)),
+    const timer = h('span', { class: 'timer num', role: 'timer' });
+    const timerWrap = h('span', { class: 'timer-chip', hidden: true }, ICON.timer(), timer);
+    const el = h('div', { class: 'page round-page rule-round mode-' + mode + (isText ? ' text-round' : '') },
+      W.topBar(C.backBtn(leave), h('h1', {}, h('span', { text: MODE_LABEL()[mode] }), titleNum), h('div', { class: 'actions' }, timerWrap, streakEl, counter, mirrorBtn)),
       progressHolder,
       h('div', { class: 'page-body q-page' }, body, resultEl, footer));
 
@@ -51,7 +54,8 @@
     function updateHead() {
       const n = q ? q.n : round.index;
       if (mode === 'wrong') {
-        const left = P.ruleWeakItems(ctx.progress, root.BMRuleRound.availableTypes(data).flatMap((t) => root.BMRuleRound.poolOf(data, t))).length;
+        const left = isText ? P.textWeakItems(ctx.progress, data.words).length
+          : P.ruleWeakItems(ctx.progress, root.BMRuleRound.availableTypes(data).flatMap((t) => root.BMRuleRound.poolOf(data, t))).length;
         titleNum.textContent = String(n);
         counter.setAttribute('aria-label', STR.a11yWeakLeft(left));
         counter.replaceChildren(W.legendGlyph('missed'), String(left));
@@ -138,12 +142,30 @@
       guardUntil = performance.now() + ctx.cfg.timing.inputGuardMs;
       sw.reset();
       if (!document.hidden && document.hasFocus()) sw.start();
+      startTick();
+    }
+    // 文本整句较长：开了「计时」就显示本句用时（暂停 / 切后台时跟着停）
+    let tick = null;
+    function showTimer() {
+      timerWrap.hidden = !(isText && S.timing) || phase !== 'ask';
+      if (timerWrap.hidden) { timer.textContent = ''; timer.removeAttribute('aria-label'); return; }
+      const sec = sw.elapsed() / 1000;
+      timer.textContent = STR.sec(root.BMDom.fmtSec(sec));
+      timer.setAttribute('aria-label', STR.a11yTimer(Math.floor(sec)));
+    }
+    function stopTick() { if (tick) { clearInterval(tick); tick = null; } }
+    function startTick() {
+      stopTick();
+      showTimer();
+      if (isText && S.timing && !ctx.shot) tick = setInterval(showTimer, 200);
     }
     const guarded = () => performance.now() < guardUntil;
 
     function submit() {
       if (phase !== 'ask' || q.type !== 'translate' || guarded() || !input.canSubmit) return;
       const res = round.answer({ cells: input.answer }, sw.stop());
+      stopTick();
+      timerWrap.hidden = true;
       ctx.save();
       after(res);
     }
@@ -232,7 +254,7 @@
       streakEl.textContent = STR.streak + ' ' + streak;
       streakEl.setAttribute('aria-label', STR.a11yStreak(streak));
     }
-    function finish() { ctx.go('result', { summary: round.summary(), bestStreak, module: 'rules' }); }
+    function finish() { ctx.go('result', { summary: round.summary(), bestStreak, module: isText ? 'texts' : 'rules', textId: params.textId }); }
 
     function onMirror(m) {
       if (!q) return;
@@ -267,6 +289,7 @@
       return false;
     }
     function destroy() {
+      stopTick();
       window.removeEventListener('blur', pause);
       window.removeEventListener('focus', resume);
       document.removeEventListener('visibilitychange', vis);
