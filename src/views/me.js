@@ -41,6 +41,12 @@
     padRow.hidden = !(padState && padState.supported);
     const unsubPad = root.BMPadHaptics ? root.BMPadHaptics.onChange((st) => { padRow.hidden = !st.supported; }) : null;
 
+    // Switch 手柄按键：只有检测到 Switch Pro / Joy-Con 时才显示（按键帽字母 / 按物理位置）
+    const swKeysRow = seg(STR.padSwitchKeys, 'padSwitchKeys', [{ value: 'keycap', text: STR.padSwitchKeycap }, { value: 'position', text: STR.padSwitchPosition }]);
+    const swState = root.BMPadInput ? root.BMPadInput.state : null;
+    swKeysRow.hidden = !(swState && swState.switch);
+    const unsubSw = root.BMPadInput ? root.BMPadInput.onChange((st) => { swKeysRow.hidden = !st.switch; }) : null;
+
     let seedNow = S.seed;
     const seedBtns = [];
     const swatches = h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': STR.color },
@@ -231,6 +237,7 @@
           sw(STR.fx, 'fx', () => ctx.fx.sync()),
           root.BMHaptics && root.BMHaptics.supported ? sw(STR.haptics, 'haptics') : null,
           padRow,
+          swKeysRow,
         ]),
         grp('data', STR.groupData, [recordItem, item(STR.clear, clearCtl, 'clear')], !!params.confirm),
         grp('about', STR.groupAbout, [about])));
@@ -240,6 +247,6 @@
       if (e.key === 'Escape' && confirming) { confirming = false; again(C.sel('data-key', 'clear') + ' button'); return true; }
       return false;
     }
-    return { el, onKey, tab: 'me', destroy() { if (unsubPad) unsubPad(); }, api: { askClear() { confirming = true; again(); } } };
+    return { el, onKey, tab: 'me', destroy() { if (unsubPad) unsubPad(); if (unsubSw) unsubSw(); }, api: { askClear() { confirming = true; again(); } } };
   };
 })(typeof self !== 'undefined' ? self : this);

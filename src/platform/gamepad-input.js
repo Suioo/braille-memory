@@ -22,6 +22,15 @@
   let timer = null;
   let raf = null;
   const nativePads = new Map();
+  /** state.switch：当前连着 Switch Pro / Joy-Con（设置里「Switch 手柄按键」据此显示 / 隐藏）。 */
+  const state = { switch: false };
+  const listeners = new Set();
+  function setSwitch(list) {
+    const v = list.some((p) => !!p.kind);
+    if (v === state.switch) return;
+    state.switch = v;
+    for (const cb of Array.from(listeners)) { try { cb(state); } catch (_) { /* 静默 */ } }
+  }
 
   const now = () => (root.performance ? root.performance.now() : Date.now());
   const isNative = () => { try { return !!(root.Capacitor && root.Capacitor.isNativePlatform && root.Capacitor.isNativePlatform()); } catch (_) { return false; } };
@@ -44,6 +53,7 @@
   function frame() {
     timer = null; raf = null;
     const list = readPads();
+    setSwitch(list);
     if (!list.length) { input.reset(); needResync = true; return; } // 没有手柄了：停止轮询，gamepadconnected 会重新开始
     if (!focused()) {
       needResync = true;
@@ -64,6 +74,7 @@
     timer = null;
     if (!visible()) return;
     const list = Array.from(nativePads.values());
+    setSwitch(list);
     if (needResync) { input.resync(list, now()); needResync = false; } else dispatch(input.update(list, now()));
     if (input.holding) timer = root.setTimeout(nativeStep, NATIVE_TICK_MS);
   }
@@ -82,14 +93,14 @@
     try { const p = cap.nativePromise('GamepadHaptics', 'setInput', { enabled: true }); if (p && p.catch) p.catch(() => {}); } catch (_) { /* 没有插件：保持 WebView 默认行为 */ }
   }
 
-  /** env.onEvent(ev)：{type:'press',action} / {type:'dir',dir,repeat}；env.enabled()：是否响应（截图模式关闭）。 */
+  /** env.switchKeycap()：Switch 手柄是否按键帽字母；env.onEvent(ev)：{type:'press',action} / {type:'dir',dir,repeat}；env.enabled()：是否响应（截图模式关闭）。 */
   function init(env) {
     if (started || !Nav) return;
     started = true;
     onEvent = env && env.onEvent;
     if (env && env.enabled) enabled = env.enabled;
-    input = Nav.createPadInput();
-    const lose = () => { cancelTimers(); needResync = true; input.reset(); if (isNative()) nativePads.clear(); };
+    input = Nav.createPadInput({ switchKeycap: env && env.switchKeycap });
+    const lose = () => { cancelTimers(); needResync = true; input.reset(); if (isNative()) { nativePads.clear(); setSwitch([]); } };
     const back = () => { needResync = true; if (isNative()) nativeStep(); else kick(); };
     root.addEventListener('blur', () => { needResync = true; if (!isNative()) { cancelTimers(); input.reset(); } });
     root.addEventListener('focus', back);
@@ -102,7 +113,8 @@
   }
 
   root.BMPadInput = {
-    init,
+    init, state,
+    onChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
     /** 测试 / 调试：当前是否在轮询。 */
     get polling() { return timer != null || raf != null; },
   };

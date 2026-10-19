@@ -36,7 +36,7 @@ test('v1 save: symbols, lessons (stars!) and settings come through field by fiel
   assert.deepEqual(p.symbols, old.symbols);
   assert.deepEqual(p.lessons, old.lessons);
   // 后来新增的设置项补默认值，旧字段不变
-  assert.deepEqual(p.settings, Object.assign({ padHaptics: true }, old.settings));
+  assert.deepEqual(p.settings, Object.assign({ padHaptics: true, padSwitchKeys: 'keycap' }, old.settings));
   assert.deepEqual(p.ext, { symbols: {} });
   assert.deepEqual(p.rules, { items: {} });
   // 星星逐课不变
@@ -111,4 +111,13 @@ test('clearProgress keeps settings and clears ext too', () => {
   assert.equal(c.settings.theme, 'dark');
   assert.deepEqual(c.ext, { symbols: {} });
   assert.deepEqual(c.symbols, {});
+});
+
+test('padSwitchKeys: only keycap / position are accepted, anything else falls back to keycap', () => {
+  const mk = (v) => { const s = v1Save(); s.settings.padSwitchKeys = v; return norm(clone(s)).settings.padSwitchKeys; };
+  assert.equal(mk('position'), 'position');
+  assert.equal(mk('keycap'), 'keycap');
+  assert.equal(mk('weird'), 'keycap');
+  assert.equal(mk(undefined), 'keycap');
+  assert.equal(mk(1), 'keycap');
 });

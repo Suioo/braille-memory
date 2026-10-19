@@ -68,6 +68,7 @@
     fx: '华丽动效',
     haptics: '震动',
     padHaptics: '手柄震动',
+    padSwitchKeys: 'Switch 手柄按键', padSwitchKeycap: '按键帽字母', padSwitchPosition: '按物理位置',
     clear: '清除进度',
     clearBtn: '清除',
     confirm: '确认',

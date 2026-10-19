@@ -2,6 +2,16 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。以下面向使用者，只写能感受到的变化。
 
+## [2.8.1] - 2026-10-19
+
+### 新增
+- **PS5 手柄（DualSense）震动**（Windows）：Chromium 不支持 DualSense 的震动，改为在应用里用 WebHID 直接向手柄发震动指令（USB 和蓝牙都支持，蓝牙带校验）；强度沿用「手柄震动」的分级。只授权索尼 DualSense / DualSense Edge 这一类设备，不弹设备选择框；发送失败、断开或权限被拒时静默退回无震动，按键操控不受影响。扳机阻力（自适应扳机）这次不做，原因见 `docs/gamepad-haptics.md`。
+- **「设置 → 练习 → Switch 手柄按键」**（连着 Switch Pro / Joy-Con 时才显示）：「按键帽字母」（默认）A 确认、B 返回、Y 翻面 / 空方、X 主按钮；「按物理位置」保持 2.8.0 的映射（下方的 B 确认、右边的 A 返回）。Xbox 和 PlayStation 不受影响，单只横握的 Joy-Con 同样按这个规则。
+
+### 修复
+- 类别芯片（和词槽条、顶栏图标按钮）获得焦点时，焦点框不再被滚动容器裁掉一半、偏出芯片：这几处的焦点框改画在元素内部，并且键盘焦点和手柄焦点用同一种样式。焦点移到行首 / 行尾的芯片时会完整滚动到可见位置。
+- 安卓：最后操作的手柄不能震、但另一个手柄能震时，设置里仍会显示「手柄震动」开关（与实际震动的手柄一致）。
+
 ## [2.8.0] - 2026-10-19
 
 ### 新增
@@ -110,6 +120,7 @@
 
 - 首个纳入版本管理的版本：学习、练习、课程（评星、闯关）、复习与错题；点位与符号互相识别，镜像 / 正读视角；Material Design 3 风格，浅色 / 深色 / 跟随系统，可换主题色；Windows 桌面版与 Android 版。
 
+[2.8.1]: https://github.com/Suioo/braille-memory/compare/v2.8.0...v2.8.1
 [2.8.0]: https://github.com/Suioo/braille-memory/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/Suioo/braille-memory/compare/v2.6.2...v2.7.0
 [2.6.2]: https://github.com/Suioo/braille-memory/compare/v2.6.1...v2.6.2

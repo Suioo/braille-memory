@@ -510,7 +510,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     // 手柄操控：截图 / e2e 模式不启用
     if (!b.shot && root.BMPadInput && root.BMPadUI) {
       const padUI = root.BMPadUI.create(ctx, document);
-      root.BMPadInput.init({ onEvent: padUI.handle, enabled: () => !!ctx.progress });
+      root.BMPadInput.init({ onEvent: padUI.handle, enabled: () => !!ctx.progress, switchKeycap: () => !ctx.progress || ctx.settings.padSwitchKeys !== 'position' });
     }
     if (!b.shot && root.BMPadHaptics) root.BMPadHaptics.init({ getConfig: () => (ctx.cfg && ctx.cfg.haptics ? ctx.cfg.haptics.gamepad : null), isEnabled: () => !!(ctx.progress && ctx.settings.padHaptics) });
     if (!b.table.ok) {

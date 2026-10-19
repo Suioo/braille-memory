@@ -44,7 +44,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
  * 整理成与 Gamepad API「standard」布局一致的位掩码，用 'pad' 事件推给网页：
  *   setInput({ enabled })  → 网页准备好接收后调用；开启后手柄事件由本插件消耗（不再让 WebView 合成方向键 / Enter，避免重复触发），
  *                            关闭或网页没调用时保持 WebView 的默认行为。
- *   事件 pad：{ id, name, b, lx, ly, rx, ry }  b 的第 i 位 = standard 布局第 i 个键（0=A 下方键 1=B 右边键 2=X 左边键 3=Y 上方键
+ *   事件 pad：{ id, name, v（vendorId）, p（productId）, b, lx, ly, rx, ry }  b 的第 i 位 = standard 布局第 i 个键（0=A 下方键 1=B 右边键 2=X 左边键 3=Y 上方键
  *                            4=LB 5=RB 6=LT 7=RT 8=View 9=Start 10=左摇杆按下 11=右摇杆按下 12–15=十字键上下左右 16=Home）；
  *                            摇杆 -1..1（量化到 0.1，变化才推送）。设备拔出：{ id, gone: true }。
  * 安卓的 KEYCODE_BUTTON_A/B/X/Y 本来就按位置命名（A = 下方键），所以 Xbox / PlayStation / Switch 在这里已经是同一个布局。
@@ -67,6 +67,7 @@ public class GamepadHapticsPlugin extends Plugin {
         int sent = -1;  // 上次推送的位掩码与量化后的摇杆，用于去重
         int sentAxes = Integer.MIN_VALUE;
         String name;
+        int vendor, product;
     }
     private static final Map<Integer, Pad> pads = new ConcurrentHashMap<>(); // setInput 在插件线程、其余在主线程
 
@@ -157,6 +158,8 @@ public class GamepadHapticsPlugin extends Plugin {
             p = new Pad();
             InputDevice d = InputDevice.getDevice(deviceId);
             p.name = d == null ? "" : d.getName();
+            p.vendor = d == null ? 0 : d.getVendorId();
+            p.product = d == null ? 0 : d.getProductId();
             pads.put(deviceId, p);
         }
         return p;
@@ -178,6 +181,8 @@ public class GamepadHapticsPlugin extends Plugin {
         JSObject o = new JSObject();
         o.put("id", deviceId);
         o.put("name", p.name);
+        o.put("v", p.vendor);
+        o.put("p", p.product);
         o.put("b", mask);
         o.put("lx", p.lx);
         o.put("ly", p.ly);

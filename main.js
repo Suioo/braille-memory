@@ -23,6 +23,7 @@ const { Store } = require('./src/main/store.js');
 const Pal = require('./src/core/palette.js');
 const { MAX_CHARS } = require('./src/core/backup.js');
 const { validateOpenUrl } = require('./src/core/about.js');
+const DualSense = require('./src/core/dualsense.js');
 
 const THEMES = ['system', 'light', 'dark'];
 
@@ -163,6 +164,20 @@ function createWindow() {
       sandbox: true,
       spellcheck: false,
     },
+  });
+  // WebHID 只放行索尼 DualSense（vendorId 0x054C 且是 DualSense / Edge 的 productId），其余设备一律拒绝；不弹系统的设备选择框。
+  // 页面用 navigator.hid.getDevices() 直接拿到已授权的设备，仅用来给 DualSense 发震动输出报告（见 docs/gamepad-haptics.md）。
+  const ses = win.webContents.session;
+  ses.setDevicePermissionHandler((d) => d.deviceType === 'hid' && d.device && DualSense.isAllowedHid(d.device)
+    && !!win && !!d.origin && String(d.origin).startsWith('file:'));
+  ses.setPermissionCheckHandler((wc, permission) => {
+    if (permission === 'hid') return !!win && wc === win.webContents; // 只有应用窗口能用 WebHID；具体设备由上面的处理函数把关
+    return true; // 其余权限保持 Electron 默认行为（例如剪贴板）
+  });
+  ses.on('select-hid-device', (event, details, callback) => {
+    event.preventDefault(); // 不弹选择框：有 DualSense 就直接选它，没有就取消
+    const d = (details.deviceList || []).find((x) => DualSense.isAllowedHid(x));
+    callback(d ? d.deviceId : '');
   });
   // 应用窗口里任何导航都拦截（页面里的链接不能把应用窗口带走）；外部链接只走 open-external 白名单
   win.webContents.on('will-navigate', (e) => e.preventDefault());

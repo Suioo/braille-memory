@@ -21,9 +21,9 @@ const FAMILIES = {
   'Joy-Con (L) (STANDARD GAMEPAD Vendor: 057e Product: 2006)': { bottom: '(横握)', right: '(横握)' },
 };
 
-test('three families share one physical layout: bottom = confirm, right = back, left = X, top = Y', () => {
+test('three families share one physical layout (position mode): bottom = confirm, right = back, left = X, top = Y', () => {
   for (const id of Object.keys(FAMILIES)) {
-    const input = Nav.createPadInput();
+    const input = Nav.createPadInput({ switchKeycap: () => false });
     input.update([snap(fakePad(id, []))], 0);
     const seen = [];
     [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].forEach((i, k) => {
@@ -211,4 +211,79 @@ test('pickNext: no jumping to another row sideways (cone), but vertical still re
   assert.equal(Nav.pickNext(dots[0].rect, [...dots, icon], 'up', 'd'), 'icon');   // 上方：锥内没有，放宽后仍到得了
   const wide = { id: 'wide', rect: { left: 0, top: 600, right: 420, bottom: 650 } };
   assert.equal(Nav.pickNext(dots[0].rect, [...dots, wide], 'down', 'd'), 'wide');  // 与之重叠的宽按钮
+});
+
+// ---------- Switch 手柄键位：按键帽字母 / 按物理位置 ----------
+const PRO = 'Pro Controller (STANDARD GAMEPAD Vendor: 057e Product: 2009)';
+const JCL = 'Joy-Con (L) (STANDARD GAMEPAD Vendor: 057e Product: 2006)';
+const JCR = 'Joy-Con (R) (STANDARD GAMEPAD Vendor: 057e Product: 2007)';
+const PAIR = 'Joy-Con L+R (STANDARD GAMEPAD Vendor: 057e Product: 200e)';
+const XBOX = 'Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)';
+const DS4 = 'Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)';
+/** 依次按 standard 序号 0..3，返回对应的动作。 */
+function faceActions(id, keycap) {
+  const input = Nav.createPadInput({ switchKeycap: () => keycap });
+  input.update([snap(fakePad(id, []))], 0);
+  return [0, 1, 2, 3].map((i, k) => {
+    const ev = press(input.update([snap(fakePad(id, [i]))], 10 + k * 20));
+    input.update([snap(fakePad(id, []))], 20 + k * 20);
+    return ev[0];
+  });
+}
+
+test('Switch kinds are recognised from vendor / product ids (Chromium id strings and Android ids)', () => {
+  assert.equal(Nav.switchKindOfId(PRO), 'pro');
+  assert.equal(Nav.switchKindOfId(JCL), 'jcl');
+  assert.equal(Nav.switchKindOfId(JCR), 'jcr');
+  assert.equal(Nav.switchKindOfId(PAIR), 'pair');
+  assert.equal(Nav.switchKindOfId(XBOX), null);
+  assert.equal(Nav.switchKindOfId(DS4), null);
+  assert.equal(Nav.switchKindOfId('Unknown'), null);
+  assert.equal(Nav.switchKind(0x057e, 0x2009, ''), 'pro');
+  assert.equal(Nav.switchKind(0x057e, 0x9999, 'Joy-Con L+R'), 'pair');
+  assert.equal(Nav.switchKind(0x045e, 0x2009, ''), null);
+  assert.equal(snap(fakePad(PRO, [])).kind, 'pro');
+  assert.equal(snap(fakePad(XBOX, [])).kind, null);
+  assert.equal(Nav.fromNative({ id: 1, name: 'Pro Controller', v: 0x057e, p: 0x2009, b: 0 }).kind, 'pro');
+  assert.equal(Nav.fromNative({ id: 2, name: 'Xbox', v: 0x045e, p: 0x0b13, b: 0 }).kind, null);
+});
+
+test('Switch Pro / merged Joy-Con, position mode: bottom B = confirm, right A = back (index 0 / 1 unchanged)', () => {
+  for (const id of [PRO, PAIR]) assert.deepEqual(faceActions(id, false), ['confirm', 'back', 'x', 'y'], id);
+});
+
+test('Switch Pro / merged Joy-Con, keycap mode: A (right, index 1) = confirm, B (bottom, index 0) = back; Y (left) = flip, X (top) = main — swapped exactly once', () => {
+  for (const id of [PRO, PAIR]) assert.deepEqual(faceActions(id, true), ['back', 'confirm', 'x', 'y'], id);
+});
+
+test('single Joy-Con held sideways: right one follows its keycaps (A confirm, B back, Y flip, X main); left one has no letters and stays positional', () => {
+  // Chromium 横握旋转后：右 Joy-Con 的序号 0 / 1 / 2 / 3 = A / X / B / Y
+  assert.deepEqual(faceActions(JCR, true), ['confirm', 'y', 'back', 'x']);
+  assert.deepEqual(faceActions(JCR, false), ['confirm', 'back', 'x', 'y']);
+  assert.deepEqual(faceActions(JCL, true), ['confirm', 'back', 'x', 'y']);
+  assert.deepEqual(faceActions(JCL, false), ['confirm', 'back', 'x', 'y']);
+});
+
+test('Xbox and PlayStation are never affected by the Switch setting', () => {
+  for (const id of [XBOX, DS4]) {
+    assert.deepEqual(faceActions(id, true), ['confirm', 'back', 'x', 'y']);
+    assert.deepEqual(faceActions(id, false), ['confirm', 'back', 'x', 'y']);
+  }
+});
+
+test('actionsFor only changes indexes 0-3; the setting is read on every update (switching at runtime works)', () => {
+  const a = Nav.actionsFor('pro', true);
+  assert.deepEqual(a.slice(4), Nav.ACTIONS.slice(4));
+  assert.deepEqual(Nav.actionsFor(null, true), Nav.ACTIONS);
+  let keycap = false;
+  const input = Nav.createPadInput({ switchKeycap: () => keycap });
+  input.update([snap(fakePad(PRO, []))], 0);
+  assert.deepEqual(press(input.update([snap(fakePad(PRO, [1]))], 10)), ['back']);
+  input.update([snap(fakePad(PRO, []))], 20);
+  keycap = true;
+  assert.deepEqual(press(input.update([snap(fakePad(PRO, [1]))], 30)), ['confirm']);
+  // 默认（没传函数）= 按键帽字母
+  const d = Nav.createPadInput();
+  d.update([snap(fakePad(PRO, []))], 0);
+  assert.deepEqual(press(d.update([snap(fakePad(PRO, [1]))], 10)), ['confirm']);
 });

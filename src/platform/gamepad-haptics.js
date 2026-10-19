@@ -2,6 +2,7 @@
  * 手柄震动（平台层）：页面只调用 BMPadHaptics.play(kind, info)，不直接碰 Gamepad API / Capacitor 插件。
  *  - Electron / 浏览器：navigator.getGamepads() + gamepad.vibrationActuator.playEffect（dual-rumble；Xbox 的 trigger-rumble 加扳机点触）。
  *    手柄要先按一次键才会出现；只有连接着手柄时才轮询（10 Hz），页面在后台 / 没有手柄时不轮询。
+ *  - DualSense：Chromium 没有它的震动，Windows 上由 platform/dualsense-hid.js 用 WebHID 直接发输出报告（见 docs/gamepad-haptics.md）。
  *  - 安卓（Capacitor）：本地插件 GamepadHaptics（android/…/GamepadHapticsPlugin.java，InputDevice 的 VibratorManager / Vibrator），
  *    不依赖 WebView 的 Gamepad API（WebView 只把按键事件转给手柄列表，见 docs/gamepad-haptics.md）。
  *  - 页面切到后台 / 窗口失去焦点 / 手柄断开：立即停震。所有失败静默忽略，不影响答题。
@@ -34,7 +35,13 @@
   function gamepadApiBackend() {
     const nav = root.navigator;
     if (!nav || typeof nav.getGamepads !== 'function') return null;
-    const tracker = Core.createPadTracker();
+    const DS = root.BMDualSense;
+    const DSCore = root.BMDualSenseCore;
+    // DualSense：Chromium 没有它的 vibrationActuator，WebHID 通道就绪（BMDualSense.ready）才算能震
+    const tracker = Core.createPadTracker({
+      extra: (p) => (DS && DSCore && DS.ready && DSCore.isDualSensePadId(p.id) ? { supported: true, dual: true, trigger: false, hid: true } : null),
+    });
+    if (DS) DS.onChange(() => kick());
     const now = () => (root.performance ? root.performance.now() : Date.now());
     let active = null;
     let timer = null;
@@ -62,6 +69,7 @@
     return {
       play(step) {
         if (!active) return null;
+        if (active.caps && active.caps.hid) { if (DS) DS.play(step); return null; }
         const p = pads()[active.index];
         const a = p && p.vibrationActuator;
         if (!a || typeof a.playEffect !== 'function') return null;
@@ -71,6 +79,7 @@
         return a.playEffect(trig ? 'trigger-rumble' : 'dual-rumble', params);
       },
       stop() {
+        if (DS) DS.stop();
         if (!active) return null;
         const p = pads()[active.index];
         const a = p && p.vibrationActuator;
@@ -88,7 +97,8 @@
       const p = call('getState');
       if (!p || typeof p.then !== 'function') return;
       p.then((r) => {
-        const d = r && Array.isArray(r.devices) ? r.devices.find((x) => x.id === r.activeId) || r.devices.find((x) => x.motors > 0) : null;
+        // 最后有输入的手柄能震就用它，否则用第一个能震的（和插件里 target() 的选择一致）；一个能震的都没有就不显示开关
+        const d = r && Array.isArray(r.devices) ? r.devices.find((x) => x.id === r.activeId && x.motors > 0) || r.devices.find((x) => x.motors > 0) : null;
         setState(d && d.motors > 0 ? { supported: true, trigger: false, name: d.name || '' } : { supported: false, trigger: false, name: '' });
       }, () => setState({ supported: false, trigger: false, name: '' }));
     }
@@ -115,6 +125,7 @@
       later: (fn, ms) => root.setTimeout(fn, ms),
       cancelLater: (h) => root.clearTimeout(h),
     });
+    if (root.BMDualSense && !isNative()) root.BMDualSense.init(); // Windows：DualSense 的 WebHID 震动通道（不可用时静默无震动）
     try { backend = isNative() ? nativeBackend() : gamepadApiBackend(); } catch (_) { backend = null; }
     const stopAll = () => { if (runner) runner.stop(); };
     root.addEventListener('blur', stopAll);

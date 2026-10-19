@@ -133,7 +133,8 @@
   /**
    * 找出「最后一次有输入」的手柄：每次传入 getGamepads() 的快照，按键 / 摇杆（超过死区）变化算一次输入。
    * 同时连接多个手柄时只有它会震；断开的从记录里清掉。
-   * @param {{deadzone?:number}} [o]
+   * @param {{deadzone?:number, extra?:(pad:object)=>object|null}} [o] extra：Gamepad API 里没有 vibrationActuator 的手柄，
+   *   平台层若有别的办法让它震（Windows 上的 DualSense 走 WebHID），返回 { supported:true, dual:true, trigger:false, hid:true }
    */
   function createPadTracker(o) {
     const dead = o && typeof o.deadzone === 'number' ? o.deadzone : 0.25;
@@ -161,7 +162,9 @@
           let st = state.get(key);
           if (!st) { st = { sig, lastActive: now, seq: ++seq }; state.set(key, st); } // 第一次出现 = 刚按过键
           else if (st.sig !== sig) { st.sig = sig; st.lastActive = now; st.seq = ++seq; }
-          list.push({ key, index: p.index, id: p.id, caps: padSupport(p), lastActive: st.lastActive, seq: st.seq, pad: p });
+          let caps = padSupport(p);
+          if (!caps.supported && o && typeof o.extra === 'function') { try { caps = o.extra(p) || caps; } catch (_) { /* 静默 */ } }
+          list.push({ key, index: p.index, id: p.id, caps, lastActive: st.lastActive, seq: st.seq, pad: p });
         }
         for (const k of Array.from(state.keys())) if (!seen.has(k)) state.delete(k);
         const usable = list.filter((x) => x.caps.supported);

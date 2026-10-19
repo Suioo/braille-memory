@@ -20,6 +20,37 @@
 
   const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 
+  // ---------- Switch 手柄的键位 ----------
+  // Chromium（Windows）和安卓驱动都按物理位置排 standard 布局：序号 0 = 下方键、1 = 右边键、2 = 左边键、3 = 上方键。
+  // Switch 的键帽是 A 在右、B 在下、X 在上、Y 在左，所以「按位置」时下方的 B = 确认、右边的 A = 返回；
+  // 「按键帽字母」时 A = 确认、B = 返回，X / Y 的位置本来就和 Xbox 的 X / Y 一致（Y 在左 = 翻面 / 空方，X 在上 = 主按钮），不用动。
+  /** 手柄种类：'pro' = Switch Pro / 充电握把上的整套手柄，'pair' = 左右 Joy-Con 合并的那一个，'jcl' / 'jcr' = 单只横握的 Joy-Con（左 / 右），其余 null。 */
+  function switchKind(vendorId, productId, name) {
+    if (vendorId !== 0x057e) return null;
+    if (productId === 0x2009) return 'pro';
+    if (productId === 0x2006) return 'jcl';
+    if (productId === 0x2007) return 'jcr';
+    if (productId === 0x200e || /joy-con l\+r/i.test(name || '')) return 'pair';
+    return null;
+  }
+  function switchKindOfId(id) {
+    const m = /vendor:\s*([0-9a-f]{4})\s+product:\s*([0-9a-f]{4})/i.exec(String(id || ''));
+    return m ? switchKind(parseInt(m[1], 16), parseInt(m[2], 16), id) : null;
+  }
+  /**
+   * 这个手柄的「序号 → 动作」表。keycap = true 且是 Switch 手柄时按键帽字母：
+   *   Pro / 合并的 Joy-Con：序号 0、1 互换（A 在右 = 确认，B 在下 = 返回）；
+   *   单只右 Joy-Con：Chromium 把它旋转成横握，序号 0 / 1 / 2 / 3 = A / X / B / Y，所以 A = 确认、B = 返回、Y = 翻面、X = 主按钮；
+   *   单只左 Joy-Con 没有字母键，保持按位置。
+   */
+  function actionsFor(kind, keycap) {
+    const a = ACTIONS.slice();
+    if (!keycap || !kind) return a;
+    if (kind === 'pro' || kind === 'pair') { a[0] = 'back'; a[1] = 'confirm'; }
+    else if (kind === 'jcr') { a[0] = 'confirm'; a[1] = 'y'; a[2] = 'back'; a[3] = 'x'; }
+    return a;
+  }
+
   /**
    * Gamepad 对象 → 统一快照 { key, id, buttons: bool[17], axes: [lx, ly, rx, ry] }。
    * 不是 standard 布局（浏览器不认识的手柄）返回 null：键位不可知，宁可不响应也不乱操作。
@@ -32,7 +63,7 @@
       buttons.push(!!(b && (b.pressed || num(b.value) > 0.5)));
     }
     const a = gp.axes || [];
-    return { key: gp.index + ':' + gp.id, id: String(gp.id || ''), buttons, axes: [num(a[0]), num(a[1]), num(a[2]), num(a[3])] };
+    return { key: gp.index + ':' + gp.id, id: String(gp.id || ''), kind: switchKindOfId(gp.id), buttons, axes: [num(a[0]), num(a[1]), num(a[2]), num(a[3])] };
   }
 
   /** 安卓原生事件（按键位掩码 + 摇杆）→ 同样的快照。bit i = standard 的第 i 个键。 */
@@ -41,7 +72,7 @@
     const mask = ev.b | 0;
     const buttons = [];
     for (let i = 0; i < BUTTON_COUNT; i++) buttons.push(((mask >> i) & 1) === 1);
-    return { key: 'n:' + ev.id, id: String(ev.name || ev.id), buttons, axes: [num(ev.lx), num(ev.ly), num(ev.rx), num(ev.ry)] };
+    return { key: 'n:' + ev.id, id: String(ev.name || ev.id), kind: switchKind(ev.v | 0, ev.p | 0, ev.name), buttons, axes: [num(ev.lx), num(ev.ly), num(ev.rx), num(ev.ry)] };
   }
 
   /** 摇杆方向：主轴 ≥ 死区才算；已经在某方向上时，只要那一轴还过死区且没被另一轴明显压过就保持（避免斜推时来回跳）。 */
@@ -80,7 +111,7 @@
    *   { type: 'press', action, pad } —— 某键刚按下（边沿）；
    *   { type: 'dir', dir: 'up'|'down'|'left'|'right', repeat: boolean, pad } —— 方向首次按下或连发（一帧最多一次，不补发积压）。
    * resync(pads, t)：把当前状态当作「已经按着」，不产生事件，也不连发（窗口回到前台、刚连接时用）。
-   * 多个手柄各自独立，任何一个都能操作。
+   * 多个手柄各自独立，任何一个都能操作。options.switchKeycap()：Switch 手柄是否按键帽字母（默认 true）。
    */
   function createPadInput(options) {
     const o = Object.assign({}, DEFAULTS, options || {});
@@ -95,9 +126,10 @@
         seen.add(pad.key);
         let st = states.get(pad.key);
         if (!st) { states.set(pad.key, fresh(pad, t)); continue; } // 刚出现：已按着的不算
+        const acts = actionsFor(pad.kind, o.switchKeycap ? o.switchKeycap() : true);
         for (let i = 0; i < BUTTON_COUNT; i++) {
           if (DPAD[i]) continue;
-          if (pad.buttons[i] && !st.prev[i]) events.push({ type: 'press', action: ACTIONS[i], pad: pad.key });
+          if (pad.buttons[i] && !st.prev[i]) events.push({ type: 'press', action: acts[i], pad: pad.key });
         }
         const d = dirOf(pad, st.dir, o.dead);
         if (d !== st.dir) {
@@ -174,5 +206,5 @@
     return Math.min(n - 1, Math.max(0, j));
   }
 
-  return { ACTIONS, BUTTON_COUNT, DEFAULTS, fromGamepad, fromNative, stickDir, dirOf, createPadInput, pickNext, cycle };
+  return { ACTIONS, BUTTON_COUNT, DEFAULTS, switchKind, switchKindOfId, actionsFor, fromGamepad, fromNative, stickDir, dirOf, createPadInput, pickNext, cycle };
 });
