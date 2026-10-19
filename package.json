@@ -2,7 +2,29 @@
   "name": "braille-memory",
   "productName": "盲文记忆",
   "version": "2.5.4",
-  "description": "汉语现行盲文点位记忆练习（Windows 桌面版）",
+  "description": "汉语现行盲文（GF 0019—2018）点位记忆练习，支持 Windows 与 Android，离线使用",
+  "keywords": [
+    "braille",
+    "chinese-braille",
+    "盲文",
+    "现行盲文",
+    "GF 0019-2018",
+    "pinyin",
+    "electron",
+    "capacitor",
+    "education",
+    "accessibility"
+  ],
+  "license": "MIT",
+  "author": "Gan",
+  "homepage": "https://github.com/Suioo/braille-memory#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Suioo/braille-memory.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Suioo/braille-memory/issues"
+  },
   "private": true,
   "main": "main.js",
   "scripts": {

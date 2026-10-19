@@ -1,0 +1,25 @@
+name: 功能建议
+description: 希望增加或改进的功能
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解决什么问题
+      description: 你在什么场景下遇到了不便
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你希望怎样
+      description: 描述你期望的做法；如果有参考，也请附上
+    validations:
+      required: true
+  - type: textarea
+    id: alt
+    attributes:
+      label: 其他想过的办法
+  - type: markdown
+    attributes:
+      value: 如果建议涉及新增或修改点位 / 规则，请改用“点位 / 规则错误”模板，并注明 GF 0019—2018 的页码。

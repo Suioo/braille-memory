@@ -1,11 +1,11 @@
-# 盲文记忆（Windows 桌面版）
+# 盲文记忆 — 开发说明
 
-汉语现行盲文点位记忆练习。Electron 44，纯 HTML/CSS/JS（无打包器、无框架、无额外 npm 依赖）。
+汉语现行盲文点位记忆练习。Electron（Windows）与 Capacitor（Android），纯 HTML/CSS/JS（无打包器、无框架）；运行时依赖只有 pinyin-pro（复制在 `src/vendor/`）与几个 Capacitor 插件，见 [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)。
 界面为 Material Design 3 风格；盲文点位只来自 `data/braille_table.csv`。
 
 ## 运行
 
-在项目根 `D:\braille-memory`：
+先 `npm ci` 安装依赖，然后在项目根目录：
 
 ```
 npx electron .          # 或 npm start
@@ -15,7 +15,7 @@ npx electron .          # 或 npm start
 调试时用临时目录，避免碰真实存档：
 
 ```
-npx electron . --user-data=D:\tmp\bm-test
+npx electron . --user-data=<临时目录>
 ```
 
 ## 测试
@@ -32,7 +32,7 @@ npm test                 # = node --test "tests/**/*.test.js"
 ```
 node tools/shots.js                     # 全部页面 × 浅/深 × 720x960/480x640 + 陶土种子 → docs/shots/
 npx electron . --shot=practice-wrong --out=a.png --theme=dark --size=480x640 [--seed=green]
-npx electron . --e2e=round-done --user-data=D:\tmp\bm-test   # 跑一遍流程并真实写存档后退出
+npx electron . --e2e=round-done --user-data=<临时目录>   # 跑一遍流程并真实写存档后退出
 node tools/contrast.js                  # 重新生成 docs/contrast.md
 npx electron . --shot=learn-mirror --out=a.png --size=412x915 --font-scale=1.3 --style=glass   # 模拟安卓文字缩放 130%；截图时控制台输出 overflow 自检结果
 ```

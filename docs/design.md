@@ -199,7 +199,7 @@ standard-decelerate `cubic-bezier(0,0,0,1)`。
 
 ## 9. 验收标准
 
-1. `npx electron .` 在 D:\braille-memory 启动无报错，窗口 720×960、可缩放、最小 480×640。
+1. `npx electron .` 在项目根目录启动无报错，窗口 720×960、可缩放、最小 480×640。
 2. 代码与文档不含具体符号的点位；界面所有点位、类别名来自 CSV（`data.test.js` 全表解析无错误、无重复点位）。
 3. 盲文方默认左 1-2-3 右 4-5-6；镜像时左右列互换且编号不变（`cell.test.js`，截图 `learn-mirror`、`practice-wrong-mirror`）。
 4. 键 1–6 按编号切换点位（镜像下同样按编号），Enter 提交/继续，Esc 返回；选符号题 1–4 可选。

@@ -20,7 +20,10 @@ private/
 *.keystore
 *.jks
 keystore.properties
+*.p12
+*.pfx
 .env
+.env.*
 # screenshots (generated, heavy)
 docs/shots/
 # misc
