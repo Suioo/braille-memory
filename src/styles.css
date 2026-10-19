@@ -1105,7 +1105,8 @@ textarea.field { line-height: 1.5; }
 .about { padding: 12px 16px 8px; gap: 0; }
 .about-intro { margin: 0; max-width: 30em; text-align: center; font-size: var(--label-l); line-height: 1.5; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .about-ver { margin-top: 8px; }
-.about-link { margin-top: 20px; border: 0; background: none; color: var(--primary); font: inherit; font-size: 13px; font-weight: 700; letter-spacing: 0.02em; min-height: 44px; padding: 0 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; touch-action: manipulation; }
+.about-repo { margin: 12px 0 0; font-size: 12px; opacity: 0.7; letter-spacing: 0.08em; }
+.about-link { margin-top: -6px; border: 0; background: none; color: var(--primary); font: inherit; font-size: 13px; font-weight: 700; letter-spacing: 0.02em; min-height: 44px; padding: 0 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; touch-action: manipulation; }
 .about-link:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 8px; }
 .about-license { margin: 4px 0 0; font-size: 12px; opacity: 0.75; text-align: center; }
 .about-feedback { margin-top: 8px; }

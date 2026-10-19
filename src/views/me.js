@@ -187,8 +187,8 @@
     };
     const linkBtn = h('button', { class: 'about-link sl', type: 'button', 'aria-label': STR.a11yOpenLink(A.PROJECT_LABEL), text: A.PROJECT_LABEL, onclick: openProject });
     about.append(
-      h('p', { class: 'about-intro', text: STR.aboutIntro }),
       verBtn,
+      h('p', { class: 'about-repo', text: STR.repoLabel }),
       linkBtn,
       h('p', { class: 'about-license', text: STR.aboutLicense }));
     if (ctx.aboutOpen) revealFeedback();
