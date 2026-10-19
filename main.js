@@ -12,7 +12,7 @@
  *   --e2e=<预设> --user-data=<dir>    冒烟：运行一个截图预设流程（会写存档到 dir）后退出
  *   截图模式一律使用临时数据目录且不写存档。
  */
-const { app, BrowserWindow, ipcMain, nativeTheme, Menu, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeTheme, Menu, dialog, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { parseTable, loadExtra: loadExtraText } = require('./src/core/csv.js');
@@ -22,6 +22,7 @@ const { mergeConfig } = require('./src/core/config.js');
 const { Store } = require('./src/main/store.js');
 const Pal = require('./src/core/palette.js');
 const { MAX_CHARS } = require('./src/core/backup.js');
+const { validateOpenUrl } = require('./src/core/about.js');
 
 const THEMES = ['system', 'light', 'dark'];
 
@@ -163,7 +164,10 @@ function createWindow() {
       spellcheck: false,
     },
   });
+  // 应用窗口里任何导航都拦截（页面里的链接不能把应用窗口带走）；外部链接只走 open-external 白名单
   win.webContents.on('will-navigate', (e) => e.preventDefault());
+  win.webContents.on('will-frame-navigate', (e) => e.preventDefault());
+  win.webContents.on('will-redirect', (e) => e.preventDefault());
   // 页面脚本错误转到主进程输出（便于冒烟检查）
   win.webContents.on('console-message', (e) => {
     if (e.level === 'error' || e.level === 'warning') console.error('[renderer ' + e.level + '] ' + e.message);
@@ -182,6 +186,13 @@ function createWindow() {
 }
 
 const fromOurWindow = (e) => win && e.sender === win.webContents;
+
+// 渲染进程启动画面用：不等数据加载，同步拿到已保存的设置（只含种子色 / 风格 / 主题）与「是否截图 / e2e」
+ipcMain.on('boot:early', (e) => {
+  if (!fromOurWindow(e)) { e.returnValue = null; return; }
+  const st = !shotMode && !e2e && saved.data && saved.data.settings;
+  e.returnValue = { shot: shotMode || !!e2e, settings: st ? { seed: st.seed, style: st.style, theme: st.theme } : null };
+});
 
 ipcMain.handle('boot:get', (e) => {
   if (!fromOurWindow(e)) return null;
@@ -214,6 +225,14 @@ ipcMain.handle('texts:save', (e, data) => {
   if (!fromOurWindow(e) || shotMode) return false;
   if (!data || typeof data !== 'object' || JSON.stringify(data).length > 3 * 1024 * 1024) return false;
   try { textsStore.save(data); return true; } catch (err) { console.error('[texts] ' + err.message); return false; }
+});
+
+// 「设置 → 关于」的项目地址：只允许打开这一个固定地址（用系统浏览器）
+ipcMain.handle('open-external', async (e, url) => {
+  if (!fromOurWindow(e) || shotMode) return false;
+  const ok = validateOpenUrl(url);
+  if (!ok) return false;
+  try { await shell.openExternal(ok); return true; } catch (_) { return false; }
 });
 
 // 选一个 .txt 文件，返回原始字节（由渲染进程按严格 UTF-8 解码并校验大小）

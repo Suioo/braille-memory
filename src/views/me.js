@@ -127,24 +127,7 @@
     const seq = ctx.aboutSeq || (ctx.aboutSeq = A.createSecretSequence(A.SECRET));
     const verText = ctx.version || '';
     const about = h('section', { class: 'about' });
-    function copyQq() {
-      const n = contact.qq;
-      const ok = () => ctx.toast(STR.copied);
-      const fallback = () => {
-        try {
-          const ta = document.createElement('textarea');
-          ta.value = n; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
-          document.body.append(ta); ta.select();
-          const done = document.execCommand && document.execCommand('copy');
-          ta.remove();
-          if (done) ok();
-        } catch (_) { /* 无法复制：不提示 */ }
-      };
-      try {
-        if (root.navigator && root.navigator.clipboard && root.navigator.clipboard.writeText) root.navigator.clipboard.writeText(n).then(ok, fallback);
-        else fallback();
-      } catch (_) { fallback(); }
-    }
+    const copyQq = () => { ctx.copyText(contact.qq).then((ok) => { if (ok) ctx.toast(STR.copied); }); };
     function revealFeedback() {
       if (!contact || about.querySelector('.about-feedback')) return;
       ctx.aboutOpen = true;
@@ -194,7 +177,20 @@
       oncontextmenu: (e) => e.preventDefault(),
       ondragstart: (e) => e.preventDefault(),
     });
-    about.append(verBtn);
+    // 项目地址：只能打开固定地址；失败时提示并把链接复制到剪贴板。与版本号分开、间距足够，点它不算彩蛋点按
+    const openProject = async () => {
+      let ok = false;
+      try { ok = !!(await root.bm.openExternal(A.PROJECT_URL)); } catch (_) { ok = false; }
+      if (ok) return;
+      const copied = await ctx.copyText(A.PROJECT_URL);
+      ctx.toast(copied ? STR.openFailCopied : STR.openFail);
+    };
+    const linkBtn = h('button', { class: 'about-link sl', type: 'button', 'aria-label': STR.a11yOpenLink(A.PROJECT_LABEL), text: A.PROJECT_LABEL, onclick: openProject });
+    about.append(
+      h('p', { class: 'about-intro', text: STR.aboutIntro }),
+      verBtn,
+      linkBtn,
+      h('p', { class: 'about-license', text: STR.aboutLicense }));
     if (ctx.aboutOpen) revealFeedback();
 
     let uiStore;

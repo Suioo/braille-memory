@@ -9,6 +9,16 @@
     "SystemBars": {
       "insetsHandling": "css",
       "initialViewportFitValueHint": "cover"
+    },
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "launchShowDuration": 0,
+      "launchFadeOutDuration": 0,
+      "backgroundColor": "#F4FAFF",
+      "androidSplashResourceName": "splash_color",
+      "androidScaleType": "FIT_XY",
+      "splashFullScreen": false,
+      "splashImmersive": false
     }
   }
 }

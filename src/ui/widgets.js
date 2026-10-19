@@ -160,6 +160,64 @@
     get dots() { return [...this.selected].sort((a, b) => a - b); }
   }
 
+  /**
+   * 学习卡翻面（基础 / 扩展 / 规则三种卡共用）：卡片本身可点按翻面（也有「翻面」按钮），role=button + aria-pressed，Enter / 空格可翻。
+   *  - 点按 = 手指移动 ≤ 10px 且按下 ≤ 500ms；滑动页面 / 长按不算（滚动时浏览器会发 pointercancel）。
+   *  - 卡内其他可点元素（迷你点图、「展开」等按钮）自己处理点击，不触发翻面。
+   *  - 翻面动画进行中再次翻面一律忽略（减弱动效下无动画、不忽略），不会出现两面同时可见或卡在 90°。
+   *  - 键盘事件在卡片上处理并停止冒泡，避免页面级 Enter / 空格再翻一次。
+   * 返回 {el, flip, set, flipped}：flip() 用于按钮，同样受动画期间忽略的约束。
+   */
+  const FLIP_TAP_MAX_MS = 500;
+  const FLIP_MOVE_MAX_PX = 10;
+  const FLIP_LOCK_MS = 480; // = --t-flip
+  function makeFlip(el, front, back, o) {
+    let flipped = false;
+    let lockUntil = 0;
+    const set = (f) => {
+      flipped = f;
+      el.classList.toggle('flipped', f);
+      el.setAttribute('aria-pressed', String(f));
+      front.setAttribute('aria-hidden', String(f));
+      back.setAttribute('aria-hidden', String(!f));
+    };
+    const flip = () => {
+      if (Date.now() < lockUntil) return flipped;
+      set(!flipped);
+      if (!reducedNow()) lockUntil = Date.now() + FLIP_LOCK_MS;
+      if (o.onFlip) o.onFlip(el);
+      return flipped;
+    };
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    if (o.label && !el.getAttribute('aria-label')) el.setAttribute('aria-label', o.label);
+    let down = null;
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || e.isPrimary === false) return;
+      const inner = e.target.closest && e.target.closest('button, a, input, select, textarea, [role="button"]');
+      down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), ok: !inner || inner === el, moved: false };
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (down && e.pointerId === down.id && Math.hypot(e.clientX - down.x, e.clientY - down.y) > FLIP_MOVE_MAX_PX) down.moved = true;
+    });
+    el.addEventListener('pointerup', (e) => {
+      const d = down;
+      down = null;
+      if (!d || e.pointerId !== d.id || !d.ok || d.moved) return;
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > FLIP_MOVE_MAX_PX || performance.now() - d.t > FLIP_TAP_MAX_MS) return;
+      flip();
+    });
+    el.addEventListener('pointercancel', () => { down = null; });
+    el.addEventListener('keydown', (e) => {
+      if (e.target !== el || e.ctrlKey || e.altKey || e.metaKey || (e.key !== 'Enter' && e.key !== ' ')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.repeat) flip();
+    });
+    set(!!o.flipped);
+    return { el, flip, set, get flipped() { return flipped; } };
+  }
+
   /** 选符号输入：4 个选项卡片，键 1–4。 */
   class ChooseInput {
     constructor(options, onPick) {
@@ -198,15 +256,7 @@
       h('div', { class: 'card-cell' }, cellEl({ dots: new Set(row.dots), mirror: o.mirror, numbers: true })),
       h('div', { class: 'digits', text: row.dotsText }));
     const el = h('div', { class: 'card' }, h('div', { class: 'card-inner' }, front, back));
-    let flipped = false;
-    const set = (f) => {
-      flipped = f;
-      el.classList.toggle('flipped', f);
-      front.setAttribute('aria-hidden', String(f));
-      back.setAttribute('aria-hidden', String(!f));
-    };
-    set(!!o.flipped);
-    return { el, flip: () => { set(!flipped); if (o.onFlip) o.onFlip(el); return flipped; }, set, get flipped() { return flipped; } };
+    return makeFlip(el, front, back, Object.assign({ label: row.symbol + '，' + STR.a11yFlip }, o));
   }
 
   // ---------- 星（三个盲文点） ----------
@@ -236,7 +286,152 @@
       'aria-pressed': o.toggle == null ? null : String(!!o.toggle),
     }, icon);
   }
-  /** 筛选芯片：选中时前置 ✓。 */
+  // ---------- 按住滑动选择（分段按钮、底部导航、类别芯片共用） ----------
+  const reducedNow = () => { try { return !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (_) { return false; } };
+  /** 芯片行：按住约这么久再拖动才是「选择」，之前的快速划动仍是横向滚动。 */
+  const CHIP_HOLD_MS = 150;
+
+  /**
+   * 把「按住滑动选择」接到容器 el 上；指示块（indEl）负责显示，位置 / 尺寸全由这里写（width / height / translate）。
+   * 判定逻辑在 core/interact.js 的 createSlideSession（有单元测试），这里只管 DOM：
+   *  - 拖动中指示块直接跟手（无过渡）、经过每一项轻震；松手才切换并按曲线归位；
+   *  - 上下离开太远松手 = 放弃；pointercancel / 失焦 = 恢复到按下前的选中项；
+   *  - 滑动中容器滚动、尺寸变化、旋转时重新测量；滑动中禁止页面滚动与文字选中；
+   *  - 触屏有隐式捕获：改由容器捕获后，按钮的 lostpointercapture 会冒泡上来，只处理 target 是容器本身的事件。
+   * @param {HTMLElement} el 容器（position: relative；可横向滚动也行）
+   * @param {HTMLElement} indEl 指示块（绝对定位）
+   * @param {{items:()=>HTMLElement[], current:()=>HTMLElement|null, commit:(index:number)=>void, holdMs?:number, inset?:{x?:number,y?:number}, busy?:(ms:number)=>void}} o
+   * @returns {{place:(animate:boolean, target?:HTMLElement|null)=>boolean, resized:()=>void, justDragged:()=>boolean, readonly dragging:boolean}}
+   */
+  function attachSlide(el, indEl, o) {
+    const I = root.BMInteract;
+    const now = () => (root.performance ? root.performance.now() : Date.now());
+    const ix = (o.inset && o.inset.x) || 0;
+    const iy = (o.inset && o.inset.y) || 0;
+    const rectOf = (b) => ({ left: b.offsetLeft + ix, top: b.offsetTop + iy, width: b.offsetWidth - 2 * ix, height: b.offsetHeight - 2 * iy });
+    const apply = (r, animate) => {
+      indEl.classList.toggle('no-anim', !animate || reducedNow());
+      indEl.style.width = r.width + 'px';
+      indEl.style.height = r.height + 'px';
+      indEl.style.transform = 'translate(' + r.left + 'px,' + r.top + 'px)';
+    };
+    let session = null;
+    let timer = null;
+    let dragEnd = 0;
+    let pid = null;
+    let last = { x: 0, y: 0 };
+    let sliding = false;
+    const busy = (ms) => { if (o.busy) o.busy(ms); };
+    const place = (animate, target) => {
+      const t = target || o.current();
+      if (!t || !t.offsetWidth) return false;
+      apply(rectOf(t), animate);
+      return true;
+    };
+    const measure = () => {
+      const g = el.getBoundingClientRect();
+      return { rects: o.items().map((b) => { const r = b.getBoundingClientRect(); return { left: r.left, right: r.right }; }), box: { top: g.top, bottom: g.bottom } };
+    };
+    /** 滑动中指示块跟手：中心跟着指针（限制在首末项范围内），尺寸取指针下那一项。 */
+    const follow = (hover) => {
+      const items = o.items();
+      const t = items[hover >= 0 ? hover : items.indexOf(o.current())] || o.current();
+      if (!t) return;
+      const r = rectOf(t);
+      if (hover >= 0) {
+        const g = el.getBoundingClientRect();
+        const x = last.x - g.left + (el.scrollLeft || 0);
+        const first = items[0].offsetLeft + ix;
+        const end = items[items.length - 1].offsetLeft + items[items.length - 1].offsetWidth - ix;
+        r.left = Math.min(Math.max(x - r.width / 2, first), Math.max(first, end - r.width));
+      }
+      apply(r, false);
+    };
+    const stopTimer = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    const endSliding = () => {
+      sliding = false;
+      el.classList.remove('dragging');
+      if (pid != null) { try { el.releasePointerCapture(pid); } catch (_) { /* 已释放 */ } }
+      pid = null;
+    };
+    const beginSliding = (r) => {
+      sliding = true;
+      el.classList.add('dragging');
+      if (pid != null) { try { el.setPointerCapture(pid); } catch (_) { /* 忽略 */ } }
+      busy(600);
+      follow(r.hover);
+      if (r.entered && session && session.holdMs && hooks.tick) hooks.tick(); // 按满时间抓住指示块：轻震一下确认
+    };
+    const restore = () => { busy(600); place(true); };
+
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || e.isPrimary === false) return;
+      const hold = e.pointerType === 'mouse' ? 0 : (o.holdMs || 0);
+      session = I.createSlideSession({ holdMs: hold });
+      session.holdMs = hold;
+      pid = e.pointerId;
+      last = { x: e.clientX, y: e.clientY };
+      const m = measure();
+      session.down({ id: e.pointerId, x: e.clientX, y: e.clientY, t: now(), rects: m.rects, box: m.box });
+      stopTimer();
+      if (hold > 0) {
+        timer = setTimeout(() => { timer = null; const r = session && session.tick(now()); if (r) beginSliding(r); }, hold);
+      }
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!session || e.pointerId !== pid) return;
+      last = { x: e.clientX, y: e.clientY };
+      const r = session.move({ x: e.clientX, y: e.clientY, t: now() });
+      if (!r) return;
+      if (r.phase === 'scrolling') { stopTimer(); return; }
+      if (r.phase !== 'sliding') return;
+      stopTimer();
+      if (r.entered) beginSliding(r);
+      busy(600);
+      follow(r.hover);
+      if (r.changed && !r.entered && r.hover >= 0 && hooks.tick) hooks.tick();
+    });
+    const finish = (e, canceled) => {
+      if (!session || e.pointerId !== pid) return;
+      stopTimer();
+      const s = session;
+      session = null;
+      if (canceled) {
+        const c = s.cancel();
+        if (c.restore) { endSliding(); dragEnd = Date.now(); restore(); } else endSliding();
+        return;
+      }
+      const u = s.up();
+      if (!sliding) { endSliding(); return; } // 点按交给 click
+      endSliding();
+      dragEnd = Date.now();
+      if (u.commit && o.items()[u.index] !== o.current()) { busy(600); o.commit(u.index); } else restore();
+    };
+    el.addEventListener('pointerup', (e) => finish(e, false));
+    el.addEventListener('pointercancel', (e) => finish(e, true));
+    el.addEventListener('lostpointercapture', (e) => { if (e.target === el) finish(e, true); });
+    // 滑动期间：不让页面 / 行自己滚动，不选中文字
+    el.addEventListener('touchmove', (e) => { if (sliding && e.cancelable) e.preventDefault(); }, { passive: false });
+    el.addEventListener('selectstart', (e) => { if (sliding || session) e.preventDefault(); });
+    el.addEventListener('contextmenu', (e) => { if (sliding || session) e.preventDefault(); });
+    // 滑动中行自己被滚动 / 窗口尺寸变化 / 旋转：重新测量，指示块与指针下的项重新对齐
+    const remeasure = () => {
+      if (!session || !sliding) return;
+      const m = measure();
+      const r = session.remeasure(m.rects, m.box);
+      if (r) { follow(r.hover); if (r.changed && r.hover >= 0 && hooks.tick) hooks.tick(); }
+    };
+    el.addEventListener('scroll', remeasure, { passive: true });
+    if (root.addEventListener) { root.addEventListener('resize', remeasure); root.addEventListener('orientationchange', remeasure); }
+    return {
+      place,
+      resized() { if (sliding) remeasure(); else place(false); },
+      justDragged: () => Date.now() - dragEnd < 150,
+      get dragging() { return sliding; },
+    };
+  }
+
+  /** 筛选芯片：选中时前置 ✓；选中底板由 chipRow 里的滑动指示块负责。 */
   function filterChip(text, selected, onclick, o) {
     o = o || {};
     const b = h('button', {
@@ -244,9 +439,35 @@
       'aria-checked': String(!!selected), 'data-nav': o.nav || null, onclick,
     }, h('span', { class: 'chip-ico', 'aria-hidden': 'true' }, ICON.check()), h('span', { text }),
     o.count != null ? h('span', { class: 'n', text: String(o.count) }) : null);
-    /** 就地改选中态（同一个节点，✓ 淡入 / 形状变形由 CSS 过渡播放）。 */
-    b.setSelected = (v) => { b.classList.toggle('selected', !!v); b.setAttribute('aria-checked', String(!!v)); };
+    /** 就地改选中态（同一个节点）；所在芯片行的指示块随之滑到新位置。 */
+    b.setSelected = (v) => { b.classList.toggle('selected', !!v); b.setAttribute('aria-checked', String(!!v)); if (b._row) b._row.sync(); };
     return b;
+  }
+  /**
+   * 类别芯片行（radiogroup）：一块滑动指示块垫在选中的芯片下面；支持按住约 150 ms 后左右拖动选择（快速划动仍是横向滚动），
+   * 松手才切换（等同点了那个芯片）。芯片内容变化（计数、文字）后调用 row.sync() 重新对位。
+   * @param {HTMLElement[]} chips filterChip 的结果
+   * @param {string} label 读屏名称
+   */
+  function chipRow(chips, label) {
+    const ind = h('span', { class: 'chip-ind slide-ind no-anim', 'aria-hidden': 'true' });
+    const row = h('div', { class: 'chip-row slide-row', role: 'radiogroup', 'aria-label': label }, ind);
+    let busyUntil = 0;
+    const slide = attachSlide(row, ind, {
+      items: () => chips,
+      current: () => chips.find((c) => c.classList.contains('selected')) || null,
+      commit: (i) => chips[i].click(),
+      holdMs: CHIP_HOLD_MS,
+      busy: (ms) => { busyUntil = Date.now() + ms; },
+    });
+    const placed = () => !!ind.style.width;
+    row.sync = () => { busyUntil = Date.now() + 500; slide.place(placed() && row.isConnected); };
+    for (const c of chips) { c._row = row; row.append(c); }
+    if (typeof root.ResizeObserver === 'function') new root.ResizeObserver(() => { if (Date.now() > busyUntil || !row.isConnected) slide.resized(); }).observe(row);
+    else if (root.requestAnimationFrame) root.requestAnimationFrame(() => slide.place(false));
+    if (root.document && root.document.fonts && root.document.fonts.ready) root.document.fonts.ready.then(() => slide.place(false)).catch(() => {});
+    row.chips = chips;
+    return row;
   }
   /** 辅助芯片（静态）。 */
   const assistChip = (text) => h('span', { class: 'chip assist', role: 'listitem', text });
@@ -259,24 +480,30 @@
    * 返回的元素带 select(value)：就地改选中态（同一个节点，CSS 过渡可播放）。←/→ 移动焦点。
    */
   function segmented(label, options, current, onChange) {
-    const I = root.BMInteract;
-    const group = h('div', { class: 'segmented', role: 'radiogroup', 'aria-label': label });
+    const group = h('div', { class: 'segmented slide-row', role: 'radiogroup', 'aria-label': label });
     const nav = 'seg-' + Math.random().toString(36).slice(2, 8);
-    const ind = h('span', { class: 'seg-ind no-anim', 'aria-hidden': 'true' });
+    const ind = h('span', { class: 'seg-ind slide-ind no-anim', 'aria-hidden': 'true' });
     const btns = [];
     let cur = current;
-    let dragEnd = 0;
     group.append(ind);
+    let slide = null;
     for (const opt of options) {
       const b = h('button', {
         class: 'seg sl', type: 'button', role: 'radio',
         'data-nav': nav, 'data-value': String(opt.value),
-        onclick: () => { if (Date.now() - dragEnd > 150 && opt.value !== cur) onChange(opt.value); },
+        onclick: () => { if (!slide.justDragged() && opt.value !== cur) onChange(opt.value); },
       }, h('span', { class: 'chip-ico' }, ICON.check()), h('span', { text: opt.text }));
       b._value = opt.value;
       btns.push(b);
       group.append(b);
     }
+    let busy = 0;
+    slide = attachSlide(group, ind, {
+      items: () => btns,
+      current: () => btns.find((b) => b.classList.contains('selected')) || null,
+      commit: (i) => onChange(btns[i]._value),
+      busy: (ms) => { busy = Date.now() + ms; },
+    });
     function mark() {
       for (const b of btns) {
         const on = b._value === cur;
@@ -284,64 +511,12 @@
         b.setAttribute('aria-checked', String(on));
       }
     }
-    /** 把指示块放到 target（默认当前选中段）。 */
-    function place(animate, target) {
-      const sel = target || btns.find((b) => b.classList.contains('selected'));
-      if (!sel || !sel.offsetWidth) return;
-      ind.classList.toggle('no-anim', !animate);
-      ind.style.width = sel.offsetWidth + 'px';
-      ind.style.transform = 'translateX(' + sel.offsetLeft + 'px)';
-    }
     mark();
-    let busy = 0;
     // 选中段的 ✓ 占位会让整体宽度立即变化；动画期间忽略这次尺寸回调，否则指示块会被瞬间拉到终点
-    group.select = (v) => { cur = v; mark(); busy = Date.now() + 500; place(true); };
+    group.select = (v) => { cur = v; mark(); busy = Date.now() + 500; slide.place(true); };
     // 首次排版 / 尺寸变化（字号缩放、旋转）后无动画就位
-    if (typeof root.ResizeObserver === 'function') new root.ResizeObserver(() => { if (Date.now() > busy) place(false); }).observe(group);
-    else if (root.requestAnimationFrame) root.requestAnimationFrame(() => place(false));
-
-    // ---------- 按住滑动：指示块跟着指针吸附到所在段，松手才选中 ----------
-    let drag = null;
-    const measure = () => {
-      const g = group.getBoundingClientRect();
-      return { rects: btns.map((b) => { const r = b.getBoundingClientRect(); return { left: r.left, right: r.right }; }), box: { top: g.top, bottom: g.bottom } };
-    };
-    group.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0 || e.isPrimary === false) return;
-      const m = measure();
-      drag = Object.assign({ id: e.pointerId, x0: e.clientX, y0: e.clientY, sliding: false, hover: I.segmentIndexFromX(e.clientX, m.rects) }, m);
-    });
-    group.addEventListener('pointermove', (e) => {
-      if (!drag || e.pointerId !== drag.id) return;
-      if (!drag.sliding) {
-        if (!I.exceedsSlide(e.clientX - drag.x0, e.clientY - drag.y0)) return;
-        drag.sliding = true;
-        try { group.setPointerCapture(e.pointerId); } catch (_) { /* 忽略 */ }
-        group.classList.add('dragging');
-        busy = Date.now() + 600;
-        if (drag.hover >= 0) place(true, btns[drag.hover]);
-      }
-      const idx = I.hoverIndex(e.clientX, e.clientY, drag.rects, drag.box);
-      if (idx === drag.hover) return;
-      drag.hover = idx;
-      busy = Date.now() + 600;
-      if (idx < 0) place(true); else { place(true, btns[idx]); if (hooks.tick) hooks.tick(); }
-    });
-    const finish = (e, commit) => {
-      if (!drag || e.pointerId !== drag.id) return;
-      const d = drag;
-      drag = null;
-      group.classList.remove('dragging');
-      if (!d.sliding) return; // 点按交给 click
-      dragEnd = Date.now();
-      try { group.releasePointerCapture(d.id); } catch (_) { /* 忽略 */ }
-      if (commit && d.hover >= 0 && btns[d.hover]._value !== cur) onChange(btns[d.hover]._value);
-      else { busy = Date.now() + 600; place(true); }
-    };
-    group.addEventListener('pointerup', (e) => finish(e, true));
-    group.addEventListener('pointercancel', (e) => finish(e, false));
-    // 触屏有隐式捕获：改由 group 捕获时按钮的 lostpointercapture 会冒泡上来，必须忽略，否则拖动一开始就被取消
-    group.addEventListener('lostpointercapture', (e) => { if (e.target === group) finish(e, false); });
+    if (typeof root.ResizeObserver === 'function') new root.ResizeObserver(() => { if (Date.now() > busy) slide.resized(); }).observe(group);
+    else if (root.requestAnimationFrame) root.requestAnimationFrame(() => slide.place(false));
     return group;
   }
   /** 开关（role=switch）。返回的元素带 setChecked(v)：就地改状态，滑块 / 轨道颜色 / ✓ 随 CSS 过渡。 */
@@ -370,95 +545,46 @@
    * 按住横向拖动时指示块跟着指针吸附到所在标签，松手才跳转（和分段按钮一致）。
    */
   function navBar(items, current, onSelect) {
-    const I = root.BMInteract;
-    const nav = h('nav', { class: 'nav-bar', 'aria-label': STR.appName });
-    const pill = h('span', { class: 'nav-pill no-anim', 'aria-hidden': 'true' });
+    const nav = h('nav', { class: 'nav-bar slide-row', 'aria-label': STR.appName });
+    const pill = h('span', { class: 'nav-pill slide-ind no-anim', 'aria-hidden': 'true' });
     nav.append(pill);
-    let dragEnd = 0;
+    let slide = null;
     const btns = items.map((it) => {
       const b = h('button', {
         class: 'nav-item' + (it.key === current ? ' active' : ''), type: 'button', 'data-nav': 'navbar',
         'aria-current': it.key === current ? 'page' : null, 'data-tab': it.key,
-        onclick: (e) => { if (Date.now() - dragEnd > 150 && it.key !== current) onSelect(it.key, e.detail === 0); }, // detail 0 = 键盘触发
-      }, h('span', { class: 'nav-ind sl' }, it.icon()), h('span', { class: 'nav-label', text: it.label }));
+        onclick: (e) => { if (!slide.justDragged() && it.key !== current) onSelect(it.key, e.detail === 0); }, // detail 0 = 键盘触发
+      }, h('span', { class: 'nav-ind' }, it.icon()), h('span', { class: 'nav-label', text: it.label }));
       b._key = it.key;
       nav.append(b);
       return b;
     });
     const byKey = (k) => btns.find((b) => b._key === k);
-    /** 把指示块放到 target 按钮的图标位置（相对导航栏）。 */
-    function place(animate, target) {
-      if (!target) return false;
-      const ico = target.querySelector('.nav-ind');
-      if (!ico || !ico.offsetWidth) return false;
-      // 用布局尺寸（不受按下时的缩放影响）：按钮在导航栏内，图标在按钮内，二者都是定位祖先
-      pill.classList.toggle('no-anim', !animate);
-      pill.style.width = ico.offsetWidth + 'px';
-      pill.style.height = ico.offsetHeight + 'px';
-      pill.style.top = (target.offsetTop + ico.offsetTop) + 'px';
-      pill.style.transform = 'translateX(' + (target.offsetLeft + ico.offsetLeft) + 'px)';
-      return true;
-    }
     const cur = byKey(current);
     let busy = 0;
     let started = false;
+    slide = attachSlide(nav, pill, {
+      items: () => btns,
+      current: () => cur,
+      inset: { x: 4 },
+      commit: (i) => {
+        navPrevKey = btns[i]._key; // 新导航栏的指示块直接就位在松手处，不再从旧位置回滑
+        onSelect(btns[i]._key);
+      },
+      busy: (ms) => { busy = Date.now() + ms; },
+    });
     const start = () => {
       if (started) return;
       const from = navPrevKey && navPrevKey !== current ? byKey(navPrevKey) : null;
-      if (!place(false, from || cur)) return;
+      if (!slide.place(false, from || cur)) return;
       started = true;
-      if (from) { void pill.offsetWidth; busy = Date.now() + 500; place(true, cur); }
+      if (from) { void pill.offsetWidth; busy = Date.now() + 500; slide.place(true, cur); }
       navPrevKey = current;
     };
     nav.start = start; // 页面插入 DOM 后由 app.js 立即调用：同一帧内就位，指示块不会闪空
     if (typeof root.ResizeObserver === 'function') {
-      new root.ResizeObserver(() => { if (!started) start(); else if (Date.now() > busy && !nav.classList.contains('dragging')) place(false, cur); }).observe(nav);
+      new root.ResizeObserver(() => { if (!started) start(); else if (Date.now() > busy) slide.resized(); }).observe(nav);
     } else if (root.requestAnimationFrame) root.requestAnimationFrame(start);
-
-    // ---------- 按住滑动 ----------
-    let drag = null;
-    const measure = () => {
-      const g = nav.getBoundingClientRect();
-      return { rects: btns.map((b) => { const r = b.getBoundingClientRect(); return { left: r.left, right: r.right }; }), box: { top: g.top, bottom: g.bottom } };
-    };
-    nav.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0 || e.isPrimary === false) return;
-      const m = measure();
-      drag = Object.assign({ id: e.pointerId, x0: e.clientX, y0: e.clientY, sliding: false, hover: I.segmentIndexFromX(e.clientX, m.rects) }, m);
-    });
-    nav.addEventListener('pointermove', (e) => {
-      if (!drag || e.pointerId !== drag.id) return;
-      if (!drag.sliding) {
-        if (!I.exceedsSlide(e.clientX - drag.x0, e.clientY - drag.y0)) return;
-        drag.sliding = true;
-        try { nav.setPointerCapture(e.pointerId); } catch (_) { /* 忽略 */ }
-        nav.classList.add('dragging');
-        busy = Date.now() + 600;
-        if (drag.hover >= 0) place(true, btns[drag.hover]);
-      }
-      const idx = I.hoverIndex(e.clientX, e.clientY, drag.rects, drag.box);
-      if (idx === drag.hover) return;
-      drag.hover = idx;
-      busy = Date.now() + 600;
-      if (idx < 0) place(true, cur); else { place(true, btns[idx]); if (hooks.tick) hooks.tick(); }
-    });
-    const finish = (e, commit) => {
-      if (!drag || e.pointerId !== drag.id) return;
-      const d = drag;
-      drag = null;
-      nav.classList.remove('dragging');
-      if (!d.sliding) return; // 点按交给 click
-      dragEnd = Date.now();
-      try { nav.releasePointerCapture(d.id); } catch (_) { /* 忽略 */ }
-      if (commit && d.hover >= 0 && btns[d.hover]._key !== current) {
-        navPrevKey = btns[d.hover]._key; // 新导航栏的指示块直接就位在松手处，不再从旧位置回滑
-        onSelect(btns[d.hover]._key);
-      } else { busy = Date.now() + 600; place(true, cur); }
-    };
-    nav.addEventListener('pointerup', (e) => finish(e, true));
-    nav.addEventListener('pointercancel', (e) => finish(e, false));
-    // 触屏有隐式捕获：改由 nav 捕获时按钮的 lostpointercapture 会冒泡上来，必须忽略，否则拖动一开始就被取消
-    nav.addEventListener('lostpointercapture', (e) => { if (e.target === nav) finish(e, false); });
     return nav;
   }
 
@@ -537,15 +663,7 @@
       h('div', { class: 'digits', text: row.cellsText }),
       row.note ? h('div', { class: 'card-note', text: row.note }) : null);
     const el = h('div', { class: 'card' }, h('div', { class: 'card-inner' }, front, back));
-    let flipped = false;
-    const set = (f) => {
-      flipped = f;
-      el.classList.toggle('flipped', f);
-      front.setAttribute('aria-hidden', String(f));
-      back.setAttribute('aria-hidden', String(!f));
-    };
-    set(!!o.flipped);
-    return { el, flip: () => { set(!flipped); if (o.onFlip) o.onFlip(el); return flipped; }, set, get flipped() { return flipped; } };
+    return makeFlip(el, front, back, Object.assign({ label: row.symbol + '，' + STR.a11yFlip }, o));
   }
 
   /**
@@ -859,15 +977,7 @@
       h('div', { class: 'rule-head' }, ruleHeadEl(r, true), catTag(r.cat), h('span', { class: 'cat-tag pg', text: STR.rulePage(r.page) })),
       h('div', { class: 'rule-body' }, text, note), toggle);
     const el = h('div', { class: 'card', 'aria-label': STR.a11yRuleCard(r.id, r.cat, r.page, r.title) }, h('div', { class: 'card-inner' }, front, back));
-    let flipped = false;
-    const set = (f) => {
-      flipped = f;
-      el.classList.toggle('flipped', f);
-      front.setAttribute('aria-hidden', String(f));
-      back.setAttribute('aria-hidden', String(!f));
-    };
-    set(!!o.flipped);
-    return { el, flip: () => { set(!flipped); if (o.onFlip) o.onFlip(el); return flipped; }, set, get flipped() { return flipped; } };
+    return makeFlip(el, front, back, o);
   }
 
   let collapseSeq = 0;
@@ -948,7 +1058,7 @@
   }
 
   root.BMW = {
-    cellEl, miniCellEl, symbolChip, DotsInput, ChooseInput, cardEl, starsEl, btn, iconBtn, filterChip, assistChip, segmented, switchEl,
+    cellEl, miniCellEl, symbolChip, DotsInput, ChooseInput, cardEl, starsEl, btn, iconBtn, filterChip, chipRow, assistChip, segmented, switchEl,
     hooks, topBar, navBar, verdictEl, legendGlyph, revealPanel, answerDigits, progressBar,
     catTag, seqStripEl, extSymbolChip, extCardEl, SeqDotsInput, SeqChooseInput, extRevealPanel,
     wordStripEl, WordInput, ruleCardEl, ruleBoxEl, collapse,

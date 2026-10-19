@@ -7,10 +7,14 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('bm', {
   /** 启动数据：{shot, table:{ok,rows,errors}, config, progress, storeStatus, themeSource} */
   boot: () => ipcRenderer.invoke('boot:get'),
+  /** 启动画面用：同步取已保存的外观设置与是否截图 / e2e 模式（不等数据加载） */
+  earlyBoot: () => ipcRenderer.sendSync('boot:early'),
   /** 保存进度（主进程原子写入）；返回是否成功 */
   saveProgress: (data) => ipcRenderer.invoke('progress:save', data),
   /** 保存自定义文本库（主进程原子写入 texts.json）；返回是否成功 */
   saveTexts: (data) => ipcRenderer.invoke('texts:save', data),
+  /** 用系统浏览器打开「关于」里的项目地址（主进程白名单校验）；返回是否成功 */
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
   /** 选 .txt 文件：{ok, bytes} | {ok:false, canceled?, reason?} */
   pickText: () => ipcRenderer.invoke('texts:pick'),
   /** 导出记录：保存对话框 + 写文件；返回 {ok, canceled?} */

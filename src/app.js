@@ -80,6 +80,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   }
   window.addEventListener('popstate', () => {
     if (ignorePop) { ignorePop = false; return; }
+    if (root.BMSplash && root.BMSplash.active) { root.BMSplash.skip(); return; } // 启动画面期间：返回键只算「跳过」，不操作底下的页面
     pushed = false;
     if (!current) return;
     const handled = current.onKey && current.onKey(ESC); // 与 Esc 相同：全屏页返回、取消确认
@@ -98,6 +99,20 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = text;
     document.body.append(t);
     setTimeout(() => t.remove(), 1600);
+  };
+  /** 复制文字到剪贴板（先用 Clipboard API，不行再用 execCommand）。@returns {Promise<boolean>} */
+  ctx.copyText = async (text) => {
+    try {
+      if (root.navigator && root.navigator.clipboard && root.navigator.clipboard.writeText) { await root.navigator.clipboard.writeText(text); return true; }
+    } catch (_) { /* 退回旧办法 */ }
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+      document.body.append(ta); ta.select();
+      const done = !!(document.execCommand && document.execCommand('copy'));
+      ta.remove();
+      return done;
+    } catch (_) { return false; }
   };
   /** 当前范围内的符号。 */
   ctx.scopeRows = () => (ctx.settings.scope === 'all' ? ctx.table : ctx.table.filter((r) => r.category === ctx.settings.scope));
@@ -207,6 +222,11 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   // ---------- 键盘 ----------
   const NAV_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
   document.addEventListener('keydown', (e) => {
+    if (root.BMSplash && root.BMSplash.active) { // 启动画面期间：Enter / 空格 / Esc 跳过，其余（含 Tab）一律吞掉
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') root.BMSplash.skip();
+      e.preventDefault();
+      return;
+    }
     if (e.ctrlKey || e.altKey || e.metaKey || !current) return;
     if (e.repeat && !NAV_KEYS.includes(e.key)) return;
     const a = document.activeElement;
@@ -450,8 +470,29 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
         h('span', { class: 'n', text: (errors || []).slice(0, 3).join(' ') }))));
   }
 
+  /** 启动画面要用的主题：设置一到手就先应用种子色与风格（深浅色由系统 / 平台层处理），动画配色因此与设置一致。 */
+  function applyEarlyTheme(st) {
+    if (!st) return;
+    try { root.BMTheme.setSeed(st.seed); root.BMTheme.setStyle(st.style); } catch (_) { /* 用默认 */ }
+  }
+  // 兜底：启动慢 / 数据读取一直不回来，也不会卡在原生启动屏或启动画面上
+  setTimeout(() => { if (root.BMSplash) root.BMSplash.giveUp(); }, root.BMSplashPlan.MAX_MS + 200);
+
   (async function boot() {
-    const b = await root.bm.boot();
+    try {
+      // 不等数据加载：先用已保存的设置应用主题并开始启动画面（平台层给不了就等 boot 数据再开始）
+      let early = null;
+      try { early = typeof root.bm.earlyBoot === 'function' ? root.bm.earlyBoot() : null; } catch (_) { early = null; }
+      if (early) { applyEarlyTheme(early.settings); root.BMSplash.start({ shot: early.shot }); }
+      const b = await root.bm.boot();
+      if (!early) { applyEarlyTheme(b.progress && b.progress.settings); root.BMSplash.start({ shot: b.shot }); }
+      await bootWith(b);
+    } finally {
+      root.BMSplash.ready(); // 首页（或错误提示）已渲染 / 没有可渲染的了：启动画面可以淡出
+    }
+  })();
+
+  async function bootWith(b) {
     ctx.cfg = b.config;
     if (!b.table.ok) {
       renderError(b.table.errors);
@@ -511,7 +552,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     ctx.rng = root.BMPick.makeRng((Date.now() ^ (performance.now() * 1000)) >>> 0);
     if (b.themeSource !== ctx.settings.theme) root.bm.setTheme(ctx.settings.theme);
     ctx.go('learn', {}, { dir: 'tab' });
-  })();
+  }
 
   root.BMApp = { ctx, SHOTS };
 })(typeof self !== 'undefined' ? self : this);

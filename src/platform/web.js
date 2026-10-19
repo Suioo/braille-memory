@@ -91,6 +91,13 @@
       try { const tr = textsStore ? textsStore.load() : null; texts = tr && tr.status === 'ok' ? tr.data : null; } catch (_) { texts = null; }
       return { shot: null, texts, version, contact, table, extra, rules: rulesData, pinyinMap, config, progress: saved.data, storeStatus: saved.status, themeSource, seed: null };
     },
+    /** 启动画面用：同步取已保存的外观设置（不等数据文件加载）；网页端 / 安卓不会是截图模式。 */
+    earlyBoot() {
+      let st = null;
+      try { const r = store ? store.load() : null; st = r && r.data && r.data.settings ? r.data.settings : null; } catch (_) { st = null; }
+      if (st && THEMES.includes(st.theme) && root.BMTheme) root.BMTheme.setMode(st.theme);
+      return { shot: null, settings: st ? { seed: st.seed, style: st.style, theme: st.theme } : null };
+    },
     async saveProgress(data) {
       if (!store || !data || typeof data !== 'object') return false;
       try { store.save(data); return true; } catch (_) { return false; }
@@ -143,6 +150,18 @@
           input.click();
         } catch (_) { resolve({ ok: false, reason: 'read' }); }
       });
+    },
+    /** 隐藏安卓原生启动屏（网页启动画面已绘制 / 不需要播放时）；其它平台空操作。 */
+    hideNativeSplash() { nativeCall('SplashScreen', 'hide', { fadeOutDuration: 0 }); },
+    /** 用系统浏览器打开地址：安卓走 @capacitor/browser，网页端新标签页。只传「关于」里的固定项目地址。 */
+    async openExternal(url) {
+      if (!root.BMAbout || !root.BMAbout.validateOpenUrl(url)) return false;
+      try {
+        if (isNative()) { await nativeInvoke('Browser', 'open', { url: root.BMAbout.PROJECT_URL }); return true; }
+        const w = root.open(root.BMAbout.PROJECT_URL, '_blank', 'noopener,noreferrer');
+        void w;
+        return true;
+      } catch (_) { return false; }
     },
     /** 选一个 .txt 文件并读出原始字节。@returns {Promise<{ok:true,bytes:Uint8Array}|{ok:false,canceled?:boolean,reason?:string}>} */
     pickText() {

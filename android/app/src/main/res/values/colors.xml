@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 原生启动屏背景：与网页启动画面的背景一致（默认种子色的 surface：浅色 / 深色）。数值来自 src/core/palette.js。 -->
+    <color name="splash_bg">#F4FAFF</color>
+</resources>

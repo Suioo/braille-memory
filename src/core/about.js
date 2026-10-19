@@ -88,5 +88,23 @@
     return String(v || '').replace(/^(\d+\.\d+)\.0$/, '$1');
   }
 
-  return { createTapCounter, createSecretSequence, displayVersion, SECRET };
+  /** 「关于」里唯一允许用系统浏览器打开的地址（Electron 主进程与页面共用同一份校验）。 */
+  const PROJECT_URL = 'https://github.com/Suioo/braille-memory';
+  const PROJECT_LABEL = 'github.com/Suioo/braille-memory';
+
+  /**
+   * 校验要打开的地址：只接受 PROJECT_URL（允许末尾多一个 /，协议和主机大小写不敏感）；
+   * 带用户名密码、端口、查询、锚点、其他路径或其他主机一律拒绝。
+   * @returns {string|null} 规范化后的地址；不允许返回 null
+   */
+  function validateOpenUrl(url) {
+    if (typeof url !== 'string' || url.length > 200 || /[\u0000-\u0020\\]/.test(url)) return null;
+    let u;
+    try { u = new URL(url); } catch (_) { return null; }
+    if (u.protocol !== 'https:' || u.username || u.password || u.port || u.search || u.hash || u.hostname !== 'github.com') return null;
+    if (u.pathname !== '/Suioo/braille-memory' && u.pathname !== '/Suioo/braille-memory/') return null;
+    return PROJECT_URL;
+  }
+
+  return { createTapCounter, createSecretSequence, displayVersion, SECRET, PROJECT_URL, PROJECT_LABEL, validateOpenUrl };
 });

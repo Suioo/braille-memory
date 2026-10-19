@@ -170,3 +170,37 @@ test('secret (5/1.5): a stale press (no up, e.g. after a pointercancel) complete
   s.down(t + 9100);
   assert.equal(s.poll(t + 9100 + 1500), false);
 });
+
+// ---------- 项目地址白名单 ----------
+const { PROJECT_URL, PROJECT_LABEL, validateOpenUrl } = require('../src/core/about.js');
+
+test('validateOpenUrl: only the one fixed project address is allowed', () => {
+  assert.equal(PROJECT_URL, 'https://github.com/Suioo/braille-memory');
+  assert.equal(PROJECT_LABEL, 'github.com/Suioo/braille-memory');
+  assert.equal(validateOpenUrl(PROJECT_URL), PROJECT_URL);
+  assert.equal(validateOpenUrl(PROJECT_URL + '/'), PROJECT_URL);
+  assert.equal(validateOpenUrl('HTTPS://GitHub.com/Suioo/braille-memory'), PROJECT_URL, 'scheme / host are case-insensitive; the returned value is always the constant');
+});
+
+test('validateOpenUrl: everything else is refused', () => {
+  const bad = [
+    undefined, null, 42, {}, '', ' ',
+    'http://github.com/Suioo/braille-memory',
+    'https://github.com/Suioo/braille-memory/issues',
+    'https://github.com/Suioo',
+    'https://github.com/suioo/braille-memory',
+    'https://github.com/Suioo/braille-memory?x=1',
+    'https://github.com/Suioo/braille-memory#readme',
+    'https://github.com:444/Suioo/braille-memory',
+    'https://github.com@evil.example/Suioo/braille-memory',
+    'https://user:pw@github.com/Suioo/braille-memory',
+    'https://github.com.evil.example/Suioo/braille-memory',
+    'https://evilgithub.com/Suioo/braille-memory',
+    'https://github.com/Suioo/braille-memory/../x',
+    'https://github.com/Suioo/braille-memory%2F..',
+    'javascript:alert(1)', 'data:text/html,hi', 'file:///etc/passwd', 'intent://github.com/Suioo/braille-memory#Intent;end',
+    'https://github.com/Suioo/braille-memory\n', ' https://github.com/Suioo/braille-memory', 'https://github.com\\Suioo\\braille-memory',
+    'https://github.com/Suioo/braille-memory' + 'a'.repeat(300),
+  ];
+  for (const u of bad) assert.equal(validateOpenUrl(u), null, String(u).slice(0, 60));
+});

@@ -73,7 +73,7 @@
     let busy = false;
 
     // ---------- 练习入口（范围芯片、开始、复习 / 错题、题量） ----------
-    const chipsHolder = h('div', { class: 'chip-row', role: 'radiogroup', 'aria-label': STR.textsTitle });
+    const chipsHolder = h('div', { class: 'chips-holder' });
     const heroCount = h('span', { class: 'hero-count num' });
     const hint = h('p', { class: 'text-hint', role: 'status' });
     const entry = (icon, text, onclick) => {
@@ -115,7 +115,7 @@
         c.dataset.scope = key;
         return c;
       });
-      chipsHolder.replaceChildren(...chips);
+      chipsHolder.replaceChildren(W.chipRow(chips, STR.textsTitle));
       chipsHolder.hidden = ctx.texts.texts.length === 0;
     }
 

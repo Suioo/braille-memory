@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 纯色启动屏（不再显示旧的 splash.png）；颜色随浅色 / 深色切换 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/splash_bg" />
+</shape>

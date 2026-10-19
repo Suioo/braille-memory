@@ -55,7 +55,7 @@
       return c;
     });
     const nodes = [
-      h('div', { class: 'chip-row', role: 'radiogroup', 'aria-label': STR.all }, chips),
+      W.chipRow(chips, STR.all),
       h('div', { class: 'seg-row' }, C.viewSegmented(ctx, () => show(card.flipped, false))),
       holder,
       h('div', { class: 'controls' }, prevBtn, W.btn(STR.flip, flip, { variant: 'filled', icon: ICON.flip(), autofocus: true, cls: 'wide' }), nextBtn),

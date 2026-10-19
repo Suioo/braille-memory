@@ -24,7 +24,7 @@
       c.dataset.scope = key;
       return c;
     });
-    const row = h('div', { class: 'chip-row', role: 'radiogroup', 'aria-label': STR.all }, chips);
+    const row = W.chipRow(chips, STR.all);
     row.select = (key) => { for (const c of chips) c.setSelected(c.dataset.scope === key); };
     return row;
   }
@@ -62,7 +62,7 @@
       c.dataset.scope = key;
       return c;
     });
-    const row = h('div', { class: 'chip-row', role: 'radiogroup', 'aria-label': STR.all }, chips);
+    const row = W.chipRow(chips, STR.all);
     row.select = (key) => { for (const c of chips) c.setSelected(c.dataset.scope === key); };
     return row;
   }

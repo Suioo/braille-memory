@@ -197,3 +197,14 @@ OnePlus 13 上长按会触发 `pointercancel` / 系统长按手势，序列被�
 ## 分词修复（2.5.4）
 
 自动标注把每个汉字都当成独立的词、词间插空方：根因是误把 pinyin-pro 的 `segment()` 当分词器（它几乎一字一段）。现改为 `Intl.Segmenter` + 已知词表合并（见 `docs/pinyin-lib.md`），词内音节连写、词与词之间空方；「我们一起学习盲文。」→ 我们 / 一起 / 学习 / 盲文。测试：rules.json 的多音节例词（阅读、图书馆、中华人民共和国等）经标注后的分词与例词自身分写一致，格数与引擎直接翻译例词一致；上面那句的分词与拼音。已用旧版本添加的文本仍是逐字标注，需删除后重新添加（或在详情里「并下一个」）。
+
+## 界面优化（2.6.0）
+
+| 项 | 说明 |
+|---|---|
+| 启动画面 | `src/ui/splash.js`（DOM）+ `src/core/splash.js`（时间线 / 放行规则，有测试）。6 个点依次亮起 → 标题淡入 → 整屏淡出，名义总长 1.14 s（动画 920 ms + 淡出 220 ms）；淡出 = 动画播完与首页就绪中较晚者；点按 / Enter / 空格 / Esc / 返回键跳过；最多 3 s 强制；出错照常显示错误提示；减弱动效、截图 / e2e、非冷启动不播放。画面期间 `#app` inert + aria-hidden，画面本身 aria-hidden；消失后焦点回到页面。设置在数据加载之前同步取得（Electron `boot:early`，网页 `earlyBoot()`），配色即当前设置。 |
+| 原生启动屏 | 安卓：`@capacitor/splash-screen`，`launchAutoHide:false`、淡出 0、纯色资源 `splash_color`（浅 / 深色取默认种子色的 surface，`values/colors.xml`、`values-night/colors.xml`）；网页启动画面绘制出来（两帧后）才 `hide()`。原生屏背景固定为默认种子色，设置里改了种子色时网页画面用设置的颜色。Electron：窗口 `backgroundColor` = 设置的 surface，`ready-to-show` 之后才 `show()`。 |
+| 关于 | 简介（≤ 2 行）、版本号（彩蛋入口，逻辑不变）、项目地址（`core/about.js` 的 `validateOpenUrl` 白名单，Electron `open-external` IPC + `shell.openExternal`，安卓 `@capacitor/browser`）、小字。Electron 拦截 `will-navigate` / `will-frame-navigate` / `will-redirect`，`setWindowOpenHandler` 一律拒绝。失败时复制链接并提示。版本号与链接间距 20 px。 |
+| 卡片翻面 | `makeFlip`（基础 / 扩展 / 规则三种卡共用）：点按（移动 ≤ 10 px、按下 ≤ 500 ms）翻面，role=button + aria-pressed，Enter / 空格；动画进行中忽略再次翻面；卡内按钮不触发翻面。 |
+| 滑动选择 | `core/interact.js` 的 `createSlideSession`（状态机，有测试）+ `widgets.attachSlide`：分段按钮、底部导航、类别芯片共用。芯片行按住 150 ms 后才是选择（快速划动仍是滚动）；拖动中指示块跟手，松手才切换；pointercancel 恢复；上下拖远放弃；滚动 / 尺寸变化 / 旋转重新测量；拖动期间禁止滚动与选中文字；只处理 target 是容器本身的 `lostpointercapture`。 |
+| 指示块 | 统一 `.slide-ind`：填满选项的胶囊（四周 4 px 内边距），340 ms `cubic-bezier(0.2,0,0,1)`，无回弹，宽高与位置同步；拖动时无过渡；减弱动效瞬时。芯片行用 `chipRow()` 构建（芯片选中后背景透明，由指示块着色）。 |

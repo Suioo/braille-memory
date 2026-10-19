@@ -93,6 +93,11 @@
     a11yVersion: (v) => '版本 ' + v,
     versionLabel: (v) => '版本 ' + v,
     feedback: '问题反馈',
+    aboutIntro: '练习汉语现行盲文点位（摸读与扎写镜像），点位与规则依据《国家通用盲文方案》整理。',
+    aboutLicense: '开源协议 GPL-3.0 · Claude Code 协助开发',
+    openFailCopied: '无法打开，已复制链接',
+    openFail: '无法打开',
+    a11yOpenLink: (label) => '在浏览器中打开 ' + label,
     a11yCopyQq: (n) => '复制 QQ 号 ' + n,
     copied: '已复制',
     // 读屏
