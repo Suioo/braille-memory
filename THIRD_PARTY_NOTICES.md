@@ -1,6 +1,8 @@
 # 第三方许可声明（Third-party notices）
 
-本项目自身以 MIT 许可证发布（见 [LICENSE](LICENSE)）。下面列出**打包进应用**的第三方组件及其许可证；版本以 `package-lock.json` 与 `src/vendor/VENDOR.json` 为准。
+本项目自身以 GPL-3.0-or-later 许可证发布（见 [LICENSE](LICENSE)）。下面列出**打包进应用**的第三方组件及其许可证；版本以 `package-lock.json` 与 `src/vendor/VENDOR.json` 为准。
+
+下面各第三方组件保留它们自己的许可证（均为宽松许可证，与 GPL-3.0 兼容），不因本项目改用 GPL 而改变；它们的版权与许可声明请原样保留。
 
 ## 随应用分发的代码
 

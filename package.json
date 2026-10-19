@@ -15,7 +15,7 @@
     "education",
     "accessibility"
   ],
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "author": "Gan",
   "homepage": "https://github.com/Suioo/braille-memory#readme",
   "repository": {

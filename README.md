@@ -91,7 +91,7 @@ npm run android:build    # 调试版 APK → dist/盲文记忆-debug.apk
 
 ## 许可证
 
-本项目以 [MIT 许可证](LICENSE) 发布，Copyright (c) 2026 Gan。打包进应用的第三方组件及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+本项目以 [GNU 通用公共许可证第 3 版或更新版本（GPL-3.0-or-later）](LICENSE) 发布，Copyright (C) 2026 Gan。你可以自由使用、修改和再分发，但再分发（包括修改后的版本）时须同样以 GPL 开放源代码。打包进应用的第三方组件及其许可证（均与 GPL-3.0 兼容）见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## 致谢
 
@@ -107,4 +107,4 @@ npm run android:build    # 调试版 APK → dist/盲文记忆-debug.apk
 
 **Braille Memory (盲文记忆)** is a free, offline practice app for memorising the dot patterns of *Current Chinese Braille* (the Chinese national standard GF 0019—2018): initials, finals, tones, punctuation, digits, letters, and whole-sentence translation. It runs as a Windows desktop app (Electron) and an Android app (Capacitor), is written in plain HTML/CSS/JS, and keeps all progress on your device. Custom texts can be imported and annotated with pinyin (automatic annotation may contain errors).
 
-This is an unofficial project; the braille data was compiled from the standard and checked against its example words, but may still contain mistakes. The standard's PDF is not included. Build from source with `npm ci && npm test && npm start` (Node.js 22+). Licensed under MIT; see [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Issues and pull requests are welcome (please read [CONTRIBUTING.md](CONTRIBUTING.md); braille data changes must cite the page number in the standard).
+This is an unofficial project; the braille data was compiled from the standard and checked against its example words, but may still contain mistakes. The standard's PDF is not included. Build from source with `npm ci && npm test && npm start` (Node.js 22+). Licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later); see [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Issues and pull requests are welcome (please read [CONTRIBUTING.md](CONTRIBUTING.md); braille data changes must cite the page number in the standard).
