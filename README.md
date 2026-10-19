@@ -30,13 +30,6 @@
 | Windows | `braille-memory-<版本>-windows-x64.zip` | 解压后运行 `盲文记忆.exe`（未签名，SmartScreen 提示“未知发布者”时选“更多信息 → 仍要运行”） |
 | Android | `braille-memory-<版本>-android.apk` | 可覆盖安装 2.1.0 及以后的官方版本 |
 
-**国内备用：蓝奏云**（GitHub 下载较慢时使用）
-
-| 平台 | 链接 | 说明 |
-|---|---|---|
-| Windows | <https://www.ilanzou.com/s/LDLAlvy3> | 同上 |
-| Android | <https://wwati.lanzoup.com/i7tcU4chtngh> | 提取密码：`4xoc`。手机打开若提示开通会员，请切换为“桌面版网页”再下载 |
-
 ### 核对安卓安装包是否为官方版本
 
 官方安卓安装包的签名证书 SHA-256 指纹为：
