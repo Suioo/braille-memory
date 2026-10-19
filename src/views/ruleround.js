@@ -297,6 +297,15 @@
       if (e.key === 'Enter' && phase !== 'ask') { cont(); return true; }
       return false;
     }
+    /** 手柄：翻盲文题的多方输入——LB / RB 上一方 / 下一方，X 空方，LT 退格（Y 提交由页面通用的主按钮处理）。 */
+    function onPad(action) {
+      if (!q || q.type !== 'translate' || phase !== 'ask') return false;
+      if (action === 'lb') { input.setCur(input.cur - 1); return true; }
+      if (action === 'rb') { if (input.cur < input.last) input.setCur(input.cur + 1); else if (input.curFilled) input.next(); return true; }
+      if (action === 'x') { input.blank(); return true; }
+      if (action === 'lt') { input.del(); return true; }
+      return false;
+    }
     function destroy() {
       stopTick();
       window.removeEventListener('blur', pause);
@@ -306,7 +315,7 @@
 
     ask(params.force, false);
     return {
-      el, onKey, destroy,
+      el, onKey, onPad, destroy,
       api: {
         get q() { return q; },
         get input() { return input; },

@@ -226,3 +226,7 @@ OnePlus 13 上长按会触发 `pointercancel` / 系统长按手势，序列被�
 ## 手柄震动（2.7.0）
 
 详见 [gamepad-haptics.md](gamepad-haptics.md)。纯逻辑在 `src/core/haptics.js`（事件分级、序列、限流、选手柄，有测试），平台层在 `src/platform/gamepad-haptics.js`（Gamepad API 或安卓原生插件）；`ctx.haptic(kind, info)` 同时触发手机震动和手柄震动。
+
+## 手柄操控（2.8.0）
+
+详见 [gamepad-haptics.md](gamepad-haptics.md)「手柄操控」。纯逻辑 `src/core/padnav.js`（有测试），平台层 `src/platform/gamepad-input.js`，界面层 `src/ui/gamepad-nav.js`；页面可选提供 `onPad(action)`。

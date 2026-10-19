@@ -133,7 +133,7 @@
         function ask() {
           row.classList.add('asking');
           ctl.replaceChildren(h('span', { class: 'ti-ask', role: 'alert', text: STR.textDeleteAsk }),
-            h('div', { class: 'confirm-row' },
+            h('div', { class: 'confirm-row', 'data-pad-layer': '1' },
               W.btn(STR.cancel, () => { row.classList.remove('asking'); idle(); }, { variant: 'text' }),
               W.btn(STR.confirm, () => { deleteText(ctx, t.id); redraw(); ctx.toast(STR.textDeleted); }, { variant: 'error' })));
           row.scrollIntoView({ block: 'nearest' });

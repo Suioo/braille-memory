@@ -62,7 +62,7 @@
       }));
 
     const clearCtl = confirming
-      ? h('div', { class: 'confirm-row' },
+      ? h('div', { class: 'confirm-row', 'data-pad-layer': '1' },
         W.btn(STR.cancel, () => { confirming = false; again(C.sel('data-key', 'clear') + ' button'); }, { variant: 'text' }),
         W.btn(STR.confirm, () => {
           ctx.clearProgress();
@@ -97,7 +97,7 @@
           if (r.canceled) return;
           if (!r.ok) { ctx.toast(STR.importReason[r.reason] || STR.importFail); return; }
           pending = r;
-          confirmRow = h('div', { class: 'list-item', 'data-key': 'record-confirm' },
+          confirmRow = h('div', { class: 'list-item', 'data-key': 'record-confirm', 'data-pad-layer': '1' },
             h('span', { class: 'li-label wrap', role: 'alert', text: STR.importSummary(r.imported, r.skipped) }),
             h('div', { class: 'li-ctl' }, h('div', { class: 'confirm-row' },
               W.btn(STR.cancel, () => closeConfirm('button'), { variant: 'text' }),

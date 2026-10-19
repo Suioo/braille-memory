@@ -71,7 +71,7 @@ h1, h2 { margin: 0; font-weight: 700; }
 
 /* ---------- 屏幕 / 页面 ---------- */
 .screen { height: 100vh; display: flex; flex-direction: column; background: var(--surface); }
-.screen:focus { outline: none; }
+.screen:focus, html[data-input="pad"] .screen:focus { outline: none; }
 .page { flex: 1; min-height: 0; width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; }
 .page-body {
   flex: 1; min-height: 0; overflow-y: auto;
@@ -118,8 +118,8 @@ h1, h2 { margin: 0; font-weight: 700; }
 .nav-ind svg { width: 24px; height: 24px; }
 .nav-label { font-size: var(--label-m); font-weight: 700; letter-spacing: 0.04em; }
 .nav-item.active, .nav-item.active .nav-ind { color: var(--on-secondary-container); }
-.nav-item:focus-visible { outline: none; }
-.nav-item:focus-visible .nav-ind { outline: 3px solid var(--primary); outline-offset: 2px; }
+.nav-item:focus-visible, html[data-input="pad"] .nav-item:focus { outline: none; }
+.nav-item:focus-visible .nav-ind, html[data-input="pad"] .nav-item:focus .nav-ind { outline: 3px solid var(--primary); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) { .nav-item:hover .nav-ind::before { opacity: 0.08; } }
 .nav-item:active .nav-ind::before { opacity: 0.12; }
 
@@ -137,7 +137,9 @@ h1, h2 { margin: 0; font-weight: 700; }
 .sl { transition: transform var(--t-state) var(--standard); }
 
 :focus { outline: none; }
-:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+:focus-visible, html[data-input="pad"] :focus { outline: 3px solid var(--primary); outline-offset: 2px; }
+/* 手柄移动焦点时滚动到可见：留出一点边距，别贴着顶栏 / 底栏 */
+.page-body :focus { scroll-margin: 16px; }
 
 /* ---------- 按钮 ---------- */
 button { font: inherit; color: inherit; }
@@ -216,7 +218,7 @@ button { font: inherit; color: inherit; }
 }
 .seg + .seg { box-shadow: inset 1px 0 0 var(--outline); }
 .seg.selected { background: var(--secondary-container); color: var(--on-secondary-container); }
-.seg:focus-visible { outline-offset: -3px; }
+.seg:focus-visible, html[data-input="pad"] .seg:focus { outline-offset: -3px; }
 .seg.sl:active { transform: none; }
 
 /* ---------- 开关 ---------- */
@@ -237,8 +239,8 @@ button { font: inherit; color: inherit; }
 .switch.on .thumb svg { opacity: 1; transform: none; }
 .switch:active .thumb { width: 28px; height: 28px; top: 2px; }
 .switch.on:active .thumb { left: 22px; }
-.switch:focus-visible { outline: none; }
-.switch:focus-visible .track { outline: 3px solid var(--primary); outline-offset: 2px; }
+.switch:focus-visible, html[data-input="pad"] .switch:focus { outline: none; }
+.switch:focus-visible .track, html[data-input="pad"] .switch:focus .track { outline: 3px solid var(--primary); outline-offset: 2px; }
 
 /* ---------- 盲文方 ---------- */
 .cell-card {
@@ -286,7 +288,7 @@ button { font: inherit; color: inherit; }
 .dot.extra .badge { background: var(--error-container); color: var(--on-error-container); }
 .dot.missed .badge { background: var(--tertiary-container); color: var(--on-tertiary-container); }
 .dot .badge svg { width: 66%; height: 66%; stroke-width: 3; }
-.dot:focus-visible { outline-offset: 4px; }
+.dot:focus-visible, html[data-input="pad"] .dot:focus { outline-offset: 4px; }
 .dot.pop { animation: pop var(--t-pop) var(--spring-fast); }
 .dot.missed { animation: reveal var(--t-reveal) var(--emph-decel) both; animation-delay: calc(var(--i, 0) * var(--t-stagger)); }
 .dot.hit .badge, .dot.extra .badge { animation: fade var(--t-reveal) var(--std-decel) both; }
@@ -528,7 +530,7 @@ button { font: inherit; color: inherit; }
 .li-label.wrap { white-space: normal; }
 .about { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0 4px; color: var(--on-surface-variant); }
 .about-ver { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; border: 0; background: none; color: inherit; font: inherit; font-size: 13px; opacity: 0.7; -webkit-tap-highlight-color: transparent; min-height: 44px; padding: 0 16px; cursor: pointer; }
-.about-ver:focus-visible, .about-qq:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 8px; }
+.about-ver:focus-visible, .about-qq:focus-visible, html[data-input="pad"] .about-ver:focus, html[data-input="pad"] .about-qq:focus { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 8px; }
 .about-feedback { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; font-size: var(--body-m, 14px); animation: about-in var(--t-q) var(--emph-decel) both; }
 .about-qq { border: 0; background: none; color: var(--primary); font: inherit; font-weight: 700; min-height: 44px; padding: 0 8px; cursor: pointer; text-decoration: underline; }
 @keyframes about-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
@@ -680,7 +682,7 @@ button { font: inherit; color: inherit; }
 .seg .chip-ico { width: 0; margin-left: -6px; opacity: 0; overflow: hidden; transform: scale(0.5); transition: opacity var(--t-state) var(--effects), transform var(--t-q) var(--spring-fast); }
 .seg.selected .chip-ico { width: 18px; margin-left: 0; opacity: 1; transform: none; }
 .seg:active { border-radius: 8px; }
-.seg:focus-visible { outline-offset: -2px; }
+.seg:focus-visible, html[data-input="pad"] .seg:focus { outline-offset: -2px; }
 
 /* 盲文点：静止是正圆；按下压成圆角方，松开弹回并略微变大 */
 .dot .ring rect { transition: fill var(--t-state) var(--effects), rx var(--t-morph) var(--spring-fast); }
@@ -858,7 +860,7 @@ html[data-style="glass"] .fx-ring { border-radius: 32px; }
 /* 迷你点图按钮：去掉按钮外观，点击区 >= 48 px */
 button.mini-cell { position: relative; border: 0; font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; will-change: transform; }
 button.mini-cell::after { content: ""; position: absolute; inset: -6px; }
-button.mini-cell:focus-visible { outline-offset: 3px; }
+button.mini-cell:focus-visible, html[data-input="pad"] button.mini-cell:focus { outline-offset: 3px; }
 
 /* ================= 扩展符号（多方）：基础 | 扩展、整串点位、逐方输入 ================= */
 .module-content { display: contents; }
@@ -898,7 +900,7 @@ button.mini-cell:focus-visible { outline-offset: 3px; }
   background: var(--primary); color: var(--on-primary); }
 .slot.bad .slot-mark { background: var(--error); color: var(--on-error); }
 .slot-mark svg { width: 12px; height: 12px; stroke-width: 3; }
-.slot:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.slot:focus-visible, html[data-input="pad"] .slot:focus { outline: 3px solid var(--primary); outline-offset: 2px; }
 /* 选点位题：选项是整串迷你点图 */
 .option.opt-seq { flex-direction: column; justify-content: flex-end; padding: 34px 8px 12px; min-height: clamp(84px, 12vh, 112px); }
 .option .seq-strip { gap: 8px; }
@@ -983,7 +985,7 @@ button.mini-cell:focus-visible { outline-offset: 3px; }
 /* ---------- 折叠区（「设置」页分组、规则说明条等）---------- */
 .collapse-head { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 0; background: none; color: var(--on-surface);
   font: inherit; text-align: left; cursor: pointer; min-height: 56px; padding: 8px 16px; border-radius: inherit; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
-.collapse-head:focus-visible { outline: 3px solid var(--primary); outline-offset: -3px; }
+.collapse-head:focus-visible, html[data-input="pad"] .collapse-head:focus { outline: 3px solid var(--primary); outline-offset: -3px; }
 .ch-title { font-size: var(--title-m); font-weight: 700; letter-spacing: 0.06em; display: inline-flex; align-items: center; min-width: 0; }
 .ch-chev { flex: none; display: grid; place-items: center; color: var(--on-surface-variant); transition: transform 260ms cubic-bezier(0.3, 0, 0.2, 1); }
 .ch-chev svg { width: 22px; height: 22px; }
@@ -1002,7 +1004,7 @@ button.mini-cell:focus-visible { outline-offset: 3px; }
 /* ================= 我的文本：列表、添加面板、详情、答题 ================= */
 .field { width: 100%; box-sizing: border-box; font: inherit; font-size: var(--body-l); color: var(--on-surface); background: var(--surface-container-highest);
   border: 0; border-radius: var(--r-m, 12px); padding: 12px 14px; box-shadow: inset 0 0 0 1px var(--outline-variant); resize: vertical; min-height: 48px; }
-.field:focus-visible { outline: 3px solid var(--primary); outline-offset: 1px; }
+.field:focus-visible, html[data-input="pad"] .field:focus { outline: 3px solid var(--primary); outline-offset: 1px; }
 textarea.field { line-height: 1.5; }
 .text-hint { margin: 0; font-size: var(--label-m); color: var(--on-surface-variant); line-height: 1.5; overflow-wrap: anywhere; }
 .text-hint[hidden] { display: none; }
@@ -1046,7 +1048,7 @@ textarea.field { line-height: 1.5; }
 .tok.skip { text-decoration: line-through; opacity: 0.75; }
 .tok.edited { box-shadow: inset 0 0 0 1px var(--primary); }
 .tok.sel { box-shadow: inset 0 0 0 2px var(--primary); }
-.tok:focus-visible { outline: 3px solid var(--primary); outline-offset: 1px; }
+.tok:focus-visible, html[data-input="pad"] .tok:focus { outline: 3px solid var(--primary); outline-offset: 1px; }
 .tok-actions:empty { display: none; }
 .tok-actions { display: flex; flex-direction: column; gap: 8px; }
 
@@ -1096,7 +1098,7 @@ textarea.field { line-height: 1.5; }
 
 /* 学习卡：点按翻面（role=button） */
 .card[role="button"] { cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-.card[role="button"]:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; border-radius: 36px; }
+.card[role="button"]:focus-visible, html[data-input="pad"] .card[role="button"]:focus { outline: 3px solid var(--primary); outline-offset: 3px; border-radius: 36px; }
 
 /* 设置 → 关于：简介（最多两行）、版本号（彩蛋入口）、项目地址、小字；版本号与链接之间留足间距，互不误触 */
 .about { padding: 12px 16px 8px; gap: 0; }
@@ -1104,7 +1106,7 @@ textarea.field { line-height: 1.5; }
 .about-ver { margin-top: 8px; }
 .about-repo { margin: 12px 0 0; font-size: 12px; opacity: 0.7; letter-spacing: 0.08em; }
 .about-link { margin-top: -6px; border: 0; background: none; color: var(--primary); font: inherit; font-size: 13px; font-weight: 700; letter-spacing: 0.02em; min-height: 44px; padding: 0 12px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; touch-action: manipulation; }
-.about-link:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 8px; }
+.about-link:focus-visible, html[data-input="pad"] .about-link:focus { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: 8px; }
 .about-license { margin: 4px 0 0; font-size: 12px; opacity: 0.75; text-align: center; }
 .about-feedback { margin-top: 8px; }
 

@@ -220,6 +220,13 @@
       }
       return false;
     }
+    /** 手柄：逐方题的多方输入——LB / RB 上一方 / 下一方（Y 提交 / 下一方由页面通用的主按钮处理）。 */
+    function onPad(action) {
+      if (!q || q.type !== 'dots' || phase !== 'ask') return false;
+      if (action === 'lb') { input.prev(); return true; }
+      if (action === 'rb') { input.next(); return true; }
+      return false;
+    }
     function destroy() {
       window.removeEventListener('blur', pause);
       window.removeEventListener('focus', resume);
@@ -228,7 +235,7 @@
 
     ask(params.force, false);
     return {
-      el, onKey, destroy,
+      el, onKey, onPad, destroy,
       api: {
         get q() { return q; },
         get input() { return input; },

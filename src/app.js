@@ -78,6 +78,15 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
       else if (!want && pushed) { pushed = false; ignorePop = true; history.back(); }
     } catch (_) { /* file:// 等不支持时忽略 */ }
   }
+  /** 返回（手柄 B 键）：与 Esc / 系统返回键一致——先让页面处理（关确认行、全屏页返回），没处理就回到上一级；已在「学习」根页则不动。 */
+  ctx.currentView = () => current;
+  ctx.back = () => {
+    if (root.BMSplash && root.BMSplash.active) { root.BMSplash.skip(); return; }
+    if (!current) return;
+    if (current.onKey && current.onKey(ESC)) return;
+    if (current.tab === 'learn') return;
+    ctx.go(current.tab ? 'learn' : (ctx.lastTab || 'learn'), {}, { dir: current.tab ? 'tab' : 'back' });
+  };
   window.addEventListener('popstate', () => {
     if (ignorePop) { ignorePop = false; return; }
     if (root.BMSplash && root.BMSplash.active) { root.BMSplash.skip(); return; } // 启动画面期间：返回键只算「跳过」，不操作底下的页面
@@ -498,6 +507,11 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   async function bootWith(b) {
     ctx.cfg = b.config;
     // 手柄震动：截图 / e2e 模式不启用（不轮询）；其余初始化一次，随后手柄出现 / 断开会自动更新设置里的开关
+    // 手柄操控：截图 / e2e 模式不启用
+    if (!b.shot && root.BMPadInput && root.BMPadUI) {
+      const padUI = root.BMPadUI.create(ctx, document);
+      root.BMPadInput.init({ onEvent: padUI.handle, enabled: () => !!ctx.progress });
+    }
     if (!b.shot && root.BMPadHaptics) root.BMPadHaptics.init({ getConfig: () => (ctx.cfg && ctx.cfg.haptics ? ctx.cfg.haptics.gamepad : null), isEnabled: () => !!(ctx.progress && ctx.settings.padHaptics) });
     if (!b.table.ok) {
       renderError(b.table.errors);

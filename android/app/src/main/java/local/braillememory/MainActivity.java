@@ -14,16 +14,18 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
     }
 
-    // 记下最后一次有输入的手柄（按键 / 摇杆），手柄震动只震它
+    // 记下最后一次有输入的手柄（手柄震动只震它）；手柄的按键 / 摇杆交给插件推给网页做操控（网页开启后由插件消耗，系统返回键等不受影响）
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         GamepadHapticsPlugin.noteInput(event.getDeviceId(), event.getSource());
+        if (GamepadHapticsPlugin.handleKey(event)) return true;
         return super.dispatchKeyEvent(event);
     }
 
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent event) {
         GamepadHapticsPlugin.noteInput(event.getDeviceId(), event.getSource());
+        if (GamepadHapticsPlugin.handleMotion(event)) return true;
         return super.dispatchGenericMotionEvent(event);
     }
 }

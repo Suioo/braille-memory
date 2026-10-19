@@ -243,6 +243,13 @@
       }
       return false;
     }
+    /** 手柄：学习阶段的卡片 LB / RB 上一张 / 下一张（其余走页面通用处理：A 确认、X 翻面、Y 主按钮）。 */
+    function onPad(action) {
+      if (sub !== 'card' || sess.phase !== 'learn') return false;
+      if (action === 'lb') { sess.learnMove(-1); renderLearn(true); return true; }
+      if (action === 'rb') { learnNext(); return true; }
+      return false;
+    }
     function destroy() {
       stopTick();
       window.removeEventListener('blur', pause);
@@ -252,7 +259,7 @@
 
     renderLearn(false);
     return {
-      el, onKey, destroy,
+      el, onKey, onPad, destroy,
       api: {
         sess,
         /** 截图用：跳到某阶段（练习阶段全部答对以进入测验）。 */
