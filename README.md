@@ -23,9 +23,18 @@
 
 ## 下载
 
+**推荐：[GitHub Releases](https://github.com/Suioo/braille-memory/releases/latest)**，每个版本附带安装包和 `SHA256SUMS.txt` 校验值。
+
+| 平台 | 文件 | 说明 |
+|---|---|---|
+| Windows | `braille-memory-<版本>-windows-x64.zip` | 解压后运行 `盲文记忆.exe`（未签名，SmartScreen 提示“未知发布者”时选“更多信息 → 仍要运行”） |
+| Android | `braille-memory-<版本>-android.apk` | 可覆盖安装 2.1.0 及以后的官方版本 |
+
+**国内备用：蓝奏云**（GitHub 下载较慢时使用）
+
 | 平台 | 链接 | 说明 |
 |---|---|---|
-| Windows | <https://www.ilanzou.com/s/LDLAlvy3> | 解压后运行 `盲文记忆.exe`（未签名，SmartScreen 提示“未知发布者”时选“更多信息 → 仍要运行”） |
+| Windows | <https://www.ilanzou.com/s/LDLAlvy3> | 同上 |
 | Android | <https://wwati.lanzoup.com/i7tcU4chtngh> | 提取密码：`4xoc`。手机打开若提示开通会员，请切换为“桌面版网页”再下载 |
 
 ### 核对安卓安装包是否为官方版本
@@ -100,6 +109,7 @@ npm run android:build    # 调试版 APK → dist/盲文记忆-debug.apk
 - [Electron](https://www.electronjs.org/)、[electron-builder](https://www.electron.build/)——Windows 桌面版
 - [Capacitor](https://capacitorjs.com/)——Android 版
 - [Material Design 3](https://m3.material.io/)——界面设计语言
+- [Claude Code](https://claude.com/claude-code)——AI 协助开发（需求、设计与真机测试由作者完成）
 
 ---
 
@@ -107,4 +117,4 @@ npm run android:build    # 调试版 APK → dist/盲文记忆-debug.apk
 
 **Braille Memory (盲文记忆)** is a free, offline practice app for memorising the dot patterns of *Current Chinese Braille* (the Chinese national standard GF 0019—2018): initials, finals, tones, punctuation, digits, letters, and whole-sentence translation. It runs as a Windows desktop app (Electron) and an Android app (Capacitor), is written in plain HTML/CSS/JS, and keeps all progress on your device. Custom texts can be imported and annotated with pinyin (automatic annotation may contain errors).
 
-This is an unofficial project; the braille data was compiled from the standard and checked against its example words, but may still contain mistakes. The standard's PDF is not included. Build from source with `npm ci && npm test && npm start` (Node.js 22+). Licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later); see [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Issues and pull requests are welcome (please read [CONTRIBUTING.md](CONTRIBUTING.md); braille data changes must cite the page number in the standard).
+This is an unofficial project; the braille data was compiled from the standard and checked against its example words, but may still contain mistakes. The standard's PDF is not included. Build from source with `npm ci && npm test && npm start` (Node.js 22+). Licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later); see [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Issues and pull requests are welcome (please read [CONTRIBUTING.md](CONTRIBUTING.md); braille data changes must cite the page number in the standard). Downloads are on [GitHub Releases](https://github.com/Suioo/braille-memory/releases/latest). Developed with the assistance of [Claude Code](https://claude.com/claude-code).
