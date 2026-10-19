@@ -294,7 +294,7 @@
   /**
    * 把「按住滑动选择」接到容器 el 上；指示块（indEl）负责显示，位置 / 尺寸全由这里写（width / height / translate）。
    * 判定逻辑在 core/interact.js 的 createSlideSession（有单元测试），这里只管 DOM：
-   *  - 拖动中指示块直接跟手（无过渡）、经过每一项轻震；松手才切换并按曲线归位；
+   *  - 拖动中指示块吸附到手指所在的那一项（260 ms 过渡）、经过每一项轻震；松手才切换并归位（420 ms，同一条曲线）；
    *  - 上下离开太远松手 = 放弃；pointercancel / 失焦 = 恢复到按下前的选中项；
    *  - 滑动中容器滚动、尺寸变化、旋转时重新测量；滑动中禁止页面滚动与文字选中；
    *  - 触屏有隐式捕获：改由容器捕获后，按钮的 lostpointercapture 会冒泡上来，只处理 target 是容器本身的事件。
@@ -319,7 +319,6 @@
     let timer = null;
     let dragEnd = 0;
     let pid = null;
-    let last = { x: 0, y: 0 };
     let sliding = false;
     const busy = (ms) => { if (o.busy) o.busy(ms); };
     const place = (animate, target) => {
@@ -332,20 +331,11 @@
       const g = el.getBoundingClientRect();
       return { rects: o.items().map((b) => { const r = b.getBoundingClientRect(); return { left: r.left, right: r.right }; }), box: { top: g.top, bottom: g.bottom } };
     };
-    /** 滑动中指示块跟手：中心跟着指针（限制在首末项范围内），尺寸取指针下那一项。 */
+    /** 滑动中指示块吸附到指针下的那一项（放弃时回到当前选中项）；带短过渡（.dragging 下 260 ms），快速划过多项时从当前位置继续，不会先跳回再走。 */
     const follow = (hover) => {
       const items = o.items();
-      const t = items[hover >= 0 ? hover : items.indexOf(o.current())] || o.current();
-      if (!t) return;
-      const r = rectOf(t);
-      if (hover >= 0) {
-        const g = el.getBoundingClientRect();
-        const x = last.x - g.left + (el.scrollLeft || 0);
-        const first = items[0].offsetLeft + ix;
-        const end = items[items.length - 1].offsetLeft + items[items.length - 1].offsetWidth - ix;
-        r.left = Math.min(Math.max(x - r.width / 2, first), Math.max(first, end - r.width));
-      }
-      apply(r, false);
+      const t = (hover >= 0 ? items[hover] : null) || o.current();
+      if (t && t.offsetWidth) apply(rectOf(t), true);
     };
     const stopTimer = () => { if (timer) { clearTimeout(timer); timer = null; } };
     const endSliding = () => {
@@ -370,7 +360,6 @@
       session = I.createSlideSession({ holdMs: hold });
       session.holdMs = hold;
       pid = e.pointerId;
-      last = { x: e.clientX, y: e.clientY };
       const m = measure();
       session.down({ id: e.pointerId, x: e.clientX, y: e.clientY, t: now(), rects: m.rects, box: m.box });
       stopTimer();
@@ -380,7 +369,6 @@
     });
     el.addEventListener('pointermove', (e) => {
       if (!session || e.pointerId !== pid) return;
-      last = { x: e.clientX, y: e.clientY };
       const r = session.move({ x: e.clientX, y: e.clientY, t: now() });
       if (!r) return;
       if (r.phase === 'scrolling') { stopTimer(); return; }

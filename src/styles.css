@@ -37,7 +37,7 @@
   --t-stagger: 50ms;
   --t-morph: 260ms;
   /* 滑动指示块（分段按钮 / 底部导航 / 类别芯片）：柔和减速、不回弹；宽度与位置同步 */
-  --t-slide: 340ms; --slide-ease: cubic-bezier(0.2, 0, 0, 1);
+  --t-slide: 420ms; --t-slide-drag: 260ms; --slide-ease: cubic-bezier(0.2, 0, 0, 1);
 
   --dot: clamp(44px, 8.4vh, 84px);
   --gap: calc(var(--dot) * 0.36);
@@ -64,6 +64,8 @@ h1, h2 { margin: 0; font-weight: 700; }
 [hidden] { display: none !important; }
 
 #app { height: 100%; }
+/* 不支持 scrollbar-gutter 的旧内核：始终显示滚动条轨道，同样保证宽度不变 */
+@supports not (scrollbar-gutter: stable) { .page-body { overflow-y: scroll; } }
 ::-webkit-scrollbar { width: 8px; height: 0; }
 ::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: 4px; }
 
@@ -73,6 +75,8 @@ h1, h2 { margin: 0; font-weight: 700; }
 .page { flex: 1; min-height: 0; width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; }
 .page-body {
   flex: 1; min-height: 0; overflow-y: auto;
+  /* 给竖向滚动条（Windows / 桌面的占宽经典滚动条）提前预留位置：折叠组展开 / 收起让页面变高变矮时，内容宽度不变 */
+  scrollbar-gutter: stable both-edges;
   padding: 4px 20px 20px;
   display: flex; flex-direction: column; gap: 16px;
 }
@@ -1085,7 +1089,9 @@ textarea.field { line-height: 1.5; }
 .slide-row.dragging, .slide-row.dragging > * { cursor: grabbing; }
 .slide-ind { position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: var(--ind-r, 999px); background: var(--secondary-container); pointer-events: none; z-index: 0;
   transition: transform var(--t-slide) var(--slide-ease), width var(--t-slide) var(--slide-ease), height var(--t-slide) var(--slide-ease); }
-.slide-ind.no-anim, .dragging > .slide-ind { transition: none; }
+.slide-ind.no-anim { transition: none; }
+/* 拖动中：吸附到手指所在那一项，也有过渡（更短）；松手归位 / 点按切换用上面的 420ms */
+.slide-row.dragging > .slide-ind { transition-duration: var(--t-slide-drag); }
 .chip-ind { --ind-r: 12px; }
 .chip-row .chip.filter { z-index: 1; }
 .chip-row .chip.filter.selected, .chip-row .chip.filter.selected:active { background: transparent; }

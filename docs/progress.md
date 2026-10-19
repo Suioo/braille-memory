@@ -207,4 +207,9 @@ OnePlus 13 上长按会触发 `pointercancel` / 系统长按手势，序列被�
 | 关于 | 简介（≤ 2 行）、版本号（彩蛋入口，逻辑不变）、项目地址（`core/about.js` 的 `validateOpenUrl` 白名单，Electron `open-external` IPC + `shell.openExternal`，安卓 `@capacitor/browser`）、小字。Electron 拦截 `will-navigate` / `will-frame-navigate` / `will-redirect`，`setWindowOpenHandler` 一律拒绝。失败时复制链接并提示。版本号与链接间距 20 px。 |
 | 卡片翻面 | `makeFlip`（基础 / 扩展 / 规则三种卡共用）：点按（移动 ≤ 10 px、按下 ≤ 500 ms）翻面，role=button + aria-pressed，Enter / 空格；动画进行中忽略再次翻面；卡内按钮不触发翻面。 |
 | 滑动选择 | `core/interact.js` 的 `createSlideSession`（状态机，有测试）+ `widgets.attachSlide`：分段按钮、底部导航、类别芯片共用。芯片行按住 150 ms 后才是选择（快速划动仍是滚动）；拖动中指示块跟手，松手才切换；pointercancel 恢复；上下拖远放弃；滚动 / 尺寸变化 / 旋转重新测量；拖动期间禁止滚动与选中文字；只处理 target 是容器本身的 `lostpointercapture`。 |
-| 指示块 | 统一 `.slide-ind`：填满选项的胶囊（四周 4 px 内边距），340 ms `cubic-bezier(0.2,0,0,1)`，无回弹，宽高与位置同步；拖动时无过渡；减弱动效瞬时。芯片行用 `chipRow()` 构建（芯片选中后背景透明，由指示块着色）。 |
+| 指示块 | 统一 `.slide-ind`：填满选项的胶囊（四周 4 px 内边距），`cubic-bezier(0.2,0,0,1)`，无回弹，宽高与位置同步；2.6.1 起：点按 / 松手归位 420 ms，拖动中吸附到手指所在项 260 ms（`.dragging` 下），快速划过多项从当前位置继续；减弱动效瞬时。芯片行用 `chipRow()` 构建（芯片选中后背景透明，由指示块着色）。 |
+
+## 2.6.1 修复
+
+- 拖动选择：不再「直接跟手无过渡」，改为吸附到所在项并带 260 ms 过渡（`--t-slide-drag`），归位 / 点按 420 ms（`--t-slide`）；轻震时机不变。
+- 展开折叠组时内容左缩：根因是 `.page-body` 的竖向滚动条（8 px）随页面变高 / 变矮出现 / 消失。`scrollbar-gutter: stable both-edges` 预留位置（不支持的内核用 `overflow-y: scroll` 兜底）。无头浏览器（保留经典滚动条）逐帧记录展开、收起时折叠组左 / 右边缘与内容宽度：修复前右边缘随滚动条跳 8 px，修复后全程 0 px 变化（375 / 480 / 720 宽、两种风格、浅 / 深色）。折叠动画本身（时长、曲线）未改。
