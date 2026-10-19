@@ -35,6 +35,8 @@
       const agg = runs.reduce((a, x) => ({ n: a.n + x.run.n, ok: a.ok + x.run.ok, cells: a.cells + x.run.cells, ms: a.ms + x.run.ms }), { n: 0, ok: 0, cells: 0, ms: 0 });
       tm = root.BMTextStats.metrics(agg);
     }
+    // 破纪录（文本计时成绩）：逐渐增强的一小段震动（手机无此事件，ctx.haptic 对未知种类什么都不做）
+    if (runs && runs.some((x) => x.newBest || x.newBestAcc)) ctx.haptic('record');
     const nm = (v) => (v < 10 ? v.toFixed(1) : String(Math.round(v)));
     const el = h('div', { class: 'page result-page' },
       W.topBar(C.backBtn(leave), h('h1', { text: MODE_LABEL()[sm.mode] }), null),

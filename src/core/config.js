@@ -15,6 +15,17 @@
     score: { min: 0, max: 8, right: -1, wrong: 2 },
     round: { lengths: [10, 20], defaultLength: 10 },
     timing: { autoNextMs: 900, autoNextMirrorMs: 1500, inputGuardMs: 150 },
+    // 手柄震动（Gamepad API / 安卓原生）：时长 ms、强度 0..1。tick = 拖动经过一项 / 点位点亮；correct = 答对；wrong = 答错（两次）；
+    // ramp = 连对 / 过关 / 破纪录（逐渐增强）；limits = tick 最小间隔、单个序列最长时长。数值的含义与范围见 src/core/haptics.js。
+    haptics: {
+      gamepad: {
+        tick: { durationMs: 20, weak: 0.35, strong: 0 },
+        correct: { durationMs: 60, weak: 0.3, strong: 0.25, trigger: 0.2 },
+        wrong: { durationMs: 80, gapMs: 60, weak: 0.25, strong: 0.75 },
+        ramp: { totalMs: 200, steps: 4, from: 0.2, to: 0.9, strongShare: 0.8 },
+        limits: { tickMinIntervalMs: 45, maxPatternMs: 400 },
+      },
+    },
     course: {
       cleanCorrect: 2,
       requeueGap: 2,

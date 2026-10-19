@@ -35,6 +35,12 @@
       return item(label, el, key);
     };
 
+    // 手柄震动：只有检测到能震的手柄时才显示；手柄断开自动隐藏（订阅状态变化，页面销毁时取消订阅）
+    const padRow = sw(STR.padHaptics, 'padHaptics');
+    const padState = root.BMPadHaptics ? root.BMPadHaptics.state : null;
+    padRow.hidden = !(padState && padState.supported);
+    const unsubPad = root.BMPadHaptics ? root.BMPadHaptics.onChange((st) => { padRow.hidden = !st.supported; }) : null;
+
     let seedNow = S.seed;
     const seedBtns = [];
     const swatches = h('div', { class: 'swatches', role: 'radiogroup', 'aria-label': STR.color },
@@ -224,6 +230,7 @@
           sw(STR.timing, 'timing'),
           sw(STR.fx, 'fx', () => ctx.fx.sync()),
           root.BMHaptics && root.BMHaptics.supported ? sw(STR.haptics, 'haptics') : null,
+          padRow,
         ]),
         grp('data', STR.groupData, [recordItem, item(STR.clear, clearCtl, 'clear')], !!params.confirm),
         grp('about', STR.groupAbout, [about])));
@@ -233,6 +240,6 @@
       if (e.key === 'Escape' && confirming) { confirming = false; again(C.sel('data-key', 'clear') + ' button'); return true; }
       return false;
     }
-    return { el, onKey, tab: 'me', api: { askClear() { confirming = true; again(); } } };
+    return { el, onKey, tab: 'me', destroy() { if (unsubPad) unsubPad(); }, api: { askClear() { confirming = true; again(); } } };
   };
 })(typeof self !== 'undefined' ? self : this);

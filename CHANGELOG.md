@@ -2,6 +2,12 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。以下面向使用者，只写能感受到的变化。
 
+## [2.7.0] - 2026-10-19
+
+### 新增
+- **手柄震动**（Windows 与安卓）：连上手柄并按过任意键后，「设置 → 练习」出现「手柄震动」开关（默认开；没有手柄或拔掉后自动隐藏）。拖动经过一项 / 点位点亮是极轻的一下（只用小马达），答对是短而轻的双马达点触（有扳机马达的手柄再轻点一下扳机），答错是「强—停—强」两下，连对 5 次、过关、破纪录是约 0.2 秒由弱渐强。多个手柄同时连接时只震最后操作的那个；Joy-Con 分开时只震最后操作的一只，合并成一个手柄时两边都震。切到后台、失去焦点或拔掉手柄立即停震。强度与时长在 `data/config.json` 的 `haptics.gamepad` 中可调。手柄震动只受自己的开关控制，不受「华丽动效」和系统「减弱动效」影响；手机震动开关与行为不变。
+- 支持情况与不支持的组合（如 Windows 上的 DualSense）见 `docs/gamepad-haptics.md`；不支持震动的手柄不显示开关。
+
 ## [2.6.2] - 2026-10-19
 
 ### 改进
@@ -92,6 +98,7 @@
 
 - 首个纳入版本管理的版本：学习、练习、课程（评星、闯关）、复习与错题；点位与符号互相识别，镜像 / 正读视角；Material Design 3 风格，浅色 / 深色 / 跟随系统，可换主题色；Windows 桌面版与 Android 版。
 
+[2.7.0]: https://github.com/Suioo/braille-memory/compare/v2.6.2...v2.7.0
 [2.6.2]: https://github.com/Suioo/braille-memory/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/Suioo/braille-memory/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/Suioo/braille-memory/compare/v2.5.4...v2.6.0

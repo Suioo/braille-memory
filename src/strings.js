@@ -67,6 +67,7 @@
     timing: '计时',
     fx: '华丽动效',
     haptics: '震动',
+    padHaptics: '手柄震动',
     clear: '清除进度',
     clearBtn: '清除',
     confirm: '确认',

@@ -230,7 +230,7 @@
         streak++; bestStreak = Math.max(bestStreak, streak);
         showStreak();
         ctx.fx.bump(streakEl);
-        ctx.haptic(streak % 5 === 0 ? 'pass' : 'correct');
+        ctx.haptic(streak % 5 === 0 ? 'pass' : 'correct', { streak });
         ctx.say(STR.a11yCorrect);
         if (S.autoNext && !ctx.shot) ctx.later(cont, ctx.autoNextMs());
       } else {

@@ -132,7 +132,7 @@
         showStreak();
         ctx.fx.bump(streakEl);
         // 每连对 5 题给一次成功震动作为里程碑，其余答对用轻震
-        ctx.haptic(streak % 5 === 0 ? 'pass' : 'correct');
+        ctx.haptic(streak % 5 === 0 ? 'pass' : 'correct', { streak });
         ctx.say(STR.a11yCorrect);
         if (S.autoNext && !ctx.shot) ctx.later(cont, ctx.autoNextMs());
       } else {

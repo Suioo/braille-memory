@@ -222,3 +222,7 @@ OnePlus 13 上长按会触发 `pointercancel` / 系统长按手势，序列被�
 - 起点取指示块当前看到的左右边缘（`getComputedStyle`），快速划过 / 连点多项时从当前位置继续；前沿总领先，宽度始终 > 0。拖动中每经过一项、点按、松手归位都用这套；首次放置 / 减弱动效瞬间到位。
 - 选中项文字 / 图标变色：`--slide-color`（160 ms，晚 80 ms 开始，与前沿到位同时）。
 - 逐帧记录（无头浏览器，375 宽）：左右边缘都单调、宽度全程 > 0、最终位置误差 ≤ 0.5 px；前沿约 220–240 ms 到位、后沿约 340–390 ms 到位。
+
+## 手柄震动（2.7.0）
+
+详见 [gamepad-haptics.md](gamepad-haptics.md)。纯逻辑在 `src/core/haptics.js`（事件分级、序列、限流、选手柄，有测试），平台层在 `src/platform/gamepad-haptics.js`（Gamepad API 或安卓原生插件）；`ctx.haptic(kind, info)` 同时触发手机震动和手柄震动。

@@ -4,7 +4,7 @@
  *
  * progress = {
  *   version: 4,           // 1 → 2 新增 ext（扩展符号）；2 → 3 新增 rules（规则 / 词句）；3 → 4 新增 texts（自定义文本）；读入旧版本时原有记录逐字段保留
- *   settings: { theme, seed, mirror, scope, roundLength, autoNext, timing, qtype, fx, haptics, style },
+ *   settings: { theme, seed, mirror, scope, roundLength, autoNext, timing, qtype, fx, haptics, padHaptics, style },
  *   symbols: { [id]: { sig, score, right, wrong } },
  *   lessons: { [key]: { sig, stars, bestAcc, bestAvgSec, plays } },
  *   ext: { symbols: { [id]: { sig, score, right, wrong } } },  // 扩展符号（data/braille_extra.csv），sig = 符号|各方点位
@@ -42,6 +42,7 @@
       qtype: 'mix',
       fx: true,
       haptics: true,
+      padHaptics: true, // 手柄震动（只在检测到能震的手柄时才在设置里显示）
       style: STYLES[0],
     };
   }
@@ -85,6 +86,7 @@
     if (QTYPES.includes(s.qtype)) d.qtype = s.qtype;
     if (typeof s.fx === 'boolean') d.fx = s.fx;
     if (typeof s.haptics === 'boolean') d.haptics = s.haptics;
+    if (typeof s.padHaptics === 'boolean') d.padHaptics = s.padHaptics;
     if (STYLES.includes(s.style)) d.style = s.style;
 
     const syms = raw.symbols && typeof raw.symbols === 'object' ? raw.symbols : {};

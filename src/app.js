@@ -132,7 +132,10 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     reduced: () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
   /** 震动（仅 Android 原生；其它平台空操作）。 */
-  ctx.haptic = (kind) => root.BMHaptics.play(kind, !!(ctx.progress && ctx.settings.haptics));
+  ctx.haptic = (kind, info) => {
+    root.BMHaptics.play(kind, !!(ctx.progress && ctx.settings.haptics)); // 手机震动：行为与开关不变
+    if (root.BMPadHaptics) root.BMPadHaptics.play(kind, info); // 手柄震动：只受「手柄震动」开关控制（不看华丽动效 / 减弱动效），info.streak ≥ 2 的答对 = 连对
+  };
   W.hooks.tick = () => ctx.haptic('tick'); // 分段按钮滑过 / 迷你点图翻面的轻震
   ctx.setMirror = (m) => { ctx.settings.mirror = !!m; ctx.save(); };
   ctx.setTheme = (t) => { ctx.settings.theme = t; root.bm.setTheme(t); ctx.save(); };
@@ -494,6 +497,8 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
 
   async function bootWith(b) {
     ctx.cfg = b.config;
+    // 手柄震动：截图 / e2e 模式不启用（不轮询）；其余初始化一次，随后手柄出现 / 断开会自动更新设置里的开关
+    if (!b.shot && root.BMPadHaptics) root.BMPadHaptics.init({ getConfig: () => (ctx.cfg && ctx.cfg.haptics ? ctx.cfg.haptics.gamepad : null), isEnabled: () => !!(ctx.progress && ctx.settings.padHaptics) });
     if (!b.table.ok) {
       renderError(b.table.errors);
       if (b.shot && b.shot !== '*batch*') { await settle(); root.bm.shotReady('error'); }

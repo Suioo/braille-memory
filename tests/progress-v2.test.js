@@ -35,7 +35,8 @@ test('v1 save: symbols, lessons (stars!) and settings come through field by fiel
   assert.equal(p.version, P.VERSION);
   assert.deepEqual(p.symbols, old.symbols);
   assert.deepEqual(p.lessons, old.lessons);
-  assert.deepEqual(p.settings, old.settings);
+  // 后来新增的设置项补默认值，旧字段不变
+  assert.deepEqual(p.settings, Object.assign({ padHaptics: true }, old.settings));
   assert.deepEqual(p.ext, { symbols: {} });
   assert.deepEqual(p.rules, { items: {} });
   // 星星逐课不变

@@ -13,5 +13,14 @@
       { "acc": 0.9, "avgSec": 9 },
       { "acc": 1.0, "avgSec": 6 }
     ]
+  },
+  "haptics": {
+    "gamepad": {
+      "tick": { "durationMs": 20, "weak": 0.35, "strong": 0 },
+      "correct": { "durationMs": 60, "weak": 0.3, "strong": 0.25, "trigger": 0.2 },
+      "wrong": { "durationMs": 80, "gapMs": 60, "weak": 0.25, "strong": 0.75 },
+      "ramp": { "totalMs": 200, "steps": 4, "from": 0.2, "to": 0.9, "strongShare": 0.8 },
+      "limits": { "tickMinIntervalMs": 45, "maxPatternMs": 400 }
+    }
   }
 }
