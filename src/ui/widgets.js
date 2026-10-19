@@ -309,11 +309,29 @@
     const ix = (o.inset && o.inset.x) || 0;
     const iy = (o.inset && o.inset.y) || 0;
     const rectOf = (b) => ({ left: b.offsetLeft + ix, top: b.offsetTop + iy, width: b.offsetWidth - 2 * ix, height: b.offsetHeight - 2 * iy });
+    /**
+     * 把指示块放到 r。「拉伸跟随」：左右两条边各自过渡（CSS left / right，不用 scale）——前沿先到（240 ms），后沿晚 40 ms 出发、360 ms 到位，
+     * 向左 / 向右时前后沿互换（core/interact.js 的 stretchPlan）。起点取指示块「当前看到的」左右边缘，所以快速连续移动时从当前位置继续，
+     * 不会先跳回再走；两条边都向各自目标单调运动，宽度始终 > 0。首次放置 / 不要动画 / 减弱动效：瞬间到位。
+     */
     const apply = (r, animate) => {
-      indEl.classList.toggle('no-anim', !animate || reducedNow());
-      indEl.style.width = r.width + 'px';
-      indEl.style.height = r.height + 'px';
-      indEl.style.transform = 'translate(' + r.left + 'px,' + r.top + 'px)';
+      const L = r.left;
+      const R = r.left + r.width;
+      const cw = el.clientWidth;
+      const st = indEl.style;
+      st.top = r.top + 'px';
+      st.height = r.height + 'px';
+      const first = !st.left;
+      if (!animate || first || reducedNow()) {
+        st.transition = 'none';
+      } else {
+        const cs = root.getComputedStyle(indEl);
+        const cl = parseFloat(cs.left);
+        const cr = cw - parseFloat(cs.right);
+        st.transition = I.stretchPlan({ left: Number.isFinite(cl) ? cl : L, right: Number.isFinite(cr) ? cr : R }, { left: L, right: R }).transition;
+      }
+      st.left = L + 'px';
+      st.right = (cw - R) + 'px';
     };
     let session = null;
     let timer = null;
@@ -438,7 +456,7 @@
    * @param {string} label 读屏名称
    */
   function chipRow(chips, label) {
-    const ind = h('span', { class: 'chip-ind slide-ind no-anim', 'aria-hidden': 'true' });
+    const ind = h('span', { class: 'chip-ind slide-ind', 'aria-hidden': 'true' });
     const row = h('div', { class: 'chip-row slide-row', role: 'radiogroup', 'aria-label': label }, ind);
     let busyUntil = 0;
     const slide = attachSlide(row, ind, {
@@ -448,7 +466,7 @@
       holdMs: CHIP_HOLD_MS,
       busy: (ms) => { busyUntil = Date.now() + ms; },
     });
-    const placed = () => !!ind.style.width;
+    const placed = () => !!ind.style.left;
     row.sync = () => { busyUntil = Date.now() + 500; slide.place(placed() && row.isConnected); };
     for (const c of chips) { c._row = row; row.append(c); }
     if (typeof root.ResizeObserver === 'function') new root.ResizeObserver(() => { if (Date.now() > busyUntil || !row.isConnected) slide.resized(); }).observe(row);
@@ -470,7 +488,7 @@
   function segmented(label, options, current, onChange) {
     const group = h('div', { class: 'segmented slide-row', role: 'radiogroup', 'aria-label': label });
     const nav = 'seg-' + Math.random().toString(36).slice(2, 8);
-    const ind = h('span', { class: 'seg-ind slide-ind no-anim', 'aria-hidden': 'true' });
+    const ind = h('span', { class: 'seg-ind slide-ind', 'aria-hidden': 'true' });
     const btns = [];
     let cur = current;
     group.append(ind);
@@ -534,7 +552,7 @@
    */
   function navBar(items, current, onSelect) {
     const nav = h('nav', { class: 'nav-bar slide-row', 'aria-label': STR.appName });
-    const pill = h('span', { class: 'nav-pill slide-ind no-anim', 'aria-hidden': 'true' });
+    const pill = h('span', { class: 'nav-pill slide-ind', 'aria-hidden': 'true' });
     nav.append(pill);
     let slide = null;
     const btns = items.map((it) => {

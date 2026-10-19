@@ -37,7 +37,7 @@
   --t-stagger: 50ms;
   --t-morph: 260ms;
   /* 滑动指示块（分段按钮 / 底部导航 / 类别芯片）：柔和减速、不回弹；宽度与位置同步 */
-  --t-slide: 420ms; --t-slide-drag: 260ms; --slide-ease: cubic-bezier(0.2, 0, 0, 1);
+  --slide-color: 160ms cubic-bezier(0.3, 0, 0, 1) 80ms; /* 选中项文字 / 图标变色：晚 80 ms 开始、与指示块前沿（240 ms）同时到位 */
 
   --dot: clamp(44px, 8.4vh, 84px);
   --gap: calc(var(--dot) * 0.36);
@@ -1087,11 +1087,8 @@ textarea.field { line-height: 1.5; }
 /* ================= 滑动指示块（分段按钮 / 底部导航 / 类别芯片）统一 ================= */
 .slide-row { position: relative; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .slide-row.dragging, .slide-row.dragging > * { cursor: grabbing; }
-.slide-ind { position: absolute; left: 0; top: 0; width: 0; height: 0; border-radius: var(--ind-r, 999px); background: var(--secondary-container); pointer-events: none; z-index: 0;
-  transition: transform var(--t-slide) var(--slide-ease), width var(--t-slide) var(--slide-ease), height var(--t-slide) var(--slide-ease); }
-.slide-ind.no-anim { transition: none; }
-/* 拖动中：吸附到手指所在那一项，也有过渡（更短）；松手归位 / 点按切换用上面的 420ms */
-.slide-row.dragging > .slide-ind { transition-duration: var(--t-slide-drag); }
+.slide-ind { position: absolute; left: 0; top: 0; width: auto; height: 0; border-radius: var(--ind-r, 999px); background: var(--secondary-container); pointer-events: none; z-index: 0; }
+/* 位置只由 JS 写 left / right / top / height，并按方向给左右两条边不同的过渡（拉伸跟随，见 widgets.js attachSlide / interact.js stretchPlan） */
 .chip-ind { --ind-r: 12px; }
 .chip-row .chip.filter { z-index: 1; }
 .chip-row .chip.filter.selected, .chip-row .chip.filter.selected:active { background: transparent; }
@@ -1125,3 +1122,9 @@ html[data-style="glass"] .splash {
     var(--surface);
 }
 html[data-style="glass"] .splash-cell { background: var(--g-fill); box-shadow: var(--g-glass); }
+
+/* 选中项的文字 / 图标颜色与指示块到位对齐（不先变色） */
+.segmented .seg { transition: transform var(--t-morph) var(--spring-fast), border-radius var(--t-morph) var(--spring-fast), background var(--t-state) var(--effects), color var(--slide-color); }
+.chip-row .chip.filter { transition: border-radius var(--t-morph) var(--spring-fast), background var(--t-state) var(--effects), color var(--slide-color); }
+.nav-bar .nav-ind { transition: border-radius var(--t-morph) var(--spring-fast), color var(--slide-color); }
+.nav-bar .nav-item { transition: color var(--slide-color); }

@@ -156,3 +156,29 @@ test('slide session: remeasure (row scrolled, resized, rotated) recomputes the s
   down(p, 140, 30, 0);
   assert.equal(p.remeasure(shifted, BOX).phase, 'pending');
 });
+
+// ---------- 拉伸跟随：前沿 / 后沿分配 ----------
+test('STRETCH: front edge 240 ms, rear edge 360 ms starting 40 ms later, same soft-decelerate curve', () => {
+  assert.deepEqual({ ...I.STRETCH }, { frontMs: 240, rearMs: 360, rearDelayMs: 40, ease: 'cubic-bezier(0.3, 0, 0, 1)' });
+  assert.ok(I.STRETCH.rearDelayMs + I.STRETCH.rearMs > I.STRETCH.frontMs, 'the rear edge always arrives last');
+});
+
+test('stretchPlan: moving right → right edge leads, left edge follows; moving left swaps them', () => {
+  const r = I.stretchPlan({ left: 10, right: 90 }, { left: 110, right: 200 });
+  assert.deepEqual([r.dir, r.front, r.rear], [1, 'right', 'left']);
+  assert.equal(r.transition, 'right 240ms cubic-bezier(0.3, 0, 0, 1), left 360ms cubic-bezier(0.3, 0, 0, 1) 40ms');
+  const l = I.stretchPlan({ left: 110, right: 200 }, { left: 10, right: 90 });
+  assert.deepEqual([l.dir, l.front, l.rear], [-1, 'left', 'right']);
+  assert.equal(l.transition, 'left 240ms cubic-bezier(0.3, 0, 0, 1), right 360ms cubic-bezier(0.3, 0, 0, 1) 40ms');
+});
+
+test('stretchPlan: direction follows the centres, so a reversal in mid-flight swaps roles; overlapping and equal targets are fine', () => {
+  // 指示块正在向右飞（当前看到 [50,140]），目标在它左边 → 向左：左边是前沿
+  assert.equal(I.stretchPlan({ left: 50, right: 140 }, { left: 10, right: 90 }).front, 'left');
+  // 目标与当前部分重叠、略偏右
+  assert.equal(I.stretchPlan({ left: 10, right: 90 }, { left: 30, right: 110 }).front, 'right');
+  // 目标不变（如同一项再点）：按向右处理，不会产生 NaN 或空串
+  const same = I.stretchPlan({ left: 10, right: 90 }, { left: 10, right: 90 });
+  assert.equal(same.dir, 1);
+  assert.ok(same.transition.includes('right 240ms') && same.transition.includes('left 360ms'));
+});

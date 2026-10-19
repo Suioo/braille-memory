@@ -2,6 +2,11 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。以下面向使用者，只写能感受到的变化。
 
+## [2.6.2] - 2026-10-19
+
+### 改进
+- 滑动指示块（分段控件、底部导航、类别芯片）改为「拉伸跟随」：移动时前沿先到（约 240 ms）、后沿稍晚出发并跟上（约 360 ms），中途短暂拉长、到位后收回原宽，向左 / 向右时前后沿互换。拖动时手指经过的每一项、普通点按切换都用这套效果；快速连续移动时从当前位置继续，不会先跳回。选中项的文字 / 图标变色与指示块到位对齐。减弱动效下瞬间完成。
+
 ## [2.6.1] - 2026-10-19
 
 ### 修复
@@ -87,6 +92,7 @@
 
 - 首个纳入版本管理的版本：学习、练习、课程（评星、闯关）、复习与错题；点位与符号互相识别，镜像 / 正读视角；Material Design 3 风格，浅色 / 深色 / 跟随系统，可换主题色；Windows 桌面版与 Android 版。
 
+[2.6.2]: https://github.com/Suioo/braille-memory/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/Suioo/braille-memory/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/Suioo/braille-memory/compare/v2.5.4...v2.6.0
 [2.5.4]: https://github.com/Suioo/braille-memory/compare/v2.5.3...v2.5.4

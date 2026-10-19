@@ -155,5 +155,26 @@
     };
   }
 
-  return { SLIDE_THRESHOLD_PX, SLIDE_SLACK_PX, exceedsSlide, segmentIndexFromX, hoverIndex, createSlideSession, createMiniOrient };
+  /**
+   * 滑动指示块的「拉伸跟随」参数：移动时前沿（移动方向那一侧的边）先到，后沿稍后跟上；中途短暂拉长，到位后收回原宽。
+   * 左右两条边分别过渡（CSS left / right，不用 scale，圆角与文字不变形）。
+   */
+  const STRETCH = Object.freeze({ frontMs: 240, rearMs: 360, rearDelayMs: 40, ease: 'cubic-bezier(0.3, 0, 0, 1)' });
+
+  /**
+   * 下一次移动的前沿 / 后沿分配：向右移动时右边是前沿、左边是后沿；向左则互换。
+   * from / to 是指示块「当前看到的」与「目标」的左右边缘（px）；比较的是中心，所以拖动中途改变方向时也对。
+   * @param {{left:number,right:number}} from
+   * @param {{left:number,right:number}} to
+   * @returns {{dir:1|-1, front:'left'|'right', rear:'left'|'right', transition:string}}
+   */
+  function stretchPlan(from, to) {
+    const dir = to.left + to.right >= from.left + from.right ? 1 : -1;
+    const front = dir > 0 ? 'right' : 'left';
+    const rear = dir > 0 ? 'left' : 'right';
+    const S = STRETCH;
+    return { dir, front, rear, transition: front + ' ' + S.frontMs + 'ms ' + S.ease + ', ' + rear + ' ' + S.rearMs + 'ms ' + S.ease + ' ' + S.rearDelayMs + 'ms' };
+  }
+
+  return { SLIDE_THRESHOLD_PX, SLIDE_SLACK_PX, STRETCH, exceedsSlide, segmentIndexFromX, hoverIndex, stretchPlan, createSlideSession, createMiniOrient };
 });

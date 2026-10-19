@@ -122,3 +122,6 @@ html[data-style="glass"] .nav-label { font-size: 12px; }
 /* 盲文点：凸起 = 实心主色（不透明）；空 = 清晰细圈；揭晓形状（对勾 / 虚线圈+加号 / 叉）不变。点本身不做模糊 */
 html[data-style="glass"] .dot.on:not(.extra) .ring rect { fill: var(--primary); stroke: var(--primary); fill-opacity: 1; }
 html[data-style="glass"] .dot.on:not(.extra) { filter: drop-shadow(0 2px 3px color-mix(in srgb, var(--primary) 35%, transparent)); }
+
+html[data-style="glass"] .segmented .seg { transition: transform var(--t-morph) var(--spring-fast), background var(--t-state) var(--effects), color var(--slide-color), box-shadow var(--t-state) var(--effects); }
+html[data-style="glass"] .nav-bar .nav-ind { transition: transform var(--t-morph) var(--spring-fast), color var(--slide-color); }
