@@ -314,24 +314,45 @@
      * 向左 / 向右时前后沿互换（core/interact.js 的 stretchPlan）。起点取指示块「当前看到的」左右边缘，所以快速连续移动时从当前位置继续，
      * 不会先跳回再走；两条边都向各自目标单调运动，宽度始终 > 0。首次放置 / 不要动画 / 减弱动效：瞬间到位。
      */
-    const apply = (r, animate) => {
+    let anim = null; // 弹簧动画：{l, r, vl, vr, tl, tr, k, raf, last}
+    const stopAnim = () => { if (anim && anim.raf) root.cancelAnimationFrame(anim.raf); anim = null; };
+    const paint = (l, r) => { indEl.style.left = l + 'px'; indEl.style.right = (el.clientWidth - r) + 'px'; };
+    const frame = (t) => {
+      if (!anim) return;
+      const s = I.stepIndicator({ left: anim.l, right: anim.r, vl: anim.vl, vr: anim.vr }, { left: anim.tl, right: anim.tr }, (t - anim.last) / 1000, anim.k);
+      anim.last = t;
+      anim.l = s.left; anim.r = s.right; anim.vl = s.vl; anim.vr = s.vr;
+      paint(s.left, s.right);
+      anim.raf = s.done ? 0 : root.requestAnimationFrame(frame);
+      if (s.done) anim = null;
+    };
+    /**
+     * 把指示块放到 r。「弹簧跟随」：左右两条边各自是临界阻尼弹簧（core/interact.js 的 stepIndicator），前沿更硬、后沿更软，
+     * 移动中自然拉长、到位后收回；目标随时可改（快速划过多项 / 连续点按），位置和速度都保持连续，不会重启过渡、不会跳变，
+     * 宽度始终 > 0。拖动时用略跟手的一组参数。首次放置 / 不要动画 / 减弱动效：瞬间到位。
+     */
+    const apply = (r, animate, drag) => {
       const L = r.left;
       const R = r.left + r.width;
-      const cw = el.clientWidth;
       const st = indEl.style;
       st.top = r.top + 'px';
       st.height = r.height + 'px';
+      st.transition = 'none';
       const first = !st.left;
-      if (!animate || first || reducedNow()) {
-        st.transition = 'none';
-      } else {
+      if (!animate || first || reducedNow() || typeof root.requestAnimationFrame !== 'function') {
+        stopAnim();
+        paint(L, R);
+        return;
+      }
+      if (!anim) {
         const cs = root.getComputedStyle(indEl);
         const cl = parseFloat(cs.left);
-        const cr = cw - parseFloat(cs.right);
-        st.transition = I.stretchPlan({ left: Number.isFinite(cl) ? cl : L, right: Number.isFinite(cr) ? cr : R }, { left: L, right: R }).transition;
+        const cr = el.clientWidth - parseFloat(cs.right);
+        anim = { l: Number.isFinite(cl) ? cl : L, r: Number.isFinite(cr) ? cr : R, vl: 0, vr: 0, tl: L, tr: R, k: null, raf: 0, last: 0 };
       }
-      st.left = L + 'px';
-      st.right = (cw - R) + 'px';
+      anim.tl = L; anim.tr = R;
+      anim.k = drag ? I.SPRING.drag : I.SPRING.settle;
+      if (!anim.raf) { anim.last = now(); anim.raf = root.requestAnimationFrame(frame); }
     };
     let session = null;
     let timer = null;
@@ -353,7 +374,7 @@
     const follow = (hover) => {
       const items = o.items();
       const t = (hover >= 0 ? items[hover] : null) || o.current();
-      if (t && t.offsetWidth) apply(rectOf(t), true);
+      if (t && t.offsetWidth) apply(rectOf(t), true, true);
     };
     const stopTimer = () => { if (timer) { clearTimeout(timer); timer = null; } };
     const endSliding = () => {
@@ -437,7 +458,7 @@
     };
   }
 
-  /** 筛选芯片：选中时前置 ✓；选中底板由 chipRow 里的滑动指示块负责。 */
+  /** 筛选芯片：选中时前置 ✓；选中时填充主色。 */
   function filterChip(text, selected, onclick, o) {
     o = o || {};
     const b = h('button', {
@@ -450,28 +471,14 @@
     return b;
   }
   /**
-   * 类别芯片行（radiogroup）：一块滑动指示块垫在选中的芯片下面；支持按住约 150 ms 后左右拖动选择（快速划动仍是横向滚动），
-   * 松手才切换（等同点了那个芯片）。芯片内容变化（计数、文字）后调用 row.sync() 重新对位。
+   * 类别芯片行（radiogroup）：只支持点按（不做拖动选择），选中项自己填充主色，对比度高。row.sync() 保留为空操作（兼容调用方）。
    * @param {HTMLElement[]} chips filterChip 的结果
    * @param {string} label 读屏名称
    */
   function chipRow(chips, label) {
-    const ind = h('span', { class: 'chip-ind slide-ind', 'aria-hidden': 'true' });
-    const row = h('div', { class: 'chip-row slide-row', role: 'radiogroup', 'aria-label': label }, ind);
-    let busyUntil = 0;
-    const slide = attachSlide(row, ind, {
-      items: () => chips,
-      current: () => chips.find((c) => c.classList.contains('selected')) || null,
-      commit: (i) => chips[i].click(),
-      holdMs: CHIP_HOLD_MS,
-      busy: (ms) => { busyUntil = Date.now() + ms; },
-    });
-    const placed = () => !!ind.style.left;
-    row.sync = () => { busyUntil = Date.now() + 500; slide.place(placed() && row.isConnected); };
+    const row = h('div', { class: 'chip-row', role: 'radiogroup', 'aria-label': label });
+    row.sync = () => {};
     for (const c of chips) { c._row = row; row.append(c); }
-    if (typeof root.ResizeObserver === 'function') new root.ResizeObserver(() => { if (Date.now() > busyUntil || !row.isConnected) slide.resized(); }).observe(row);
-    else if (root.requestAnimationFrame) root.requestAnimationFrame(() => slide.place(false));
-    if (root.document && root.document.fonts && root.document.fonts.ready) root.document.fonts.ready.then(() => slide.place(false)).catch(() => {});
     row.chips = chips;
     return row;
   }
@@ -988,8 +995,8 @@
 
   let collapseSeq = 0;
   /** 折叠动画参数（与 styles.css 里箭头的过渡一致）：展开慢而柔，收起更利落。 */
-  const COLLAPSE_OPEN = { ms: 360, ease: 'cubic-bezier(0.2, 0, 0, 1)', fromY: -6 };
-  const COLLAPSE_CLOSE = { ms: 260, ease: 'cubic-bezier(0.3, 0, 0.2, 1)', toY: -4 };
+  const COLLAPSE_OPEN = { ms: 400, ease: 'cubic-bezier(0.4, 0, 0.2, 1)', fromY: -8, fadeDelayMs: 70 }; // 起步柔和（不再一上来就蹿出一大截），内容稍晚淡入
+  const COLLAPSE_CLOSE = { ms: 300, ease: 'cubic-bezier(0.4, 0, 0.2, 1)', toY: -6, fadeDelayMs: 0 };
   const COLLAPSE_MIN_MS = 120; // 中途反向时按剩余距离缩短，但不低于此值
   const reducedMotion = () => { try { return !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (_) { return false; } };
   const translateY = (node) => { try { return new DOMMatrix(getComputedStyle(node).transform).m42 || 0; } catch (_) { return 0; } };
@@ -1039,7 +1046,8 @@
       el.classList.add('collapsing');
       anims = [
         body.animate([{ height: fromH + 'px' }, { height: toH + 'px' }], opts),
-        pad.animate([{ opacity: fromOp, transform: 'translateY(' + startY + 'px)' }, open ? { opacity: 1, transform: 'translateY(0px)' } : { opacity: 0, transform: 'translateY(' + COLLAPSE_CLOSE.toY + 'px)' }], opts),
+        pad.animate([{ opacity: fromOp, transform: 'translateY(' + startY + 'px)' }, open ? { opacity: 1, transform: 'translateY(0px)' } : { opacity: 0, transform: 'translateY(' + COLLAPSE_CLOSE.toY + 'px)' }],
+          { duration: Math.max(60, dur - cfg.fadeDelayMs), delay: cfg.fadeDelayMs, easing: cfg.ease, fill: 'both' }),
       ];
       const mine = anims;
       Promise.all(mine.map((a) => a.finished)).then(() => { if (anims === mine) stop(); }, () => { /* 被新一次切换取消 */ });

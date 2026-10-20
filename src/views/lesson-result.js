@@ -18,6 +18,7 @@
     const stat = (k, v) => h('div', { class: 'stat' }, h('span', { class: 'v num', text: v }), h('span', { class: 'k', text: k }));
     const wrongRows = r.wrongIds.map((id) => ctx.rowsById.get(id)).filter(Boolean);
 
+    const invite = C.inviteCard(ctx);
     const el = h('div', { class: 'page lesson-result-page' },
       W.topBar(C.backBtn(toCourse), h('h1', { text: STR.lessonName(lesson.category, lesson.number) }), null),
       h('div', { class: 'page-body' },
@@ -30,6 +31,7 @@
         wrongRows.length ? h('section', { class: 'weak-card' },
           h('span', { class: 'lg-wrap', 'aria-hidden': 'true' }, W.legendGlyph('extra')),
           h('div', { class: 'chip-row wrap', role: 'list', 'aria-label': STR.a11yIncorrect }, wrongRows.map((x) => W.symbolChip(x, ctx.settings.mirror)))) : null,
+        invite,
         h('div', { class: 'footer two' },
           W.btn(STR.back, toCourse, { variant: 'outlined' }),
           W.btn(STR.redo, () => ctx.go('lesson', { index: lesson.index }), { variant: canNext ? 'tonal' : 'filled', icon: ICON.review(), autofocus: !canNext }),

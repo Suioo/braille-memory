@@ -4,7 +4,7 @@
  *
  * progress = {
  *   version: 4,           // 1 → 2 新增 ext（扩展符号）；2 → 3 新增 rules（规则 / 词句）；3 → 4 新增 texts（自定义文本）；读入旧版本时原有记录逐字段保留
- *   settings: { theme, seed, mirror, scope, roundLength, autoNext, timing, qtype, fx, haptics, padHaptics, padSwitchKeys, style },
+ *   settings: { theme, seed, mirror, scope, roundLength, autoNext, timing, qtype, fx, haptics, padHaptics, padHapticsStyle, padDots, padSwitchKeys, style },
  *   symbols: { [id]: { sig, score, right, wrong } },
  *   lessons: { [key]: { sig, stars, bestAcc, bestAvgSec, plays } },
  *   ext: { symbols: { [id]: { sig, score, right, wrong } } },  // 扩展符号（data/braille_extra.csv），sig = 符号|各方点位
@@ -43,6 +43,8 @@
       fx: true,
       haptics: true,
       padHaptics: true, // 手柄震动（只在检测到能震的手柄时才在设置里显示）
+      padHapticsStyle: 'rich', // 震动风格：'soft' 轻 / 'normal' 标准 / 'rich' 丰富（更强、更有层次）
+      padDots: true, // 点位节奏：翻到答案 / 答错揭晓时，用左右马达按行震出这个点位（左列左马达、右列右马达），帮助记忆
       padSwitchKeys: 'keycap', // Switch 手柄键位：'keycap' 按键帽字母（A 确认 B 返回）/ 'position' 按物理位置（下方 B 确认、右边 A 返回）；只在检测到 Switch 手柄时才显示
       style: STYLES[0],
     };
@@ -88,6 +90,8 @@
     if (typeof s.fx === 'boolean') d.fx = s.fx;
     if (typeof s.haptics === 'boolean') d.haptics = s.haptics;
     if (typeof s.padHaptics === 'boolean') d.padHaptics = s.padHaptics;
+    if (s.padHapticsStyle === 'soft' || s.padHapticsStyle === 'normal' || s.padHapticsStyle === 'rich') d.padHapticsStyle = s.padHapticsStyle;
+    if (typeof s.padDots === 'boolean') d.padDots = s.padDots;
     if (s.padSwitchKeys === 'keycap' || s.padSwitchKeys === 'position') d.padSwitchKeys = s.padSwitchKeys;
     if (STYLES.includes(s.style)) d.style = s.style;
 

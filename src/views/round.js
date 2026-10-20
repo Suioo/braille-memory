@@ -141,6 +141,7 @@
         streak = 0;
         showStreak();
         ctx.haptic('wrong');
+        ctx.later(() => ctx.haptic('dots', { rows: root.BMHapticsCore.dotRows(q.row.dots, S.mirror) }), 520); // 答错：先「错」的震，再按行震出正确点位
         if (q.type === 'dots') {
           input.showReveal(res.judge);
           resultEl.replaceChildren(W.revealPanel(res.judge, q.row.dotsText));

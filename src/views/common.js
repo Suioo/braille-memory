@@ -5,6 +5,43 @@
   const W = root.BMW;
   const STR = root.STR;
 
+  /** 复制文字到剪贴板（失败时静默）。@returns {Promise<boolean>} */
+  function copyText(text) {
+    const fallback = () => {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+        document.body.append(ta); ta.select();
+        const done = !!(document.execCommand && document.execCommand('copy'));
+        ta.remove();
+        return done;
+      } catch (_) { return false; }
+    };
+    try {
+      if (root.navigator && root.navigator.clipboard && root.navigator.clipboard.writeText) return root.navigator.clipboard.writeText(text).then(() => true, () => fallback());
+    } catch (_) { /* 走兜底 */ }
+    return Promise.resolve(fallback());
+  }
+
+  /**
+   * 联系作者的邀请卡：完成第 3 轮（练习 / 闯关）后出现一次，放在结果页底部，看过就不再出现；设置 → 关于 里的入口一直都在。
+   * 没有联系方式（contact.json 缺失）、截图 / e2e 模式、本机存储不可用时返回 null。
+   */
+  function inviteCard(ctx) {
+    try {
+      const c = ctx.contact;
+      if (ctx.shot || !c || typeof c.qq !== 'string' || !c.qq) return null;
+      const store = root.BMUiState.createStore(root.localStorage);
+      if (!store.bumpRound()) return null;
+      const card = h('section', { class: 'invite-card', role: 'note' },
+        h('div', { class: 'invite-text' }, h('strong', { text: STR.inviteTitle }), h('span', { text: STR.inviteBody + ' · QQ ' + c.qq + (c.name ? '（' + c.name + '）' : '') })),
+        h('div', { class: 'invite-btns' },
+          W.btn(STR.inviteCopy, () => copyText(c.qq).then((ok) => { if (ok) ctx.toast(STR.copied); }), { variant: 'tonal' }),
+          W.btn(STR.inviteClose, () => card.remove(), { variant: 'text' })));
+      return card;
+    } catch (_) { return null; }
+  }
+
   /**
    * 范围芯片（全部 + CSV 类别）。
    * @param {object} ctx
@@ -92,5 +129,5 @@
   /** 选择器中的 CSS 转义。 */
   const sel = (attr, v) => '[' + attr + '="' + CSS.escape(String(v)) + '"]';
 
-  root.BMCommon = { scopeChips, viewSegmented, backBtn, mirrorToggle, sel, moduleNow, moduleSegmented, extScopeChips, extScopeRows };
+  root.BMCommon = { copyText, inviteCard, scopeChips, viewSegmented, backBtn, mirrorToggle, sel, moduleNow, moduleSegmented, extScopeChips, extScopeRows };
 })(typeof self !== 'undefined' ? self : this);

@@ -18,7 +18,7 @@
   const ms = (v, d) => Math.round(clamp(v, 1, 2000, d));
 
   /** 现有触感种类 → 手柄事件。 */
-  const EVENTS = ['tick', 'correct', 'wrong', 'streak', 'ramp'];
+  const EVENTS = ['tick', 'correct', 'wrong', 'streak', 'ramp', 'dots'];
 
   /**
    * 现有的触感种类（ctx.haptic 的 kind）→ 手柄事件；不认识返回 null。
@@ -32,6 +32,7 @@
       case 'tick': return 'tick';
       case 'correct': return info && Number.isInteger(info.streak) && info.streak >= 2 ? 'streak' : 'correct';
       case 'wrong': return 'wrong';
+      case 'dots': return 'dots';
       case 'pass':
       case 'record': return 'ramp';
       default: return null;
@@ -46,13 +47,35 @@
     const w = g.wrong || {};
     const r = g.ramp || {};
     const l = g.limits || {};
+    const d = g.dots || {};
     return {
       tick: { durationMs: ms(t.durationMs, 20), weak: mag(t.weak, 0.35), strong: mag(t.strong, 0) },
       correct: { durationMs: ms(c.durationMs, 60), weak: mag(c.weak, 0.3), strong: mag(c.strong, 0.25), trigger: mag(c.trigger, 0.2) },
       wrong: { durationMs: ms(w.durationMs, 80), gapMs: ms(w.gapMs, 60), weak: mag(w.weak, 0.25), strong: mag(w.strong, 0.75) },
       ramp: { totalMs: ms(r.totalMs, 200), steps: Math.round(clamp(r.steps, 2, 10, 4)), from: mag(r.from, 0.2), to: mag(r.to, 0.9), strongShare: mag(r.strongShare, 0.8) },
-      limits: { tickMinIntervalMs: ms(l.tickMinIntervalMs, 45), maxPatternMs: ms(l.maxPatternMs, 400) },
+      dots: { rowMs: ms(d.rowMs, 85), gapMs: ms(d.gapMs, 35), strength: mag(d.strength, 0.85) },
+      limits: { tickMinIntervalMs: ms(l.tickMinIntervalMs, 45), maxPatternMs: ms(l.maxPatternMs, 700) },
     };
+  }
+
+  /** 震动风格 → 强度倍率：轻 / 标准 / 丰富（丰富 = 更强，并且答对、答错、连对用更有层次的多段震动）。 */
+  const STYLES = ['soft', 'normal', 'rich'];
+  const styleScale = (style) => (style === 'soft' ? 0.7 : style === 'rich' ? 1.3 : 1);
+
+  /**
+   * 一个点位 → 3 行 × 左右两列的「屏幕上是否凸起」。阅读视角左列 1 2 3、右列 4 5 6；扎写（镜像）左列 4 5 6、右列 1 2 3。
+   * 点位节奏震动用它：左列对应左边的马达（强），右列对应右边的马达（弱），一行一拍，从上到下。
+   * @param {number[]} dots
+   * @param {boolean} mirror
+   * @returns {boolean[][]} [[左,右] × 3]
+   */
+  function dotRows(dots, mirror) {
+    const set = new Set(dots || []);
+    return [0, 1, 2].map((r) => {
+      const a = set.has(r + 1);
+      const b = set.has(r + 4);
+      return mirror ? [b, a] : [a, b];
+    });
   }
 
   /**
@@ -60,23 +83,42 @@
    * 整个序列不超过 limits.maxPatternMs（超出的步骤截断）。
    * @returns {{at:number,duration:number,strong:number,weak:number,leftTrigger:number,rightTrigger:number}[]}
    */
-  function buildPattern(event, gcfg, caps) {
+  function buildPattern(event, gcfg, caps, opt) {
     const c = normalizeConfig(gcfg);
-    const step = (at, duration, strong, weak, trig) => ({ at, duration, strong, weak, leftTrigger: trig || 0, rightTrigger: trig || 0 });
+    const style = opt && STYLES.includes(opt.style) ? opt.style : 'normal';
+    const sc = styleScale(style);
+    const rich = style === 'rich';
+    const q = (v) => Math.min(1, Math.max(0, v * sc));
+    const step = (at, duration, strong, weak, trig) => ({ at, duration, strong: q(strong), weak: q(weak), leftTrigger: trig || 0, rightTrigger: trig || 0 });
     let steps = [];
     if (event === 'tick') {
-      steps = [step(0, c.tick.durationMs, c.tick.strong, c.tick.weak)];
+      steps = [step(0, c.tick.durationMs, c.tick.strong + (rich ? 0.12 : 0), c.tick.weak)];
     } else if (event === 'correct') {
-      steps = [step(0, c.correct.durationMs, c.correct.strong, c.correct.weak, caps && caps.trigger ? c.correct.trigger : 0)];
+      const trig = caps && caps.trigger ? c.correct.trigger : 0;
+      steps = rich
+        ? [step(0, 45, 0.1, c.correct.weak), step(75, 90, c.correct.strong + 0.3, c.correct.weak + 0.15, trig)] // 「嗒—咚」两下，后一下更实
+        : [step(0, c.correct.durationMs, c.correct.strong, c.correct.weak, trig)];
     } else if (event === 'wrong') {
-      steps = [step(0, c.wrong.durationMs, c.wrong.strong, c.wrong.weak), step(c.wrong.durationMs + c.wrong.gapMs, c.wrong.durationMs, c.wrong.strong, c.wrong.weak)];
+      const w = c.wrong;
+      steps = rich
+        ? [0, 1, 2].map((i) => step(i * (w.durationMs + w.gapMs), w.durationMs, w.strong + i * 0.1, w.weak)) // 三下渐重，一听就知道错了
+        : [step(0, w.durationMs, w.strong, w.weak), step(w.durationMs + w.gapMs, w.durationMs, w.strong, w.weak)];
     } else if (event === 'streak' || event === 'ramp') {
-      const n = c.ramp.steps;
-      const each = Math.max(1, Math.round(c.ramp.totalMs / n));
+      const n = rich ? c.ramp.steps + 2 : c.ramp.steps;
+      const each = Math.max(1, Math.round((rich ? c.ramp.totalMs * 1.6 : c.ramp.totalMs) / n));
       for (let i = 0; i < n; i++) {
         const s = c.ramp.from + ((c.ramp.to - c.ramp.from) * i) / (n - 1); // 由弱到强
         steps.push(step(i * each, each, s * c.ramp.strongShare, s));
       }
+    } else if (event === 'dots') {
+      // 点位节奏：一行一拍（从上到下），左列用强马达、右列用弱马达；没有凸点的行留一拍空白。用于学习卡翻面、答错揭晓时帮助记忆
+      const rows = opt && Array.isArray(opt.rows) ? opt.rows : [];
+      const beat = c.dots.rowMs + c.dots.gapMs;
+      rows.slice(0, 3).forEach((r, i) => {
+        if (!r || (!r[0] && !r[1])) return;
+        const v = c.dots.strength;
+        steps.push({ at: i * beat, duration: c.dots.rowMs, strong: r[0] ? Math.min(1, v * Math.max(1, sc)) : 0, weak: r[1] ? Math.min(1, v * Math.max(1, sc)) : 0, leftTrigger: 0, rightTrigger: 0 });
+      });
     } else return [];
     const cap = c.limits.maxPatternMs;
     return steps.filter((s) => s.at < cap).map((s) => (s.at + s.duration > cap ? Object.assign({}, s, { duration: cap - s.at }) : s));
@@ -98,8 +140,8 @@
     const clear = () => { for (const h of timers) env.cancelLater(h); timers = []; };
     return {
       /** @returns {boolean} 是否真的发出了（限流 / 丢弃返回 false） */
-      trigger(event, gcfg, caps) {
-        const pat = buildPattern(event, gcfg, caps);
+      trigger(event, gcfg, caps, opt) {
+        const pat = buildPattern(event, gcfg, caps, opt);
         if (!pat.length) return false;
         const t = env.now();
         const lim = normalizeConfig(gcfg).limits;
@@ -180,5 +222,5 @@
    */
   const switchVisible = (snapshot) => !!(snapshot && snapshot.active);
 
-  return { EVENTS, eventForKind, normalizeConfig, buildPattern, createRunner, padSupport, createPadTracker, switchVisible };
+  return { EVENTS, STYLES, styleScale, dotRows, eventForKind, normalizeConfig, buildPattern, createRunner, padSupport, createPadTracker, switchVisible };
 });

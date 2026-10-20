@@ -161,6 +161,7 @@
         sub = 'wrong';
         input.showReveal(res.judge);
         ctx.haptic('wrong');
+        ctx.later(() => ctx.haptic('dots', { rows: root.BMHapticsCore.dotRows(res.row.dots, S.mirror) }), 520);
         resultEl.replaceChildren(W.revealPanel(res.judge, res.row.dotsText));
         ctx.say(STR.a11yIncorrect + '，' + STR.a11yMissed(res.judge.missed) + '，' + STR.a11yExtra(res.judge.extra));
         if (!testing) { trackHolder.replaceChildren(practiceTrack()); showCardNext = res.row; }

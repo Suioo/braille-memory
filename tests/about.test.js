@@ -176,7 +176,7 @@ const { PROJECT_URL, PROJECT_LABEL, validateOpenUrl } = require('../src/core/abo
 
 test('validateOpenUrl: only the one fixed project address is allowed', () => {
   assert.equal(PROJECT_URL, 'https://github.com/Suioo/braille-memory');
-  assert.equal(PROJECT_LABEL, 'github.com/Suioo/braille-memory');
+  assert.equal(PROJECT_LABEL, 'Braille-Memory');
   assert.equal(validateOpenUrl(PROJECT_URL), PROJECT_URL);
   assert.equal(validateOpenUrl(PROJECT_URL + '/'), PROJECT_URL);
   assert.equal(validateOpenUrl('HTTPS://GitHub.com/Suioo/braille-memory'), PROJECT_URL, 'scheme / host are case-insensitive; the returned value is always the constant');

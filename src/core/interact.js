@@ -176,5 +176,50 @@
     return { dir, front, rear, transition: front + ' ' + S.frontMs + 'ms ' + S.ease + ', ' + rear + ' ' + S.rearMs + 'ms ' + S.ease + ' ' + S.rearDelayMs + 'ms' };
   }
 
-  return { SLIDE_THRESHOLD_PX, SLIDE_SLACK_PX, STRETCH, exceedsSlide, segmentIndexFromX, hoverIndex, stretchPlan, createSlideSession, createMiniOrient };
+  /**
+   * 滑动指示块的「弹簧跟随」参数（取代原来的两段 CSS 过渡）。左右两条边各自是一个临界阻尼弹簧：
+   *  前沿（移动方向那一侧）更硬、后沿更软，所以移动中自然拉长、到位后收回；
+   *  目标随时可以改（快速划过多项），位置和速度都保持连续，不会再出现「重启过渡」造成的跳变或卡顿。
+   *  omega 越大越快（约 settle ≈ 5.8 / omega 秒）；drag = 手指拖动时（略跟手），settle = 点按 / 松手归位（略柔和）。
+   */
+  const SPRING = Object.freeze({
+    settle: { front: 19, rear: 13 },
+    drag: { front: 24, rear: 16 },
+    minWidthPx: 8,
+    donePx: 0.2,
+    doneVel: 2,
+  });
+
+  /** 临界阻尼弹簧一步（精确解，任意 dt 都稳定、不过冲）。 */
+  function springEdge(pos, vel, target, omega, dt) {
+    const a = pos - target;
+    const b = vel + omega * a;
+    const e = Math.exp(-omega * dt);
+    return { pos: target + (a + b * dt) * e, vel: (b - omega * (a + b * dt)) * e };
+  }
+
+  /**
+   * 指示块一步：state = {left,right,vl,vr}，target = {left,right}。
+   * @param {{left:number,right:number,vl:number,vr:number}} s
+   * @param {{left:number,right:number}} t
+   * @param {number} dt 秒（会限制在 1ms – 50ms）
+   * @param {{front:number,rear:number}} [k] 默认 SPRING.settle
+   * @returns {{left:number,right:number,vl:number,vr:number,done:boolean}}
+   */
+  function stepIndicator(s, t, dt, k) {
+    const w = k || SPRING.settle;
+    const d = Math.min(0.05, Math.max(0.001, dt));
+    const dir = t.left + t.right >= s.left + s.right ? 1 : -1;
+    const wl = dir > 0 ? w.rear : w.front;
+    const wr = dir > 0 ? w.front : w.rear;
+    const l = springEdge(s.left, s.vl, t.left, wl, d);
+    const r = springEdge(s.right, s.vr, t.right, wr, d);
+    let left = l.pos;
+    let right = r.pos;
+    if (right - left < SPRING.minWidthPx) { if (dir > 0) left = right - SPRING.minWidthPx; else right = left + SPRING.minWidthPx; }
+    const near = Math.abs(left - t.left) < SPRING.donePx && Math.abs(right - t.right) < SPRING.donePx && Math.abs(l.vel) < SPRING.doneVel && Math.abs(r.vel) < SPRING.doneVel;
+    return near ? { left: t.left, right: t.right, vl: 0, vr: 0, done: true } : { left, right, vl: l.vel, vr: r.vel, done: false };
+  }
+
+  return { SLIDE_THRESHOLD_PX, SLIDE_SLACK_PX, STRETCH, SPRING, stepIndicator, exceedsSlide, segmentIndexFromX, hoverIndex, stretchPlan, createSlideSession, createMiniOrient };
 });

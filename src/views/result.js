@@ -37,6 +37,7 @@
     }
     // 破纪录（文本计时成绩）：逐渐增强的一小段震动（手机无此事件，ctx.haptic 对未知种类什么都不做）
     if (runs && runs.some((x) => x.newBest || x.newBestAcc)) ctx.haptic('record');
+    const invite = C.inviteCard(ctx);
     const nm = (v) => (v < 10 ? v.toFixed(1) : String(Math.round(v)));
     const el = h('div', { class: 'page result-page' },
       W.topBar(C.backBtn(leave), h('h1', { text: MODE_LABEL()[sm.mode] }), null),
@@ -61,6 +62,7 @@
         wrongRows.length || wrongItems.length ? h('section', { class: 'weak-card' },
           h('span', { class: 'lg-wrap', 'aria-hidden': 'true' }, W.legendGlyph('extra')),
           h('div', { class: 'chip-row wrap', role: 'list', 'aria-label': STR.a11yIncorrect }, wrongItems.map(ruleChip), wrongRows.map((r) => (isExt ? W.extSymbolChip(r, ctx.settings.mirror) : W.symbolChip(r, ctx.settings.mirror))))) : null,
+        invite,
         h('div', { class: 'footer two' },
           W.btn(STR.back, leave, { variant: 'outlined', autofocus: !canAgain }),
           canAgain ? W.btn(STR.again, () => ctx.go(isRules || isTexts ? 'ruleround' : isExt ? 'extround' : 'round', isTexts ? { mode: sm.mode, scope: 'text', textId: params.textId } : { mode: sm.mode }), { variant: 'filled', icon: ICON.review(), autofocus: true }) : null)));

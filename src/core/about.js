@@ -90,7 +90,7 @@
 
   /** 「关于」里唯一允许用系统浏览器打开的地址（Electron 主进程与页面共用同一份校验）。 */
   const PROJECT_URL = 'https://github.com/Suioo/braille-memory';
-  const PROJECT_LABEL = 'github.com/Suioo/braille-memory';
+  const PROJECT_LABEL = 'Braille-Memory';
 
   /**
    * 校验要打开的地址：只接受 PROJECT_URL（允许末尾多一个 /，协议和主机大小写不敏感）；

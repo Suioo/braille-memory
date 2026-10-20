@@ -19,8 +19,14 @@
     const g = raw && typeof raw === 'object' && raw.groups && typeof raw.groups === 'object' ? raw.groups : {};
     const groups = {};
     for (const id of GROUPS) groups[id] = typeof g[id] === 'boolean' ? g[id] : !!DEFAULT_OPEN[id];
-    return { version: 1, groups };
+    const iv = raw && typeof raw === 'object' && raw.invite && typeof raw.invite === 'object' ? raw.invite : {};
+    const invite = { rounds: Number.isInteger(iv.rounds) && iv.rounds >= 0 ? Math.min(iv.rounds, 1e6) : 0, seen: iv.seen === true };
+    return { version: 1, groups, invite, welcomed: !!(raw && typeof raw === 'object' && raw.welcomed === true) };
   }
+
+  /** 联系作者的邀请：完成第 N 轮（练习 / 闯关）之后出现一次，看过（或关掉）就不再出现。设置 → 关于 里的入口一直都在。 */
+  const INVITE_AFTER = 3;
+  const inviteDue = (inv) => !!inv && inv.seen !== true && inv.rounds >= INVITE_AFTER;
 
   /**
    * @param {{getItem:Function, setItem:Function}|null} storage 缺失 / 抛错时一律回到默认值，页面照常可用
@@ -42,8 +48,20 @@
         s.groups[group] = !!open;
         try { storage.setItem(k, JSON.stringify(s)); return true; } catch (_) { return false; }
       },
+      /** 首次使用的欢迎页是否已经出现过。 */
+      isWelcomed() { return load().welcomed === true; },
+      markWelcomed() { const s = load(); s.welcomed = true; try { storage.setItem(k, JSON.stringify(s)); return true; } catch (_) { return false; } },
+      /** 记下完成了一轮，返回现在是否该出现邀请（出现时同时记为「已看过」）。存储失败时不出现，避免反复打扰。 */
+      bumpRound() {
+        const s = load();
+        s.invite.rounds += 1;
+        const due = inviteDue(s.invite);
+        if (due) s.invite.seen = true;
+        try { storage.setItem(k, JSON.stringify(s)); } catch (_) { return false; }
+        return due;
+      },
     };
   }
 
-  return { KEY, GROUPS, DEFAULT_OPEN, normalize, createStore };
+  return { KEY, GROUPS, DEFAULT_OPEN, INVITE_AFTER, inviteDue, normalize, createStore };
 });

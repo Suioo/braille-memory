@@ -38,8 +38,13 @@
     // 手柄震动：只有检测到能震的手柄时才显示；手柄断开自动隐藏（订阅状态变化，页面销毁时取消订阅）
     const padRow = sw(STR.padHaptics, 'padHaptics');
     const padState = root.BMPadHaptics ? root.BMPadHaptics.state : null;
-    padRow.hidden = !(padState && padState.supported);
-    const unsubPad = root.BMPadHaptics ? root.BMPadHaptics.onChange((st) => { padRow.hidden = !st.supported; }) : null;
+    const padStyleRow = seg(STR.padStyle, 'padHapticsStyle', [{ value: 'soft', text: STR.padStyleSoft }, { value: 'normal', text: STR.padStyleNormal }, { value: 'rich', text: STR.padStyleRich }],
+      (v) => { S.padHapticsStyle = v; ctx.save(); if (root.BMPadHaptics) { root.BMPadHaptics.play('wrong'); } });
+    const padDotsRow = sw(STR.padDots, 'padDots', () => { if (root.BMPadHaptics && S.padDots) root.BMPadHaptics.play('dots', { rows: root.BMHapticsCore.dotRows([1, 4, 5], !!S.mirror) }); });
+    const padRows = [padRow, padStyleRow, padDotsRow];
+    const showPad = (on) => { for (const r of padRows) r.hidden = !on; };
+    showPad(!!(padState && padState.supported));
+    const unsubPad = root.BMPadHaptics ? root.BMPadHaptics.onChange((st) => showPad(!!st.supported)) : null;
 
     // Switch 手柄按键：只有检测到 Switch Pro / Joy-Con 时才显示（按键帽字母 / 按物理位置）
     const swKeysRow = seg(STR.padSwitchKeys, 'padSwitchKeys', [{ value: 'keycap', text: STR.padSwitchKeycap }, { value: 'position', text: STR.padSwitchPosition }]);
@@ -144,13 +149,12 @@
       if (!contact || about.querySelector('.about-feedback')) return;
       ctx.aboutOpen = true;
       const label = contact.label || STR.feedback;
-      const parts = [
-        h('span', { text: label }), h('span', { class: 'sep', 'aria-hidden': 'true', text: '·' }),
-        h('span', { text: 'QQ' }),
-        h('button', { class: 'about-qq sl', type: 'button', 'aria-label': STR.a11yCopyQq(contact.qq), onclick: copyQq, text: contact.qq }),
-      ];
-      if (contact.name) parts.push(h('span', { class: 'sep', 'aria-hidden': 'true', text: '·' }), h('span', { text: contact.name }));
-      about.append(h('div', { class: 'about-feedback', role: 'group', 'aria-label': label }, ...parts));
+      // 和上面几行同一种「标签 | 值」行：左边是标签（问题反馈），右边 QQ 号（点一下复制）和称呼
+      about.append(h('div', { class: 'list-item about-feedback', role: 'group', 'aria-label': label },
+        h('span', { class: 'li-label', text: label }),
+        h('div', { class: 'li-ctl' },
+          h('button', { class: 'about-qq', type: 'button', 'aria-label': STR.a11yCopyQq(contact.qq), onclick: copyQq, text: 'QQ ' + contact.qq }),
+          contact.name ? h('span', { class: 'about-val', text: contact.name }) : null)));
     }
     let holdTimer = null;
     const stopHold = () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
@@ -173,7 +177,7 @@
     const isAct = (e) => e.key === 'Enter' || e.key === ' ';
     const MOVE_CANCEL_PX = 10;
     const verBtn = h('button', {
-      class: 'about-ver', type: 'button', 'aria-label': verText ? STR.a11yVersion(verText) : null, text: verText ? STR.versionLabel(verText) : '',
+      class: 'about-ver', type: 'button', 'aria-label': verText ? STR.a11yVersion(verText) : null, text: verText || '',
       onpointerdown: (e) => {
         if (e.pointerType === 'mouse' && e.button !== 0) return;
         startX = e.clientX; startY = e.clientY;
@@ -197,12 +201,13 @@
       const copied = await ctx.copyText(A.PROJECT_URL);
       ctx.toast(copied ? STR.openFailCopied : STR.openFail);
     };
-    const linkBtn = h('button', { class: 'about-link sl', type: 'button', 'aria-label': STR.a11yOpenLink(A.PROJECT_LABEL), text: A.PROJECT_LABEL, onclick: openProject });
+    const linkBtn = h('button', { class: 'about-link', type: 'button', 'aria-label': STR.a11yOpenLink(A.PROJECT_LABEL), text: A.PROJECT_LABEL, onclick: openProject });
+    const aboutRow = (label, ctl) => h('div', { class: 'list-item' }, h('span', { class: 'li-label', text: label }), h('div', { class: 'li-ctl' }, ctl));
     about.append(
-      verBtn,
-      h('p', { class: 'about-repo', text: STR.repoLabel }),
-      linkBtn,
-      h('p', { class: 'about-license', text: STR.aboutLicense }));
+      aboutRow(STR.aboutVersion, verBtn),
+      aboutRow(STR.repoLabel, linkBtn),
+      aboutRow(STR.licenseLabel, h('span', { class: 'about-val', text: 'GPL-3.0' })),
+      aboutRow(STR.devLabel, h('span', { class: 'about-val', text: 'Claude Code 协助开发' })));
     if (ctx.aboutOpen) revealFeedback();
 
     let uiStore;
@@ -237,6 +242,8 @@
           sw(STR.fx, 'fx', () => ctx.fx.sync()),
           root.BMHaptics && root.BMHaptics.supported ? sw(STR.haptics, 'haptics') : null,
           padRow,
+          padStyleRow,
+          padDotsRow,
           swKeysRow,
         ]),
         grp('data', STR.groupData, [recordItem, item(STR.clear, clearCtl, 'clear')], !!params.confirm),

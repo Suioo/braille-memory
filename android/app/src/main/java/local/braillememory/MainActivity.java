@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // 本地插件：游戏手柄震动（必须在 super.onCreate 之前注册）
         registerPlugin(GamepadHapticsPlugin.class);
+        registerPlugin(PredictiveBackPlugin.class); // 预测性返回（Android 14+ 的返回手势）
         super.onCreate(savedInstanceState);
     }
 

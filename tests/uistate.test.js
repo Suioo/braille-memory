@@ -59,3 +59,30 @@ test('uses its own key, not the progress key (never exported)', () => {
   assert.equal(U.KEY, 'braille-memory.ui');
   assert.notEqual(U.KEY, 'braille-memory.progress');
 });
+
+test('联系作者邀请：完成第 3 轮后出现一次，之后不再出现；存储不可用时从不出现', () => {
+  const U = require('../src/core/uistate.js');
+  const mem = {};
+  const storage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; } };
+  const st = U.createStore(storage);
+  assert.equal(st.bumpRound(), false);
+  assert.equal(st.bumpRound(), false);
+  assert.equal(st.bumpRound(), true);
+  assert.equal(st.bumpRound(), false);
+  assert.equal(U.createStore(storage).bumpRound(), false, '重开后也不再出现');
+  assert.equal(U.createStore(null).bumpRound(), false);
+  const broken = { getItem: () => null, setItem: () => { throw new Error('quota'); } };
+  const b = U.createStore(broken);
+  for (let i = 0; i < 6; i++) assert.equal(b.bumpRound(), false);
+  assert.deepEqual(U.normalize({ invite: { rounds: -5, seen: 'x' } }).invite, { rounds: 0, seen: false });
+});
+
+test('welcomed flag: default false, persists once marked, failing storage reports false', () => {
+  const mem = {};
+  const st = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; } };
+  const s = U.createStore(st);
+  assert.equal(s.isWelcomed(), false);
+  assert.equal(s.markWelcomed(), true);
+  assert.equal(U.createStore(st).isWelcomed(), true);
+  assert.equal(U.createStore({ getItem() { return null; }, setItem() { throw new Error('x'); } }).markWelcomed(), false);
+});

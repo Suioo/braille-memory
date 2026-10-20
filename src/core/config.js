@@ -23,7 +23,8 @@
         correct: { durationMs: 60, weak: 0.3, strong: 0.25, trigger: 0.2 },
         wrong: { durationMs: 80, gapMs: 60, weak: 0.25, strong: 0.75 },
         ramp: { totalMs: 200, steps: 4, from: 0.2, to: 0.9, strongShare: 0.8 },
-        limits: { tickMinIntervalMs: 45, maxPatternMs: 400 },
+        dots: { rowMs: 85, gapMs: 35, strength: 0.85 }, // 点位节奏：一行一拍的时长 / 间隔 / 强度
+        limits: { tickMinIntervalMs: 45, maxPatternMs: 700 },
       },
     },
     course: {

@@ -19,7 +19,7 @@
   const listeners = new Set();
   let runner = null;
   let backend = null;
-  let env = { getConfig: () => null, isEnabled: () => false };
+  let env = { getConfig: () => null, isEnabled: () => false, getStyle: () => 'normal', dotsEnabled: () => true };
 
   const notify = () => { for (const cb of Array.from(listeners)) { try { cb(state); } catch (_) { /* 静默 */ } } };
   const setState = (s) => {
@@ -139,7 +139,8 @@
       if (!backend || !runner || !state.supported || !env.isEnabled()) return false;
       const event = Core.eventForKind(kind, info);
       if (!event) return false;
-      return runner.trigger(event, env.getConfig(), { trigger: state.trigger });
+      if (event === 'dots' && !env.dotsEnabled()) return false; // 「点位节奏」单独一个开关
+      return runner.trigger(event, env.getConfig(), { trigger: state.trigger }, { style: env.getStyle(), rows: info && info.rows });
     } catch (_) { return false; }
   }
 

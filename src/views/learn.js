@@ -20,7 +20,7 @@
 
     function show(flipped, animate) {
       const row = rows[i];
-      card = W.cardEl(row, { mirror: S.mirror, flipped, onFlip: ctx.fx.lift });
+      card = W.cardEl(row, { mirror: S.mirror, flipped, onFlip: (el) => { ctx.fx.lift(el); if (el.getAttribute('aria-pressed') === 'true') ctx.haptic('dots', { rows: root.BMHapticsCore.dotRows(row.dots, S.mirror) }); } });
       holder.replaceChildren(card.el);
       if (animate) replay(card.el, 'q-enter');
       counter.textContent = (i + 1) + ' / ' + rows.length;

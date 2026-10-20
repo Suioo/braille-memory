@@ -37,6 +37,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
    * opts.dir：'fwd' 前进（共享轴 X）、'back' 返回、'tab' 标签切换（淡入穿透）、'none' 无动画（原地刷新）。
    */
   let currentName = null;
+  let forceDir = null; // 预测性返回确认时：页面自己处理返回（onKey 里 ctx.go）也不再播入场动画，避免在手势动画之后又闪一下
   ctx.go = function (name, params, opts) {
     ctx.clearLater();
     ctx.fx.cancel(); // 换页：立即停掉粒子 / 光圈
@@ -51,7 +52,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     const isTab = !!view.tab;
     const screen = h('main', { class: 'screen' + (isTab ? ' with-nav' : ''), tabindex: '-1' }, view.el,
       isTab ? W.navBar(TABS, view.tab, (k, byKey) => ctx.go(k, byKey ? { focus: '.nav-item.active' } : {}, { dir: 'tab' })) : null);
-    let dir = opts && opts.dir;
+    let dir = forceDir || (opts && opts.dir);
     if (dir == null) dir = isTab ? (wasTab ? 'tab' : 'back') : 'fwd';
     if (dir !== 'none') screen.classList.add('anim-' + dir);
     if (isTab) ctx.lastTab = view.tab;
@@ -72,21 +73,48 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   const ESC = { key: 'Escape', repeat: false, preventDefault() {} };
   function syncHistory() {
     if (ctx.shot || !current) return;
-    const want = current.tab !== 'learn';
+    const want = current.tab !== 'learn' && !current.noBack; // noBack：页面自己说「现在返回就该退出应用」（欢迎页第一步）→ 交给系统，手势回桌面
     try {
+      if (root.BMPredictiveBack) root.BMPredictiveBack.sync(want); // 不在根页才接管返回手势（预测性返回）；根页交给系统
       if (want && !pushed) { history.pushState({ bm: 1 }, ''); pushed = true; }
       else if (!want && pushed) { pushed = false; ignorePop = true; history.back(); }
     } catch (_) { /* file:// 等不支持时忽略 */ }
   }
   /** 返回（手柄 B 键）：与 Esc / 系统返回键一致——先让页面处理（关确认行、全屏页返回），没处理就回到上一级；已在「学习」根页则不动。 */
   ctx.currentView = () => current;
-  ctx.back = () => {
-    if (root.BMSplash && root.BMSplash.active) { root.BMSplash.skip(); return; }
-    if (!current) return;
-    if (current.onKey && current.onKey(ESC)) return;
-    if (current.tab === 'learn') return;
-    ctx.go(current.tab ? 'learn' : (ctx.lastTab || 'learn'), {}, { dir: current.tab ? 'tab' : 'back' });
+  ctx.syncBack = () => syncHistory();
+  /** @returns {boolean} 做了什么（跳过启动画面 / 页面处理 / 回到上一级）；已在根页「学习」且没什么可返回时 false（Android 此时退出应用）。 */
+  ctx.back = (opts) => {
+    forceDir = (opts && opts.dir) || null;
+    try { return backNow(opts); } finally { forceDir = null; }
   };
+  const backNow = (opts) => {
+    if (root.BMSplash && root.BMSplash.active) { root.BMSplash.skip(); return true; }
+    if (!current) return false;
+    if (current.onKey && current.onKey(ESC)) return true;
+    if (current.tab === 'learn') return false;
+    ctx.go(current.tab ? 'learn' : (ctx.lastTab || 'learn'), {}, { dir: (opts && opts.dir) || (current.tab ? 'tab' : 'back') });
+    return true;
+  };
+  /** 预测性返回的「底下那一页」：把返回会去的页面先做出来垫在下面（不改当前状态）；根页返回 null。用完调用 dispose。 */
+  ctx.peekBack = () => {
+    if (!current || current.tab === 'learn' || current.noPeek) return null;
+    const name = current.tab ? 'learn' : (ctx.lastTab || 'learn');
+    const v = Views[name](ctx, {});
+    const nav = v.tab ? W.navBar(TABS, v.tab, () => {}) : null;
+    const el = h('main', { class: 'screen' + (nav ? ' with-nav' : ''), 'aria-hidden': 'true' }, v.el, nav);
+    el.inert = true;
+    return { el, attached: () => { if (nav && nav.start) nav.start(); }, dispose: () => { try { if (v.destroy) v.destroy(); } catch (_) { /* 忽略 */ } } };
+  };
+  if (root.BMPredictiveBack) root.BMPredictiveBack.init({ getScreen: () => $app.querySelector(':scope > .screen:not([aria-hidden])'), getHost: () => $app, peek: () => ctx.peekBack(), currentView: () => current, back: (o) => ctx.back(o) });
+  // Android 系统返回键 / 返回手势：Capacitor 的 App 插件把它交给这里（没有这个监听时系统直接把应用退到桌面）。
+  // 先走应用自己的返回（关确认行、全屏页返回上一级、其它标签回「学习」），已在根页才退出。
+  try {
+    const cap = root.Capacitor;
+    if (!ctx.shot && cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform() && typeof cap.addListener === 'function') {
+      cap.addListener('App', 'backButton', () => { if (!ctx.back()) { try { cap.nativePromise('App', 'exitApp').catch(() => {}); } catch (_) { /* 忽略 */ } } });
+    }
+  } catch (_) { /* 非原生环境 */ }
   window.addEventListener('popstate', () => {
     if (ignorePop) { ignorePop = false; return; }
     if (root.BMSplash && root.BMSplash.active) { root.BMSplash.skip(); return; } // 启动画面期间：返回键只算「跳过」，不操作底下的页面
@@ -145,6 +173,14 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     root.BMHaptics.play(kind, !!(ctx.progress && ctx.settings.haptics)); // 手机震动：行为与开关不变
     if (root.BMPadHaptics) root.BMPadHaptics.play(kind, info); // 手柄震动：只受「手柄震动」开关控制（不看华丽动效 / 减弱动效），info.streak ≥ 2 的答对 = 连对
   };
+  // 滚动条平时隐藏：滚动时显示，停下 0.9 秒后淡出（鼠标移到页面上时也显示，见样式）
+  document.addEventListener('scroll', (e) => {
+    const t = e.target;
+    if (!t || !t.classList || !t.classList.contains('page-body')) return;
+    t.classList.add('is-scrolling');
+    clearTimeout(t._scrollT);
+    t._scrollT = setTimeout(() => t.classList.remove('is-scrolling'), 900);
+  }, true);
   W.hooks.tick = () => ctx.haptic('tick'); // 分段按钮滑过 / 迷你点图翻面的轻震
   ctx.setMirror = (m) => { ctx.settings.mirror = !!m; ctx.save(); };
   ctx.setTheme = (t) => { ctx.settings.theme = t; root.bm.setTheme(t); ctx.save(); };
@@ -290,6 +326,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   let shotStyle = 'material';
 
   const SHOTS = {
+    welcome: () => ctx.go('welcome'),
     practice: () => ctx.go('practice'),
     course: () => ctx.go('course'),
     me: () => ctx.go('me'),
@@ -512,7 +549,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
       const padUI = root.BMPadUI.create(ctx, document);
       root.BMPadInput.init({ onEvent: padUI.handle, enabled: () => !!ctx.progress, switchKeycap: () => !ctx.progress || ctx.settings.padSwitchKeys !== 'position' });
     }
-    if (!b.shot && root.BMPadHaptics) root.BMPadHaptics.init({ getConfig: () => (ctx.cfg && ctx.cfg.haptics ? ctx.cfg.haptics.gamepad : null), isEnabled: () => !!(ctx.progress && ctx.settings.padHaptics) });
+    if (!b.shot && root.BMPadHaptics) root.BMPadHaptics.init({ getConfig: () => (ctx.cfg && ctx.cfg.haptics ? ctx.cfg.haptics.gamepad : null), isEnabled: () => !!(ctx.progress && ctx.settings.padHaptics), getStyle: () => (ctx.settings && ctx.settings.padHapticsStyle) || 'normal', dotsEnabled: () => !!(ctx.settings && ctx.settings.padDots) });
     if (!b.table.ok) {
       renderError(b.table.errors);
       if (b.shot && b.shot !== '*batch*') { await settle(); root.bm.shotReady('error'); }
@@ -570,7 +607,15 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     if (b.shot) { runShot(b.shot); return; }
     ctx.rng = root.BMPick.makeRng((Date.now() ^ (performance.now() * 1000)) >>> 0);
     if (b.themeSource !== ctx.settings.theme) root.bm.setTheme(ctx.settings.theme);
-    ctx.go('learn', {}, { dir: 'tab' });
+    // 新用户（本机没出现过欢迎页、也没有任何练习记录）先看外观设置；用存储失败判定为不显示，避免反复打扰
+    let welcome = false;
+    try {
+      const ui = root.BMUiState.createStore(root.localStorage);
+      const p = ctx.progress;
+      const fresh = !Object.keys(p.symbols || {}).length && !Object.keys(p.lessons || {}).length;
+      if (!ui.isWelcomed()) { if (fresh) welcome = true; else ui.markWelcomed(); } // 走完（或点「跳过」）才记为已看过，中途误退出下次还会出现
+    } catch (_) { welcome = false; }
+    ctx.go(welcome ? 'welcome' : 'learn', {}, { dir: 'tab' });
   }
 
   root.BMApp = { ctx, SHOTS };
