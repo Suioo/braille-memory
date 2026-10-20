@@ -54,6 +54,11 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
       isTab ? W.navBar(TABS, view.tab, (k, byKey) => ctx.go(k, byKey ? { focus: '.nav-item.active' } : {}, { dir: 'tab' })) : null);
     let dir = forceDir || (opts && opts.dir);
     if (dir == null) dir = isTab ? (wasTab ? 'tab' : 'back') : 'fwd';
+    // 标签页之间切换：内容按标签的左右位置从对应一侧滑入，和底部指示块的移动方向一致
+    if (dir === 'tab' && isTab && wasTab && ctx.lastTab && ctx.lastTab !== view.tab) {
+      const at = (k) => TABS.findIndex((t) => t.key === k);
+      dir = at(view.tab) > at(ctx.lastTab) ? 'tab-r' : 'tab-l';
+    }
     if (dir !== 'none') screen.classList.add('anim-' + dir);
     if (isTab) ctx.lastTab = view.tab;
     $app.replaceChildren(screen);
@@ -73,7 +78,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   const ESC = { key: 'Escape', repeat: false, preventDefault() {} };
   function syncHistory() {
     if (ctx.shot || !current) return;
-    const want = current.tab !== 'learn' && !current.noBack; // noBack：页面自己说「现在返回就该退出应用」（欢迎页第一步）→ 交给系统，手势回桌面
+    const want = !current.tab && !current.noBack; // noBack：页面自己说「现在返回就该退出应用」（欢迎页第一步）→ 交给系统，手势回桌面
     try {
       if (root.BMPredictiveBack) root.BMPredictiveBack.sync(want); // 不在根页才接管返回手势（预测性返回）；根页交给系统
       if (want && !pushed) { history.pushState({ bm: 1 }, ''); pushed = true; }
@@ -92,14 +97,14 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     if (root.BMSplash && root.BMSplash.active) { root.BMSplash.skip(); return true; }
     if (!current) return false;
     if (current.onKey && current.onKey(ESC)) return true;
-    if (current.tab === 'learn') return false;
-    ctx.go(current.tab ? 'learn' : (ctx.lastTab || 'learn'), {}, { dir: (opts && opts.dir) || (current.tab ? 'tab' : 'back') });
+    if (current.tab) return false; // 四个主标签页：返回交给系统（回桌面）
+    ctx.go(ctx.lastTab || 'learn', {}, { dir: (opts && opts.dir) || 'back' });
     return true;
   };
   /** 预测性返回的「底下那一页」：把返回会去的页面先做出来垫在下面（不改当前状态）；根页返回 null。用完调用 dispose。 */
   ctx.peekBack = () => {
-    if (!current || current.tab === 'learn' || current.noPeek) return null;
-    const name = current.tab ? 'learn' : (ctx.lastTab || 'learn');
+    if (!current || current.tab || current.noPeek) return null;
+    const name = ctx.lastTab || 'learn';
     const v = Views[name](ctx, {});
     const nav = v.tab ? W.navBar(TABS, v.tab, () => {}) : null;
     const el = h('main', { class: 'screen' + (nav ? ' with-nav' : ''), 'aria-hidden': 'true' }, v.el, nav);
@@ -108,7 +113,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   };
   if (root.BMPredictiveBack) root.BMPredictiveBack.init({ getScreen: () => $app.querySelector(':scope > .screen:not([aria-hidden])'), getHost: () => $app, peek: () => ctx.peekBack(), currentView: () => current, back: (o) => ctx.back(o) });
   // Android 系统返回键 / 返回手势：Capacitor 的 App 插件把它交给这里（没有这个监听时系统直接把应用退到桌面）。
-  // 先走应用自己的返回（关确认行、全屏页返回上一级、其它标签回「学习」），已在根页才退出。
+  // 先走应用自己的返回（关确认行、全屏页返回上一级），在四个主标签页则交给系统直接回桌面。
   try {
     const cap = root.Capacitor;
     if (!ctx.shot && cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform() && typeof cap.addListener === 'function') {
@@ -121,7 +126,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     pushed = false;
     if (!current) return;
     const handled = current.onKey && current.onKey(ESC); // 与 Esc 相同：全屏页返回、取消确认
-    if (!handled) ctx.go(current.tab ? 'learn' : (ctx.lastTab || 'learn'), {}, { dir: current.tab ? 'tab' : 'back' });
+    if (!handled) ctx.go(ctx.lastTab || 'learn', {}, { dir: current.tab ? 'tab' : 'back' });
     syncHistory();
   });
   /** 页面内定时器（跳转时自动清除）。 */
@@ -135,7 +140,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     const t = document.createElement('div');
     t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = text;
     document.body.append(t);
-    setTimeout(() => t.remove(), 1600);
+    setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 230); }, 1600); // 先淡出再移除
   };
   /** 复制文字到剪贴板（先用 Clipboard API，不行再用 execCommand）。@returns {Promise<boolean>} */
   ctx.copyText = async (text) => {
@@ -413,6 +418,40 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
       console.warn('me-scroll before=' + before + ' after=' + after + ' max=' + max0);
     },
     /** 设置页底部「关于」：点按 5 次版本号再按住约 1.5 秒后显示反馈行。 */
+    /** e2e（tools/ai-e2e.js，配合本机模拟接口）：保存配置 → 查询模型 → 新建文本 → AI 校对。 */
+    'ai-mock': async () => {
+      const AIc = root.BMAi;
+      const cfg = { preset: 'custom', kind: 'openai', base: 'http://127.0.0.1:18080/v1', key: 'sk-e2e', model: 'mock-a' };
+      await root.bm.aiSetConfig(cfg);
+      await root.BMAiViews.loadConfig(ctx);
+      const m = await root.bm.aiRequest(AIc.modelsRequest(ctx.aiConfig));
+      const models = AIc.parseModels('openai', m.text) || [];
+      const lib = await new Promise((res) => { const s = document.createElement('script'); s.src = 'vendor/pinyin-pro.js'; s.onload = () => res(root.BMPinyinProvider.createProvider(root.pinyinPro, {})); document.head.append(s); });
+      const r = root.BMTexts.createText(ctx.texts, { title: 'e2e', raw: '老师们来了，小朋友高高兴兴地回家。', source: 'paste', rng: ctx.rng, map: ctx.translator.map, provider: lib });
+      ctx.setTexts(root.BMTexts.addText(ctx.texts, r.text));
+      const out = await root.BMAiViews.reviewText(ctx, r.text.id, () => {});
+      const toks = ctx.texts.texts.find((t) => t.id === r.text.id).sentences.flatMap((s) => s.tokens).filter((t) => t.a === 'ai').map((t) => t.c);
+      console.log('e2e ai ok=' + out.ok + ' changed=' + out.changed + ' rejected=' + out.rejected + ' total=' + out.total + ' models=' + models.join(',') + ' ai=' + toks.join('|') + (out.why ? ' why=' + out.why : ''));
+    },
+    /** 文本详情（截图检查用）：现场标注一段示例文本，展开第一句的标注详情。 */
+    'text-detail': async () => {
+      const lib = await new Promise((res) => { const sc = document.createElement('script'); sc.src = 'vendor/pinyin-pro.js'; sc.onload = () => res(root.BMPinyinProvider.createProvider(root.pinyinPro, {})); document.head.append(sc); });
+      const r = root.BMTexts.createText(ctx.texts, { title: '示例', raw: '老师们高高兴兴地走进教室。小朋友在树上看到了一只小鸟。他跑得很快。', source: 'paste', rng: ctx.rng, map: ctx.translator.map, provider: lib });
+      ctx.texts = root.BMTexts.addText(ctx.texts, r.text);
+      ctx.rebuildTexts();
+      ctx.aiConfig = root.BMAi.normalizeConfig({ preset: 'deepseek', key: 'sk-shot', model: 'deepseek-chat' });
+      ctx.go('textdetail', { textId: r.text.id });
+      await new Promise((res) => setTimeout(res, 80));
+      const head = document.querySelector('.sent-detail .collapse-head');
+      if (head) { head.click(); await new Promise((res) => setTimeout(res, 500)); }
+      const tok = document.querySelector('.tok'); if (tok) { tok.click(); await new Promise((res) => setTimeout(res, 200)); }
+    },
+    'me-ai': async () => {
+      ctx.go('me');
+      await new Promise((r) => setTimeout(r, 80));
+      const head = Array.from(document.querySelectorAll('.collapse-head')).find((x) => x.textContent.includes(STR.groupAi));
+      if (head) { head.click(); await new Promise((r) => setTimeout(r, 600)); const pb = document.querySelector('.page-body'); if (pb) pb.scrollTop = pb.scrollHeight; await new Promise((r) => setTimeout(r, 100)); }
+    },
     'me-about': async () => {
       ctx.go('me');
       await new Promise((r) => setTimeout(r, 80));
@@ -505,7 +544,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     ctx.shot = false;
     ctx.settings.autoNext = false;
     ctx.rng = root.BMPick.makeRng(7);
-    if (SHOTS[name]) SHOTS[name](); else console.error('unknown e2e ' + name);
+    if (SHOTS[name]) await SHOTS[name](); else console.error('unknown e2e ' + name);
     await new Promise((r) => setTimeout(r, 100));
     await saving;
     console.log('e2e loaded=' + (loaded ? 'yes' : 'no') + ' symbols=' + Object.keys(ctx.progress.symbols).length + ' lessons=' + Object.keys(ctx.progress.lessons).length);
@@ -590,7 +629,8 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     ctx.version = b.version || '';
     ctx.hasUndo = false;
     if (!b.shot) { try { ctx.hasUndo = !!(await root.bm.loadBackup()); } catch (_) { ctx.hasUndo = false; } }
-    ctx.contact = b.contact || null; // 本机私有联系方式（可缺失）；不记录日志
+    ctx.contact = b.contact || null;
+    if (!b.shot && root.BMAiViews) root.BMAiViews.loadConfig(ctx); // AI 校对配置（可选；异步读，设置页打开前就绪） // 本机私有联系方式（可缺失）；不记录日志
     if (b.shot && b.fontScale) document.documentElement.style.fontSize = (b.fontScale * 100) + '%'; // 模拟安卓文字缩放
     shotStyle = b.style === 'glass' ? 'glass' : 'material';
     shotSeed = b.seed || root.BMPalette.DEFAULT_SEED;

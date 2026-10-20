@@ -591,7 +591,12 @@
       const from = navPrevKey && navPrevKey !== current ? byKey(navPrevKey) : null;
       if (!slide.place(false, from || cur)) return;
       started = true;
-      if (from) { void pill.offsetWidth; busy = Date.now() + 500; slide.place(true, cur); }
+      if (from) {
+        // 新导航栏一出现，高亮（图标 / 文字颜色）先留在旧标签上，等指示块滑到一半再交给新标签：隔得远（第 1 → 第 4）时颜色和指示块同步，不会指示块还在路上、字已经变色
+        from.classList.add('active'); cur.classList.remove('active');
+        setTimeout(() => { if (nav.isConnected) { from.classList.remove('active'); cur.classList.add('active'); } }, 150);
+        void pill.offsetWidth; busy = Date.now() + 500; slide.place(true, cur);
+      }
       navPrevKey = current;
     };
     nav.start = start; // 页面插入 DOM 后由 app.js 立即调用：同一帧内就位，指示块不会闪空

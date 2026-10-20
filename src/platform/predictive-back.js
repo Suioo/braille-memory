@@ -20,10 +20,10 @@
    */
   function shape(progress, edge) {
     const p = Math.min(1, Math.max(0, Number.isFinite(+progress) ? +progress : 0));
-    const e = 1 - Math.pow(1 - p, 2);
+    const e = 1 - Math.pow(1 - p, 1.6); // 比二次曲线更接近线性：手指一直在动，页面也一直在动，不会很快「到头」变僵
     return {
-      scale: 1 - 0.2 * e, shift: (edge === 1 ? -1 : 1) * 56 * e, radius: 40 * e, shadow: 0.42 * e,
-      underScale: 0.88 + 0.12 * e, underBright: 0.62 + 0.38 * e,
+      scale: 1 - 0.3 * e, shift: (edge === 1 ? -1 : 1) * 80 * e, radius: 44 * e, shadow: 0.45 * e,
+      underScale: 0.84 + 0.16 * e, underBright: 0.58 + 0.42 * e,
     };
   }
 
@@ -37,6 +37,10 @@
   let peek = null;
   let edge = 0;
   let enabledNow = null;
+  let startY = 0;
+  let cur = { p: 0, dy: 0 };
+  let tgt = { p: 0, dy: 0 };
+  let raf = 0;
   let hasNative = false;
 
   const resetEl = (el) => {
@@ -49,15 +53,25 @@
     if (host) host.classList.remove('pb-active');
     under = null; peek = null;
   };
-  const paint = (p, ed) => {
+  const paint = (p, ed, dy) => {
     if (!screen) return;
     const s = shape(p, ed);
-    screen.style.transform = 'translateX(' + s.shift.toFixed(1) + 'px) scale(' + s.scale.toFixed(4) + ')';
+    screen.style.transform = 'translate(' + s.shift.toFixed(1) + 'px,' + ((dy || 0) * Math.min(1, p * 3)).toFixed(1) + 'px) scale(' + s.scale.toFixed(4) + ')';
     screen.style.borderRadius = s.radius.toFixed(1) + 'px';
     screen.style.overflow = 'hidden';
-    screen.style.boxShadow = '0 ' + (24 * s.shadow / 0.42).toFixed(1) + 'px ' + (56 * s.shadow / 0.42).toFixed(1) + 'px rgba(0,0,0,' + s.shadow.toFixed(3) + ')';
+    screen.style.boxShadow = '0 ' + (24 * s.shadow / 0.45).toFixed(1) + 'px ' + (56 * s.shadow / 0.45).toFixed(1) + 'px rgba(0,0,0,' + s.shadow.toFixed(3) + ')';
     if (under) { under.style.transform = 'scale(' + s.underScale.toFixed(4) + ')'; under.style.filter = 'brightness(' + s.underBright.toFixed(3) + ')'; }
   };
+  // 手势事件是一格一格来的：用 rAF 让页面「追」着目标走（每帧追 40%），位置和速度都是连续的，不显得僵
+  const dyOf = (d) => Math.max(-70, Math.min(70, ((d && +d.y) - startY) * 0.3 || 0));
+  const pump = () => {
+    raf = 0;
+    if (!screen) return;
+    cur.p += (tgt.p - cur.p) * 0.4; cur.dy += (tgt.dy - cur.dy) * 0.4;
+    paint(cur.p, edge, cur.dy);
+    if (Math.abs(tgt.p - cur.p) > 0.002 || Math.abs(tgt.dy - cur.dy) > 0.4) raf = root.requestAnimationFrame(pump);
+  };
+  const stopPump = () => { if (raf) { root.cancelAnimationFrame(raf); raf = 0; } };
   const call = (plugin, method, options) => {
     try { const pr = root.Capacitor.nativePromise(plugin, method, options); if (pr && pr.catch) pr.catch(() => {}); return pr; } catch (_) { return null; }
   };
@@ -83,20 +97,28 @@
         if (peek.attached) { try { peek.attached(); } catch (_) { /* 忽略 */ } }
       }
     }
-    paint(d && d.progress, edge);
+    startY = d && +d.y ? +d.y : 0;
+    cur = { p: 0, dy: 0 }; tgt = { p: 0, dy: 0 };
+    paint(0, edge, 0);
   }
-  function onProgress(d) { if (screen) paint(d && d.progress, d && d.edge === 1 ? 1 : edge); }
+  function onProgress(d) {
+    if (!screen) return;
+    tgt = { p: Math.min(1, Math.max(0, +(d && d.progress) || 0)), dy: dyOf(d) };
+    if (!raf) raf = root.requestAnimationFrame(pump);
+  }
   function onCancelled() {
+    stopPump();
     const el = screen;
     const u = under;
     screen = null;
     if (!el) { cleanup(); return; }
     el.style.transition = SOFT;
     el.style.transform = ''; el.style.borderRadius = ''; el.style.boxShadow = '';
-    if (u) { u.style.transition = SOFT; u.style.transform = 'scale(0.88)'; u.style.filter = 'brightness(0.62)'; }
+    if (u) { u.style.transition = SOFT; u.style.transform = 'scale(0.84)'; u.style.filter = 'brightness(0.58)'; }
     setTimeout(() => { resetEl(el); cleanup(); }, 260);
   }
   function onInvoked() {
+    stopPump();
     const el = screen;
     const u = under;
     screen = null;
@@ -104,7 +126,7 @@
     // 确认：当前页滑出去、底下的页面放大到位，然后真正返回（返回过渡关掉，视觉上是连着的）
     // 从手势当前位置接着走：略再缩小、淡出（减速曲线，不先停顿再猛冲），底下的页面同时放大到位
     el.style.transition = 'transform 220ms cubic-bezier(0.2, 0, 0, 1), opacity 200ms ease-out, box-shadow 220ms';
-    el.style.transform = 'translateX(' + (edge === 1 ? '-' : '') + '64px) scale(0.74)';
+    el.style.transform = 'translateX(' + (edge === 1 ? '-' : '') + '96px) scale(0.62)';
     el.style.opacity = '0';
     if (u) { u.style.transition = 'transform 220ms cubic-bezier(0.2, 0, 0, 1), filter 220ms'; u.style.transform = 'scale(1)'; u.style.filter = 'brightness(1)'; }
     setTimeout(() => {

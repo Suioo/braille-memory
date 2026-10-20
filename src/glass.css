@@ -125,3 +125,57 @@ html[data-style="glass"] .dot.on:not(.extra) { filter: drop-shadow(0 2px 3px col
 
 html[data-style="glass"] .segmented .seg { transition: transform var(--t-morph) var(--spring-fast), background var(--t-state) var(--effects), color var(--slide-color), box-shadow var(--t-state) var(--effects); }
 html[data-style="glass"] .nav-bar .nav-ind { transition: transform var(--t-morph) var(--spring-fast), color var(--slide-color); }
+
+/* ---------- 2.10：其余表面也走玻璃（文本库、文本详情、规则框、邀请卡、提示条、输入框、开关、进度条、AI 设置） ---------- */
+/* 面板：半透明填充 + 亮边 + 高光；数量少的才加模糊（文本详情里句子很多，只做半透明，避免手机上卡顿） */
+html[data-style="glass"] :is(.text-item, .text-add, .text-stats, .sent, .invite-card, .rule-box) {
+  background: var(--g-fill); box-shadow: var(--g-glass); border-radius: 28px;
+}
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  html[data-style="glass"] :is(.text-add, .text-stats, .invite-card, .toast) { -webkit-backdrop-filter: var(--g-blur); backdrop-filter: var(--g-blur); }
+}
+html[data-style="glass"] .text-banner { background: color-mix(in srgb, var(--tertiary-container, var(--secondary-container)) var(--g-tint), transparent); box-shadow: var(--g-glass); border-radius: 28px; }
+html[data-style="glass"] .toast {
+  background: color-mix(in srgb, var(--g-base) 86%, transparent); color: var(--on-surface); box-shadow: var(--g-glass); border-radius: 999px;
+}
+/* 小部件：半透明 + 细亮边，胶囊形；不做模糊 */
+html[data-style="glass"] :is(.tok, .slot, .timer-chip, .sent-flag, .ai-model, .cat-tag) {
+  background: color-mix(in srgb, var(--g-base) 60%, transparent); box-shadow: inset 0 0 0 1px var(--g-edge), inset 0 1px 0 var(--g-spec); border-color: transparent;
+}
+html[data-style="glass"] :is(.tok, .ai-model, .sent-flag, .timer-chip) { border-radius: 999px; }
+html[data-style="glass"] .tok.sel, html[data-style="glass"] .ai-model.selected, html[data-style="glass"] .slot.current {
+  background: color-mix(in srgb, var(--secondary-container) var(--g-tint), transparent);
+}
+html[data-style="glass"] .tok.bad { box-shadow: inset 0 0 0 2px var(--error), inset 0 1px 0 var(--g-spec); }
+html[data-style="glass"] .tok.edited { box-shadow: inset 0 0 0 1.5px var(--primary), inset 0 1px 0 var(--g-spec); }
+html[data-style="glass"] .tok.ai { box-shadow: inset 0 0 0 1.5px var(--tertiary, var(--primary)), inset 0 1px 0 var(--g-spec); }
+html[data-style="glass"] .sent-flag.ok { background: color-mix(in srgb, var(--primary-container) var(--g-tint), transparent); }
+/* 输入框 / 下拉框：凹进去的玻璃槽 */
+html[data-style="glass"] .field {
+  background: color-mix(in srgb, var(--g-base) 50%, transparent); border-color: transparent; border-radius: 18px;
+  box-shadow: inset 0 0 0 1px var(--g-edge), inset 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+html[data-style="glass"] .field:focus { box-shadow: inset 0 0 0 2px var(--primary), inset 0 2px 4px rgba(0, 0, 0, 0.08); }
+/* 开关：玻璃轨道 + 带高光的滑块 */
+html[data-style="glass"] .switch .track { background: color-mix(in srgb, var(--g-base) 55%, transparent); box-shadow: inset 0 0 0 1px var(--outline), inset 0 1.5px 2px rgba(0, 0, 0, 0.08); }
+html[data-style="glass"] .switch.on .track { background: var(--primary); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent); }
+html[data-style="glass"] .switch .thumb { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); }
+/* 进度条：玻璃轨道 */
+html[data-style="glass"] .progress { background: color-mix(in srgb, var(--g-base) 55%, transparent); box-shadow: inset 0 0 0 1px var(--g-edge); border-radius: 999px; }
+/* 欢迎页与 AI 设置里的分组 */
+html[data-style="glass"] .welcome-cell i { box-shadow: 0 3px 8px color-mix(in srgb, var(--primary) 35%, transparent); }
+
+/* ---------- 2.10：按压手感（两种风格通用，放在最后以覆盖各控件自己的过渡时长）
+   按下 90 ms 快速缩下去，松开时回到各控件自己的弹簧过渡（260 ms 带回弹）：按下跟手、松开有弹性 ---------- */
+html :is(.sl, .btn, .icon-btn, .chip, .swatch, .option, .entry-card, .lesson-tile, .dot.interactive, .seg, .tok, .ai-model, .nav-item .nav-ind):active:not(:disabled) {
+  transition-duration: 90ms; transition-timing-function: cubic-bezier(0.3, 0, 0.8, 0.15);
+}
+html .field { transition: box-shadow var(--t-state) var(--effects), background var(--t-state) var(--effects); }
+/* 鼠标悬停：可点的卡片轻轻浮起（只在有鼠标的设备上） */
+@media (hover: hover) and (pointer: fine) {
+  html :is(.entry-card, .lesson-tile, .option):not(:disabled):not(.dim):hover { transform: translateY(-2px); }
+  html :is(.entry-card, .lesson-tile, .option):not(:disabled):hover:active { transform: scale(0.97); }
+}
+/* 提示条：淡入上移，结束时淡出下沉（不再突然消失） */
+.toast.out { animation: toast-out 220ms var(--effects) both; }
+@keyframes toast-out { from { opacity: 1; transform: translateX(-50%); } to { opacity: 0; transform: translate(-50%, 10px) scale(0.98); } }

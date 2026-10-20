@@ -247,6 +247,7 @@
           swKeysRow,
         ]),
         grp('data', STR.groupData, [recordItem, item(STR.clear, clearCtl, 'clear')], !!params.confirm),
+        ctx.translator && root.BMAiViews && root.BMAiViews.available() ? grp('ai', STR.groupAi, root.BMAiViews.settingsRows(ctx)) : null,
         grp('about', STR.groupAbout, [about])));
 
     function onKey(e) {

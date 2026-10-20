@@ -193,6 +193,55 @@
     async clearBackup() {
       try { if (backupStore) { backupStore.storage.removeItem(backupStore.key); backupStore.storage.removeItem(backupStore.tmpKey); } return true; } catch (_) { return false; }
     },
+    /** AI 校对配置：安卓存在应用私有存储（localStorage），不进存档、不随导出。 */
+    async aiGetConfig() {
+      try { return root.BMAi.normalizeConfig(JSON.parse(root.localStorage.getItem('braille-memory.ai'))); } catch (_) { return root.BMAi.normalizeConfig(null); }
+    },
+    async aiSetConfig(cfg) {
+      try { root.localStorage.setItem('braille-memory.ai', JSON.stringify(root.BMAi.normalizeConfig(cfg))); return true; } catch (_) { return false; }
+    },
+    /** 发 AI 请求：安卓走原生 HTTP（CapacitorHttp，不受网页跨域限制）；浏览器直接 fetch（多数服务会因跨域被拒）。 */
+    async aiRequest(req) {
+      if (!req || !root.BMAi) return { ok: false, reason: 'bad' };
+      let u;
+      try { u = new URL(String(req.url)); } catch (_) { return { ok: false, reason: 'url' }; }
+      if (!(u.protocol === 'https:' || (u.protocol === 'http:' && root.BMAi.isLocalHost(u.hostname)))) return { ok: false, reason: 'url' };
+      try {
+        if (isNative()) {
+          const r = await nativeInvoke('CapacitorHttp', 'request', {
+            url: u.href, method: req.method === 'POST' ? 'POST' : 'GET', headers: req.headers || {},
+            data: req.method === 'POST' ? req.body : undefined, responseType: 'text', connectTimeout: 30000, readTimeout: 180000,
+          });
+          const text = typeof r.data === 'string' ? r.data : JSON.stringify(r.data);
+          return { ok: r.status >= 200 && r.status < 300, status: r.status, text: String(text).slice(0, root.BMAi.LIMITS.responseChars) };
+        }
+        const res = await fetch(u.href, { method: req.method === 'POST' ? 'POST' : 'GET', headers: req.headers || {}, body: req.method === 'POST' ? req.body : undefined });
+        return { ok: res.ok, status: res.status, text: (await res.text()).slice(0, root.BMAi.LIMITS.responseChars) };
+      } catch (e) {
+        const m = String((e && e.message) || '');
+        return { ok: false, reason: /timeout|timed out/i.test(m) ? 'timeout' : 'network', detail: m.slice(0, 120) };
+      }
+    },
+    /** 流式请求（安卓原生 AiHttp 插件）；浏览器没有该能力时为 null，调用方退回普通请求。 */
+    aiStream: isNative() ? async (req, onChunk, onId) => {
+      if (!req || !root.BMAi) return { ok: false, reason: 'bad' };
+      let u;
+      try { u = new URL(String(req.url)); } catch (_) { return { ok: false, reason: 'url' }; }
+      if (!(u.protocol === 'https:' || (u.protocol === 'http:' && root.BMAi.isLocalHost(u.hostname)))) return { ok: false, reason: 'url' };
+      const id = Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+      const cap = root.Capacitor;
+      let sub = null;
+      try {
+        sub = await cap.addListener('AiHttp', 'chunk', (d) => { if (d && d.id === id) onChunk(String(d.text || '')); });
+        if (onId) onId(id);
+        return await nativeInvoke('AiHttp', 'stream', { id, url: u.href, headers: req.headers || {}, body: req.body || '' });
+      } catch (e) {
+        return { ok: false, reason: 'network', detail: String((e && e.message) || '').slice(0, 120) };
+      } finally {
+        try { if (sub && sub.remove) sub.remove(); } catch (_) { /* 忽略 */ }
+      }
+    } : null,
+    aiCancel(id) { nativeCall('AiHttp', 'cancel', { id }); },
     shotReady() {},
     shotPages() {},
     onShotShow() {},

@@ -44,7 +44,7 @@ test('polyphones follow context; tone sandhi is off (本调); neutral tone unmar
 });
 
 test('erhua 儿 stays its own syllable', () => {
-  assert.equal(provider.segment('花儿').map((w) => w.pinyin).join('|').replace(/\|/g, ''), 'huāér');
+  assert.equal(provider.segment('花儿').map((w) => w.pinyin).join('|').replace(/\|/g, ''), "huā'ér"); // ér 前加隔音符号
 });
 
 test('bad lib or inconsistent output throws instead of guessing', () => {

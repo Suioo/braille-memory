@@ -23,12 +23,67 @@
     if (!find() || !ctx.textData) { ctx.later(back, 0); return { el: h('div', { class: 'page' }) }; }
 
     const summary = h('p', { class: 'text-sum', role: 'status' });
+    // AI 校对（可选）：配置好接口后出现；结果逐段校验后写回，标为「AI」；可撤销本次修改
+    const aiOn = !!(root.BMAiViews && root.BMAiViews.available() && root.BMAi.ready(ctx.aiConfig));
+    const aiStatus = h('p', { class: 'text-hint', role: 'status' });
+    if (ctx.aiLastNote && ctx.aiLastNote.textId === params.textId) { aiStatus.textContent = ctx.aiLastNote.text; ctx.aiLastNote = null; }
+    let aiBusy = false;
+    let aiStop = false;
+    const aiIds = new Set(); // 在途的流式请求，点「停止」时立即取消
+    const aiBar = W.progressBar(0, STR.aiReview);
+    aiBar.hidden = true;
+    const stopBtn = W.btn(STR.aiStop, () => {
+      aiStop = true; stopBtn.disabled = true; aiStatus.textContent = STR.aiStopping;
+      for (const id of aiIds) { try { root.bm.aiCancel(id); } catch (_) { /* 忽略 */ } }
+    }, { variant: 'text' });
+    stopBtn.hidden = true;
+    const aiBtn = aiOn ? W.btn(STR.aiReview, async () => {
+      if (aiBusy) return;
+      aiBusy = true; aiStop = false; aiBtn.disabled = true; stopBtn.hidden = false; stopBtn.disabled = false; aiBar.hidden = false;
+      // 实时进度：段数 / 批次，等待模型时每秒刷新已等待的秒数
+      let last = null;
+      let waitFrom = Date.now();
+      const paint = () => {
+        if (!last || aiStop) return;
+        aiStatus.textContent = STR.aiReviewing(last, Math.round((Date.now() - waitFrom) / 1000));
+        aiBar.style.setProperty('--v', String(last.total ? last.done / last.total : 0));
+        aiBar.setAttribute('aria-valuenow', String(Math.round(100 * (last.total ? last.done / last.total : 0))));
+      };
+      const tick = setInterval(paint, 1000);
+      try {
+        const r = await root.BMAiViews.reviewText(ctx, params.textId, (p) => {
+          if (!last || p.done !== last.done || p.retry !== last.retry) waitFrom = Date.now();
+          last = p;
+          paint();
+        }, { stopped: () => aiStop, ids: aiIds });
+        clearInterval(tick);
+        const msg = !r.ok ? STR.aiPartial(r.why, r.done, r.total, r.changed)
+          : r.stopped ? STR.aiStopped(r.done, r.total, r.changed) : STR.aiReviewDone(r.changed, r.rejected);
+        const why = r.rejectedInfo && r.rejectedInfo.length ? STR.aiRejected(r.rejectedInfo.map((x) => ({ text: x.text, reason: STR.aiRejectReason[x.reason] || x.reason }))) : '';
+        if (r.changed) { ctx.toast(msg); ctx.aiLastNote = why ? { textId: params.textId, text: msg + '。' + why } : null; ctx.go('textdetail', { textId: params.textId }, { dir: 'none' }); return; }
+        aiStatus.textContent = msg + (why ? '。' + why : '');
+      } finally {
+        clearInterval(tick);
+        aiBusy = false;
+        if (aiBtn.isConnected) { aiBtn.disabled = false; stopBtn.hidden = true; aiBar.hidden = true; }
+      }
+    }, { variant: 'tonal' }) : null;
+    const undoBtn = ctx.aiUndo && ctx.aiUndo.textId === params.textId ? W.btn(STR.aiUndo, async () => {
+      const prev = ctx.aiUndo.store;
+      ctx.aiUndo = null;
+      ctx.setTexts(prev);
+      const ok = await ctx.saveTexts();
+      ctx.save();
+      ctx.toast(ok ? STR.aiUndone : STR.textSaveFail);
+      ctx.go('textdetail', { textId: params.textId }, { dir: 'none' });
+    }, { variant: 'text' }) : null;
     const practiceBtn = W.btn(STR.start, () => { ctx.textScope = params.textId; ctx.go('ruleround', { mode: 'practice', scope: 'text', textId: params.textId }); }, { variant: 'filled', icon: ICON.play(), cls: 'fab' });
     const list = h('div', { class: 'sent-list' });
     const el = h('div', { class: 'page text-detail' },
       W.topBar(C.backBtn(back), h('h1', { text: clip(find().title, 14) }), null),
       h('div', { class: 'page-body' },
         h('div', { class: 'text-banner', role: 'note' }, h('span', { class: 'tb-flag', text: STR.textAuto }), summary),
+        aiBtn || undoBtn ? h('div', { class: 'ai-review' }, h('div', { class: 'ta-actions wrap' }, aiBtn, stopBtn, undoBtn), aiBar, aiStatus) : null,
         root.BMTextViews.statsEl(ctx, params.textId),
         list,
         h('div', { class: 'footer' }, practiceBtn)));
@@ -88,9 +143,9 @@
         const label = t.k === 'w' ? t.c + ' ' + t.p : t.k === 'b' ? '␣' : t.k === 'x' ? (t.skip ? '〔' + t.c + '〕' : t.c) : t.c;
         const bad = st && !st.ok && st.issues.some((x) => x.i === i);
         const b = h('button', {
-          class: 'tok sl k-' + t.k + (bad ? ' bad' : '') + (t.skip ? ' skip' : '') + (selected === i ? ' sel' : '') + (t.a === 'edited' ? ' edited' : ''), type: 'button',
+          class: 'tok sl k-' + t.k + (bad ? ' bad' : '') + (t.skip ? ' skip' : '') + (selected === i ? ' sel' : '') + (t.a === 'edited' ? ' edited' : '') + (t.a === 'ai' ? ' ai' : ''), type: 'button',
           'aria-pressed': String(selected === i), onclick: () => redraw(true, selected === i ? null : i),
-          'aria-label': ({ w: STR.textTokenWord, u: STR.textTokenPunct, n: STR.textTokenNum, b: STR.textTokenBlank, x: STR.textTokenX })[t.k] + ' ' + label + (bad ? '，' + STR.textSentenceMarked : '') + (t.skip ? '，' + STR.textSkipped : ''),
+          'aria-label': ({ w: STR.textTokenWord, u: STR.textTokenPunct, n: STR.textTokenNum, b: STR.textTokenBlank, x: STR.textTokenX })[t.k] + ' ' + label + (bad ? '，' + STR.textSentenceMarked : '') + (t.skip ? '，' + STR.textSkipped : '') + (t.a === 'ai' ? '，' + STR.textTokenAi : ''),
         }, h('span', { text: label }));
         return b;
       });

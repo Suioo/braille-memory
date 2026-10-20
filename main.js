@@ -12,7 +12,7 @@
  *   --e2e=<预设> --user-data=<dir>    冒烟：运行一个截图预设流程（会写存档到 dir）后退出
  *   截图模式一律使用临时数据目录且不写存档。
  */
-const { app, BrowserWindow, ipcMain, nativeTheme, Menu, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeTheme, Menu, dialog, shell, net, safeStorage } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { parseTable, loadExtra: loadExtraText } = require('./src/core/csv.js');
@@ -24,6 +24,7 @@ const Pal = require('./src/core/palette.js');
 const { MAX_CHARS } = require('./src/core/backup.js');
 const { validateOpenUrl } = require('./src/core/about.js');
 const DualSense = require('./src/core/dualsense.js');
+const AI = require('./src/core/ai.js');
 
 const THEMES = ['system', 'light', 'dark'];
 
@@ -301,6 +302,95 @@ ipcMain.handle('theme:set', (e, source) => {
   if (!shotMode) nativeTheme.themeSource = source;
   return source;
 });
+
+// ---------- AI 校对（可选）：配置存在 userData/ai-settings.json（API Key 用系统钥匙串加密），请求由主进程发出 ----------
+const aiFile = () => path.join(app.getPath('userData'), 'ai-settings.json');
+ipcMain.handle('ai:config:get', (e) => {
+  if (!fromOurWindow(e) || shotMode) return AI.normalizeConfig(null);
+  try {
+    const raw = JSON.parse(fs.readFileSync(aiFile(), 'utf8'));
+    let key = '';
+    if (typeof raw.keyEnc === 'string' && safeStorage.isEncryptionAvailable()) key = safeStorage.decryptString(Buffer.from(raw.keyEnc, 'base64'));
+    else if (typeof raw.key === 'string') key = raw.key;
+    return AI.normalizeConfig(Object.assign({}, raw, { key }));
+  } catch (_) { return AI.normalizeConfig(null); }
+});
+ipcMain.handle('ai:config:set', (e, cfg) => {
+  if (!fromOurWindow(e) || shotMode) return false;
+  const c = AI.normalizeConfig(cfg);
+  const out = { preset: c.preset, kind: c.kind, base: c.base, model: c.model };
+  if (c.key) {
+    if (safeStorage.isEncryptionAvailable()) out.keyEnc = safeStorage.encryptString(c.key).toString('base64');
+    else out.key = c.key;
+  }
+  try {
+    const tmp = aiFile() + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(out), { mode: 0o600 });
+    fs.renameSync(tmp, aiFile());
+    return true;
+  } catch (_) { return false; }
+});
+/** 只发往 https（或本机 / 局域网 http）的 GET / POST；头和正文限长；180 秒超时（推理模型较慢）；响应最多 2 MB。 */
+ipcMain.handle('ai:request', async (e, req) => {
+  if (!fromOurWindow(e) || shotMode || !req || typeof req !== 'object') return { ok: false, reason: 'bad' };
+  let u;
+  try { u = new URL(String(req.url)); } catch (_) { return { ok: false, reason: 'url' }; }
+  if (!(u.protocol === 'https:' || (u.protocol === 'http:' && AI.isLocalHost(u.hostname))) || u.username || u.password) return { ok: false, reason: 'url' };
+  const method = req.method === 'POST' ? 'POST' : 'GET';
+  const headers = {};
+  for (const [k, v] of Object.entries(req.headers || {}).slice(0, 12)) if (typeof v === 'string' && v.length <= 600 && /^[a-z0-9-]{1,40}$/i.test(k)) headers[k] = v;
+  const body = method === 'POST' && typeof req.body === 'string' && req.body.length <= 400 * 1024 ? req.body : undefined;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 180000);
+  try {
+    const res = await net.fetch(u.href, { method, headers, body, signal: ctl.signal, redirect: 'error' });
+    const text = (await res.text()).slice(0, AI.LIMITS.responseChars);
+    return { ok: res.ok, status: res.status, text };
+  } catch (err) {
+    return { ok: false, reason: ctl.signal.aborted ? 'timeout' : 'network', detail: String((err && err.message) || '').slice(0, 120) };
+  } finally { clearTimeout(timer); }
+});
+
+/**
+ * 流式请求（SSE）：边收边把文字片段推给页面（'ai:chunk'），推理模型长时间思考时连接不断、页面能显示进度。
+ * 超时按「多久没收到数据」算（120 秒），整体最长 15 分钟；页面可用 'ai:cancel' 取消。
+ */
+const aiStreams = new Map();
+ipcMain.handle('ai:stream', async (e, id, req) => {
+  if (!fromOurWindow(e) || shotMode || typeof id !== 'string' || !/^[a-z0-9]{4,32}$/.test(id) || !req || typeof req !== 'object') return { ok: false, reason: 'bad' };
+  let u;
+  try { u = new URL(String(req.url)); } catch (_) { return { ok: false, reason: 'url' }; }
+  if (!(u.protocol === 'https:' || (u.protocol === 'http:' && AI.isLocalHost(u.hostname))) || u.username || u.password) return { ok: false, reason: 'url' };
+  const headers = {};
+  for (const [k, v] of Object.entries(req.headers || {}).slice(0, 12)) if (typeof v === 'string' && v.length <= 600 && /^[a-z0-9-]{1,40}$/i.test(k)) headers[k] = v;
+  const body = typeof req.body === 'string' && req.body.length <= 400 * 1024 ? req.body : undefined;
+  const ctl = new AbortController();
+  let why = null;
+  const abort = (r) => { if (!why) why = r; ctl.abort(); };
+  aiStreams.set(id, () => abort('canceled'));
+  let idle = setTimeout(() => abort('timeout'), 120000);
+  const total = setTimeout(() => abort('timeout'), 15 * 60000);
+  const sender = e.sender;
+  try {
+    const res = await net.fetch(u.href, { method: 'POST', headers, body, signal: ctl.signal, redirect: 'error' });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder('utf-8');
+    let errText = '';
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      clearTimeout(idle);
+      idle = setTimeout(() => abort('timeout'), 120000);
+      const text = dec.decode(value, { stream: true });
+      if (!res.ok) { if (errText.length < 20000) errText += text; continue; }
+      if (!sender.isDestroyed()) sender.send('ai:chunk', id, text);
+    }
+    return { ok: res.ok, status: res.status, text: res.ok ? '' : errText };
+  } catch (err) {
+    return { ok: false, reason: why || 'network', detail: why ? '' : String((err && err.message) || '').slice(0, 120) };
+  } finally { clearTimeout(idle); clearTimeout(total); aiStreams.delete(id); }
+});
+ipcMain.on('ai:cancel', (e, id) => { if (fromOurWindow(e) && aiStreams.has(id)) aiStreams.get(id)(); });
 
 // ---------- 截图 ----------
 async function capture(file) {

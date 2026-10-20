@@ -25,6 +25,19 @@ contextBridge.exposeInMainWorld('bm', {
   saveBackup: (data) => ipcRenderer.invoke('backup:save', data),
   loadBackup: () => ipcRenderer.invoke('backup:load'),
   clearBackup: () => ipcRenderer.invoke('backup:clear'),
+  /** AI 校对（可选）：读取 / 保存接口配置（Key 由主进程加密保存）；发请求（主进程校验地址后发出） */
+  aiGetConfig: () => ipcRenderer.invoke('ai:config:get'),
+  aiSetConfig: (cfg) => ipcRenderer.invoke('ai:config:set', cfg),
+  aiRequest: (req) => ipcRenderer.invoke('ai:request', req),
+  /** 流式请求：onChunk(文字片段) 边收边回调；返回 {ok, status, text(出错时的响应体), reason?}。cancel 用返回的 id 调 aiCancel */
+  aiStream: (req, onChunk, onId) => {
+    const id = Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+    const fn = (_e, sid, text) => { if (sid === id) onChunk(text); };
+    ipcRenderer.on('ai:chunk', fn);
+    if (onId) onId(id);
+    return ipcRenderer.invoke('ai:stream', id, req).finally(() => ipcRenderer.removeListener('ai:chunk', fn));
+  },
+  aiCancel: (id) => ipcRenderer.send('ai:cancel', id),
   /** 设置主题来源：'system' | 'light' | 'dark' */
   setTheme: (source) => ipcRenderer.invoke('theme:set', source),
   /** 截图：页面已稳定 */
