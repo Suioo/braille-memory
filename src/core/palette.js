@@ -184,7 +184,8 @@
    * 玻璃风格参数（styles.css 通过 theme.js 写入的 --g-a / --g-blob 使用同一组数）。
    * 填充 = 浅色 surface-container-lowest / 深色 surface-container-high，不透明度 fillAlpha，叠在模糊后的背景上。
    */
-  const GLASS = { fillAlpha: 0.6, fallbackAlpha: 0.94, blobLight: 0.36, blobDark: 0.34 };
+  /** 玻璃参数：填充不透明度（浅色更通透，否则白底上白玻璃看不出质感）、无模糊时的兜底不透明度、背景色块强度。 */
+  const GLASS = { fillAlpha: 0.6, fillAlphaLight: 0.48, fallbackAlpha: 0.94, blobLight: 0.42, blobDark: 0.34 };
 
   const mix = (top, bottom, a) => {
     const t = hexToRgb(top); const b = hexToRgb(bottom);
@@ -205,7 +206,7 @@
       'blob-secondary': mix(sc.secondary, sc.surface, a),
       'blob-primary+tertiary (falloff overlap, each at half strength)': mix(sc.tertiary, mix(sc.primary, sc.surface, a / 2), a / 2),
     };
-    return Object.entries(spots).map(([name, bg]) => ({ name, bg, fill: mix(base, bg, GLASS.fillAlpha) }));
+    return Object.entries(spots).map(([name, bg]) => ({ name, bg, fill: mix(base, bg, dark ? GLASS.fillAlpha : GLASS.fillAlphaLight) }));
   }
 
   return { GLASS, glassBackdrops, SEEDS, DEFAULT_SEED, hexToRgb, rgbToHex, rgbToLab, lch, toneColor, scheme, contrast, luminance, cssVar, CONTRAST_PAIRS };

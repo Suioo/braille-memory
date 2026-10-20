@@ -82,7 +82,7 @@ html[data-style="glass"] .icon-btn:active:not(:disabled) { transform: scale(0.92
 html[data-style="glass"] .icon-btn { transition: transform var(--t-morph) var(--spring-fast), background var(--t-state) var(--effects), color var(--t-state) var(--effects); }
 html[data-style="glass"] .icon-btn.tonal { box-shadow: inset 0 0 0 1px var(--g-edge), inset 0 1px 0 var(--g-spec); }
 html[data-style="glass"] :is(.chip, .chip.selected, .chip.assist, .chip:active:not(:disabled)) { border-radius: 999px; }
-html[data-style="glass"] .chip-ind { --ind-r: 999px; }
+html[data-style="glass"] .chip-ind { --ind-r: 999px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent); }
 html[data-style="glass"] .chip-row .chip.filter:active:not(:disabled) { border-radius: 999px; }
 html[data-style="glass"] .swatch, html[data-style="glass"] .swatch.selected, html[data-style="glass"] .swatch:active { border-radius: 50%; }
 html[data-style="glass"] .swatch:active { transform: scale(0.92); }
@@ -179,3 +179,30 @@ html .field { transition: box-shadow var(--t-state) var(--effects), background v
 /* 提示条：淡入上移，结束时淡出下沉（不再突然消失） */
 .toast.out { animation: toast-out 220ms var(--effects) both; }
 @keyframes toast-out { from { opacity: 1; transform: translateX(-50%); } to { opacity: 0; transform: translate(-50%, 10px) scale(0.98); } }
+
+/* ---------- 2.10.1：浅色玻璃更有质感 ----------
+   浅色下白玻璃叠在浅底上容易「糊成一片」：填充更通透（不透明度见 palette.js GLASS.fillAlphaLight）、模糊后颜色更饱和，
+   外圈加一道极淡的深色细边勾出轮廓，顶部亮边更亮，表面加一层斜向高光，阴影更柔更深。对比度实测仍全部达标（docs/contrast.md）。 */
+html[data-style="glass"]:not([data-mode="dark"]) {
+  --g-edge: rgba(255, 255, 255, 0.95);
+  --g-blur: blur(30px) saturate(320%) brightness(1.04);
+  --g-shadow: 0 0 0 1px rgba(20, 40, 70, 0.07), 0 18px 40px rgba(20, 40, 80, 0.16), 0 4px 10px rgba(20, 40, 80, 0.08);
+  --g-sheen: linear-gradient(140deg, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.12) 38%, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, 0.18) 100%);
+}
+html[data-style="glass"]:not([data-mode="dark"]) :is(.cell-card, .list, .stats-card, .hero-card, .entry-card, .summary-card, .weak-card, .lesson-tile, .nav-bar, .q-page .footer, .text-item, .text-add, .text-stats, .sent, .invite-card, .rule-box, .text-banner):not(:disabled):not(.dim) {
+  background-image: var(--g-sheen);
+}
+html[data-style="glass"]:not([data-mode="dark"]) :is(.face, .option):not(:disabled):not(.dim) {
+  background-image: var(--g-sheen), linear-gradient(180deg, color-mix(in srgb, var(--g-base) 22%, transparent), transparent 60%);
+}
+
+/* 文字盲文互转：句子卡片、六点键盘也是玻璃 */
+html[data-style="glass"] :is(.conv-sent, .conv-pad) { background: var(--g-fill); box-shadow: var(--g-glass); border-radius: 28px; }
+html[data-style="glass"]:not([data-mode="dark"]) :is(.conv-sent, .conv-pad) { background-image: var(--g-sheen); }
+html[data-style="glass"] .conv-dot { box-shadow: inset 0 0 0 1.5px var(--outline), inset 0 1px 0 var(--g-spec); }
+html[data-style="glass"] .conv-dot.on { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent); }
+html[data-style="glass"] :is(.welcome-feature, .welcome-demo) { background: var(--g-fill); box-shadow: var(--g-glass); }
+html[data-style="glass"]:not([data-mode="dark"]) :is(.welcome-feature, .welcome-demo) { background-image: var(--g-sheen); }
+html[data-style="glass"] .ts-card { background: var(--g-fill); box-shadow: var(--g-glass); border-radius: 28px; }
+html[data-style="glass"]:not([data-mode="dark"]) .ts-card { background-image: var(--g-sheen); }
+html[data-style="glass"] .sheet-link { border-radius: 999px; background: color-mix(in srgb, var(--tertiary-container, var(--secondary-container)) var(--g-tint), transparent); box-shadow: var(--g-glass); }

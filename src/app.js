@@ -179,9 +179,16 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     if (root.BMPadHaptics) root.BMPadHaptics.play(kind, info); // 手柄震动：只受「手柄震动」开关控制（不看华丽动效 / 减弱动效），info.streak ≥ 2 的答对 = 连对
   };
   // 滚动条平时隐藏：滚动时显示，停下 0.9 秒后淡出（鼠标移到页面上时也显示，见样式）
+  // 滚动条只在「用户自己滚动」时短暂出现：滚轮、拖动滚动条、方向 / 翻页键；展开折叠组、跳转定位等程序引起的滚动或高度变化不显示
+  let userScrollAt = 0;
+  const markUser = () => { userScrollAt = Date.now(); };
+  document.addEventListener('wheel', markUser, { capture: true, passive: true });
+  document.addEventListener('pointermove', (e) => { if (e.buttons) markUser(); }, { capture: true, passive: true });
+  document.addEventListener('keydown', (e) => { if (/^(Arrow|Page|Home|End| )/.test(e.key)) markUser(); }, true);
   document.addEventListener('scroll', (e) => {
     const t = e.target;
     if (!t || !t.classList || !t.classList.contains('page-body')) return;
+    if (Date.now() - userScrollAt > 700) return;
     t.classList.add('is-scrolling');
     clearTimeout(t._scrollT);
     t._scrollT = setTimeout(() => t.classList.remove('is-scrolling'), 900);
@@ -332,6 +339,9 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
 
   const SHOTS = {
     welcome: () => ctx.go('welcome'),
+    'welcome-2': async () => { ctx.go('welcome'); document.querySelector('.welcome-actions .btn.filled').click(); },
+    'welcome-3': async () => { ctx.go('welcome'); for (let i = 0; i < 2; i++) document.querySelector('.welcome-actions .btn.filled').click(); },
+    'welcome-4': async () => { ctx.go('welcome'); for (let i = 0; i < 3; i++) document.querySelector('.welcome-actions .btn.filled').click(); },
     practice: () => ctx.go('practice'),
     course: () => ctx.go('course'),
     me: () => ctx.go('me'),
@@ -431,7 +441,8 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
       ctx.setTexts(root.BMTexts.addText(ctx.texts, r.text));
       const out = await root.BMAiViews.reviewText(ctx, r.text.id, () => {});
       const toks = ctx.texts.texts.find((t) => t.id === r.text.id).sentences.flatMap((s) => s.tokens).filter((t) => t.a === 'ai').map((t) => t.c);
-      console.log('e2e ai ok=' + out.ok + ' changed=' + out.changed + ' rejected=' + out.rejected + ' total=' + out.total + ' models=' + models.join(',') + ' ai=' + toks.join('|') + (out.why ? ' why=' + out.why : ''));
+      const hz = await root.BMAiViews.guessHanzi(ctx, 'nǐde shūbāo', 4);
+      console.log('e2e ai ok=' + out.ok + ' changed=' + out.changed + ' rejected=' + out.rejected + ' total=' + out.total + ' models=' + models.join(',') + ' ai=' + toks.join('|') + ' hanzi=' + hz.text + ':' + hz.fits + (out.why ? ' why=' + out.why : ''));
     },
     /** 文本详情（截图检查用）：现场标注一段示例文本，展开第一句的标注详情。 */
     'text-detail': async () => {
@@ -446,6 +457,34 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
       if (head) { head.click(); await new Promise((res) => setTimeout(res, 500)); }
       const tok = document.querySelector('.tok'); if (tok) { tok.click(); await new Promise((res) => setTimeout(res, 200)); }
     },
+    /** 文字盲文互转（截图检查用）。 */
+    'convert-t2b': async () => {
+      ctx.convertMode = 't2b'; ctx.convertText = '我们一起学习盲文。老师们高高兴兴地走进教室。';
+      ctx.go('convert');
+      await new Promise((res) => setTimeout(res, 1200));
+    },
+    'convert-b2t': async () => {
+      ctx.convertMode = 'b2t'; ctx.convertBraille = '⠝⠙⠀⠱⠥⠁⠃⠖⠁';
+      ctx.go('convert');
+      await new Promise((res) => setTimeout(res, 200));
+    },
+    /** 练习 → 文本（截图检查用）：现场加两篇示例文本。 */
+    'practice-texts': async () => {
+      const lib = await new Promise((res) => { const sc = document.createElement('script'); sc.src = 'vendor/pinyin-pro.js'; sc.onload = () => res(root.BMPinyinProvider.createProvider(root.pinyinPro, {})); document.head.append(sc); });
+      for (const [title, raw] of [['春天', '春天来了，小草绿了。'], ['课文一', '我们一起学习盲文。']]) {
+        const r = root.BMTexts.createText(ctx.texts, { title, raw, source: 'paste', rng: ctx.rng, map: ctx.translator.map, provider: lib });
+        ctx.texts = root.BMTexts.addText(ctx.texts, r.text);
+      }
+      ctx.rebuildTexts();
+      ctx.module = 'rules'; ctx.wordSource = 'text';
+      ctx.go('practice');
+      await new Promise((res) => setTimeout(res, 300));
+    },
+    tonesheet: async () => {
+      ctx.go('tonesheet');
+      const inp = document.querySelector('.tonesheet-page input'); if (inp) { inp.value = 'fēngfān hépíng kuàilè'; inp.dispatchEvent(new Event('input')); }
+    },
+    'learn-rules': () => { ctx.module = 'rules'; ctx.go('learn'); },
     'me-ai': async () => {
       ctx.go('me');
       await new Promise((r) => setTimeout(r, 80));

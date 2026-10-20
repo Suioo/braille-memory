@@ -74,7 +74,8 @@
     const modSeg = C.moduleSegmented(ctx, mount, STR.modRules);
     mount();
     const el = h('div', { class: 'page learn-page' },
-      W.topBar(null, h('h1', { text: STR.tabLearn }), counter),
+      W.topBar(null, h('h1', { text: STR.tabLearn }), h('div', { class: 'actions' }, counter,
+        ctx.translator ? W.iconBtn(root.BMDom.ICON.convert(), STR.convTitle, () => ctx.go('convert')) : null)),
       h('div', { class: 'page-body' }, modSeg, content));
     return { el, onKey: (e) => sub.onKey(e), tab: 'learn' };
   };

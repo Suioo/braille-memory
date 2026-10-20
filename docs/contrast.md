@@ -231,7 +231,7 @@ surface `#19120E` · on-surface `#EAE1DD` · primary `#FFB596`
 
 # 玻璃风格对比度（填充 × 最不利背景点）
 
-玻璃填充 = 浅色 surface-container-lowest / 深色 surface-container-high，不透明度 0.6，叠在背景上；背景最不利点 = 纯 surface、各色块峰值（色块不透明度 浅 0.36 / 深 0.34）及其叠加处。
+玻璃填充 = 浅色 surface-container-lowest / 深色 surface-container-high，不透明度 浅 0.48 / 深 0.6，叠在背景上；背景最不利点 = 纯 surface、各色块峰值（色块不透明度 浅 0.42 / 深 0.34）及其叠加处。
 模糊只会让背景更平均，不会比峰值更极端，故取峰值为下界。无 backdrop-filter 时填充不透明度 0.94（更不透明，对比度只会更好）。
 凸起点为实心主色（不透明）；选中的分段 / 主按钮 / 容器色块在玻璃风格下仍是实心色，对比度同上面的 Material 表。
 
@@ -239,14 +239,14 @@ surface `#19120E` · on-surface `#EAE1DD` · primary `#FFB596`
 
 | 前景 | 用途 | 最不利背景点 | 合成底色 | 对比度（最小） | 要求 | 结果 |
 |---|---|---|---|---|---|---|
-| on-surface `#161C20` | 正文 | blob-primary | `#D7E8EE` | 13.65:1 | 4.5:1 | 达到 |
-| on-surface-variant `#3B4952` | 次要文字 | blob-primary | `#D7E8EE` | 7.37:1 | 4.5:1 | 达到 |
-| primary `#00668A` | 文字按钮 / 强调文字 | blob-primary | `#D7E8EE` | 5.10:1 | 4.5:1 | 达到 |
-| outline `#6A7983` | 空点细圈 / 控件边 | blob-primary | `#D7E8EE` | 3.56:1 | 3:1 | 达到 |
-| tertiary `#685683` | 漏点虚线圈 | blob-primary | `#D7E8EE` | 5.13:1 | 3:1 | 达到 |
-| error `#B4271F` | 多点外圈 | blob-primary | `#D7E8EE` | 5.13:1 | 3:1 | 达到 |
-| on-surface `#161C20` | 直接放在背景上的文字（标题、分组名） | blob-primary | `#9CC5D5` | 9.30:1 | 4.5:1 | 达到 |
-| on-surface-variant `#3B4952` | 直接放在背景上的文字（标题、分组名） | blob-primary | `#9CC5D5` | 5.03:1 | 4.5:1 | 达到 |
+| on-surface `#161C20` | 正文 | blob-primary | `#C4DCE6` | 12.06:1 | 4.5:1 | 达到 |
+| on-surface-variant `#3B4952` | 次要文字 | blob-primary | `#C4DCE6` | 6.51:1 | 4.5:1 | 达到 |
+| primary `#00668A` | 文字按钮 / 强调文字 | blob-primary | `#C4DCE6` | 4.51:1 | 4.5:1 | 达到 |
+| outline `#6A7983` | 空点细圈 / 控件边 | blob-primary | `#C4DCE6` | 3.15:1 | 3:1 | 达到 |
+| tertiary `#685683` | 漏点虚线圈 | blob-primary | `#C4DCE6` | 4.53:1 | 3:1 | 达到 |
+| error `#B4271F` | 多点外圈 | blob-primary | `#C4DCE6` | 4.53:1 | 3:1 | 达到 |
+| on-surface `#161C20` | 直接放在背景上的文字（标题、分组名） | blob-primary | `#8EBCCE` | 8.38:1 | 4.5:1 | 达到 |
+| on-surface-variant `#3B4952` | 直接放在背景上的文字（标题、分组名） | blob-primary | `#8EBCCE` | 4.53:1 | 4.5:1 | 达到 |
 
 ## 玻璃 · teal · 深色
 
@@ -265,14 +265,14 @@ surface `#19120E` · on-surface `#EAE1DD` · primary `#FFB596`
 
 | 前景 | 用途 | 最不利背景点 | 合成底色 | 对比度（最小） | 要求 | 结果 |
 |---|---|---|---|---|---|---|
-| on-surface `#1B1B20` | 正文 | blob-primary | `#E4E5F2` | 13.71:1 | 4.5:1 | 达到 |
-| on-surface-variant `#464552` | 次要文字 | blob-primary | `#E4E5F2` | 7.52:1 | 4.5:1 | 达到 |
-| primary `#4F57A6` | 文字按钮 / 强调文字 | blob-primary | `#E4E5F2` | 5.17:1 | 4.5:1 | 达到 |
-| outline `#777683` | 空点细圈 / 控件边 | blob-primary | `#E4E5F2` | 3.57:1 | 3:1 | 达到 |
-| tertiary `#874C64` | 漏点虚线圈 | blob-primary | `#E4E5F2` | 5.17:1 | 3:1 | 达到 |
-| error `#B4271F` | 多点外圈 | blob-primary | `#E4E5F2` | 5.16:1 | 3:1 | 达到 |
-| on-surface `#1B1B20` | 直接放在背景上的文字（标题、分组名） | blob-tertiary | `#D0BBC7` | 9.49:1 | 4.5:1 | 达到 |
-| on-surface-variant `#464552` | 直接放在背景上的文字（标题、分组名） | blob-tertiary | `#D0BBC7` | 5.20:1 | 4.5:1 | 达到 |
+| on-surface `#1B1B20` | 正文 | blob-tertiary | `#E3D6DD` | 12.19:1 | 4.5:1 | 达到 |
+| on-surface-variant `#464552` | 次要文字 | blob-tertiary | `#E3D6DD` | 6.68:1 | 4.5:1 | 达到 |
+| primary `#4F57A6` | 文字按钮 / 强调文字 | blob-tertiary | `#E3D6DD` | 4.60:1 | 4.5:1 | 达到 |
+| outline `#777683` | 空点细圈 / 控件边 | blob-tertiary | `#E3D6DD` | 3.17:1 | 3:1 | 达到 |
+| tertiary `#874C64` | 漏点虚线圈 | blob-tertiary | `#E3D6DD` | 4.60:1 | 3:1 | 达到 |
+| error `#B4271F` | 多点外圈 | blob-tertiary | `#E3D6DD` | 4.59:1 | 3:1 | 达到 |
+| on-surface `#1B1B20` | 直接放在背景上的文字（标题、分组名） | blob-tertiary | `#C9B0BE` | 8.53:1 | 4.5:1 | 达到 |
+| on-surface-variant `#464552` | 直接放在背景上的文字（标题、分组名） | blob-tertiary | `#C9B0BE` | 4.67:1 | 4.5:1 | 达到 |
 
 ## 玻璃 · indigo · 深色
 
@@ -291,14 +291,14 @@ surface `#19120E` · on-surface `#EAE1DD` · primary `#FFB596`
 
 | 前景 | 用途 | 最不利背景点 | 合成底色 | 对比度（最小） | 要求 | 结果 |
 |---|---|---|---|---|---|---|
-| on-surface `#181D19` | 正文 | blob-tertiary | `#D7E8E8` | 13.51:1 | 4.5:1 | 达到 |
-| on-surface-variant `#3E4A40` | 次要文字 | blob-tertiary | `#D7E8E8` | 7.35:1 | 4.5:1 | 达到 |
-| primary `#2C6A3D` | 文字按钮 / 强调文字 | blob-tertiary | `#D7E8E8` | 5.13:1 | 4.5:1 | 达到 |
-| outline `#6E7A70` | 空点细圈 / 控件边 | blob-tertiary | `#D7E8E8` | 3.55:1 | 3:1 | 达到 |
-| tertiary `#006971` | 漏点虚线圈 | blob-tertiary | `#D7E8E8` | 5.09:1 | 3:1 | 达到 |
-| error `#B4271F` | 多点外圈 | blob-tertiary | `#D7E8E8` | 5.11:1 | 3:1 | 达到 |
-| on-surface `#181D19` | 直接放在背景上的文字（标题、分组名） | blob-tertiary | `#9CC6C5` | 9.20:1 | 4.5:1 | 达到 |
-| on-surface-variant `#3E4A40` | 直接放在背景上的文字（标题、分组名） | blob-tertiary | `#9CC6C5` | 5.00:1 | 4.5:1 | 达到 |
+| on-surface `#181D19` | 正文 | blob-tertiary | `#C4DDDD` | 11.99:1 | 4.5:1 | 达到 |
+| on-surface-variant `#3E4A40` | 次要文字 | blob-tertiary | `#C4DDDD` | 6.52:1 | 4.5:1 | 达到 |
+| primary `#2C6A3D` | 文字按钮 / 强调文字 | blob-tertiary | `#C4DDDD` | 4.55:1 | 4.5:1 | 达到 |
+| outline `#6E7A70` | 空点细圈 / 控件边 | blob-tertiary | `#C4DDDD` | 3.15:1 | 3:1 | 达到 |
+| tertiary `#006971` | 漏点虚线圈 | blob-tertiary | `#C4DDDD` | 4.52:1 | 3:1 | 达到 |
+| error `#B4271F` | 多点外圈 | blob-tertiary | `#C4DDDD` | 4.53:1 | 3:1 | 达到 |
+| on-surface `#181D19` | 直接放在背景上的文字（标题、分组名） | blob-tertiary | `#8EBEBE` | 8.35:1 | 4.5:1 | 达到 |
+| on-surface-variant `#3E4A40` | 直接放在背景上的文字（标题、分组名） | blob-tertiary | `#8EBEBE` | 4.54:1 | 4.5:1 | 达到 |
 
 ## 玻璃 · green · 深色
 
@@ -317,14 +317,14 @@ surface `#19120E` · on-surface `#EAE1DD` · primary `#FFB596`
 
 | 前景 | 用途 | 最不利背景点 | 合成底色 | 对比度（最小） | 要求 | 结果 |
 |---|---|---|---|---|---|---|
-| on-surface `#211A17` | 正文 | blob-primary | `#F0E3DD` | 13.66:1 | 4.5:1 | 达到 |
-| on-surface-variant `#52443D` | 次要文字 | blob-primary | `#F0E3DD` | 7.43:1 | 4.5:1 | 达到 |
-| primary `#974723` | 文字按钮 / 强调文字 | blob-primary | `#F0E3DD` | 5.16:1 | 4.5:1 | 达到 |
-| outline `#84746D` | 空点细圈 / 控件边 | blob-primary | `#F0E3DD` | 3.56:1 | 3:1 | 达到 |
-| tertiary `#5E6232` | 漏点虚线圈 | blob-primary | `#F0E3DD` | 5.12:1 | 3:1 | 达到 |
-| error `#B4271F` | 多点外圈 | blob-primary | `#F0E3DD` | 5.15:1 | 3:1 | 达到 |
-| on-surface `#211A17` | 直接放在背景上的文字（标题、分组名） | blob-primary | `#DAB8A9` | 9.32:1 | 4.5:1 | 达到 |
-| on-surface-variant `#52443D` | 直接放在背景上的文字（标题、分组名） | blob-primary | `#DAB8A9` | 5.06:1 | 4.5:1 | 达到 |
+| on-surface `#211A17` | 正文 | blob-primary | `#E8D5CC` | 12.10:1 | 4.5:1 | 达到 |
+| on-surface-variant `#52443D` | 次要文字 | blob-primary | `#E8D5CC` | 6.58:1 | 4.5:1 | 达到 |
+| primary `#974723` | 文字按钮 / 强调文字 | blob-primary | `#E8D5CC` | 4.57:1 | 4.5:1 | 达到 |
+| outline `#84746D` | 空点细圈 / 控件边 | blob-primary | `#E8D5CC` | 3.15:1 | 3:1 | 达到 |
+| tertiary `#5E6232` | 漏点虚线圈 | blob-primary | `#E8D5CC` | 4.53:1 | 3:1 | 达到 |
+| error `#B4271F` | 多点外圈 | blob-primary | `#E8D5CC` | 4.56:1 | 3:1 | 达到 |
+| on-surface `#211A17` | 直接放在背景上的文字（标题、分组名） | blob-primary | `#D3AE9D` | 8.42:1 | 4.5:1 | 达到 |
+| on-surface-variant `#52443D` | 直接放在背景上的文字（标题、分组名） | blob-primary | `#D3AE9D` | 4.58:1 | 4.5:1 | 达到 |
 
 ## 玻璃 · terracotta · 深色
 
@@ -339,6 +339,6 @@ surface `#19120E` · on-surface `#EAE1DD` · primary `#FFB596`
 | on-surface `#EAE1DD` | 直接放在背景上的文字（标题、分组名） | blob-tertiary | `#55513C` | 6.21:1 | 4.5:1 | 达到 |
 | on-surface-variant `#D5C3BB` | 直接放在背景上的文字（标题、分组名） | blob-tertiary | `#55513C` | 4.70:1 | 4.5:1 | 达到 |
 
-玻璃风格最低实测对比度：3.55:1（green/light/outline）
+玻璃风格最低实测对比度：3.15:1（green/light/outline）
 
 未达到要求的配对数：0

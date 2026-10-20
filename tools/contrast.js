@@ -37,7 +37,7 @@ const GLASS_PAIRS = [
 ];
 let glassWorst = { c: 99, label: '' };
 lines.push('# 玻璃风格对比度（填充 × 最不利背景点）', '');
-lines.push(`玻璃填充 = 浅色 surface-container-lowest / 深色 surface-container-high，不透明度 ${Pal.GLASS.fillAlpha}，叠在背景上；背景最不利点 = 纯 surface、各色块峰值（色块不透明度 浅 ${Pal.GLASS.blobLight} / 深 ${Pal.GLASS.blobDark}）及其叠加处。`,
+lines.push(`玻璃填充 = 浅色 surface-container-lowest / 深色 surface-container-high，不透明度 浅 ${Pal.GLASS.fillAlphaLight} / 深 ${Pal.GLASS.fillAlpha}，叠在背景上；背景最不利点 = 纯 surface、各色块峰值（色块不透明度 浅 ${Pal.GLASS.blobLight} / 深 ${Pal.GLASS.blobDark}）及其叠加处。`,
   '模糊只会让背景更平均，不会比峰值更极端，故取峰值为下界。无 backdrop-filter 时填充不透明度 ' + Pal.GLASS.fallbackAlpha + '（更不透明，对比度只会更好）。',
   '凸起点为实心主色（不透明）；选中的分段 / 主按钮 / 容器色块在玻璃风格下仍是实心色，对比度同上面的 Material 表。', '');
 for (const [name, seed] of Object.entries(Pal.SEEDS)) {

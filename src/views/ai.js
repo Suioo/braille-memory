@@ -166,29 +166,16 @@
   const retryable = (r) => !r.status || r.status === 429 || r.status >= 500;
 
   /**
-   * 对一篇文本做 AI 校对：分小批发送汉字段（两路并行，失败自动重试），逐段校验，合格的写回（标为 AI）。
-   * 中途失败或被停止时，已经校验通过的结果照样写回（partial）。改之前的文本库存在 ctx.aiUndo 里，可一键撤销。
-   * @param {(p:{done:number, total:number, batchesDone:number, batches:number, waiting:number, retry:number})=>void} onStep 进度（段数）
-   * @param {{stopped:()=>boolean, ids?:Set<string>}} [ctl] stopped() 返回 true 时不再发新的批次；ids 收集在途的流式请求（停止时可取消）
-   * @returns {Promise<{ok:boolean, why?:string, partial?:boolean, stopped?:boolean, changed:number, rejected:number, done:number, total:number}>}
+   * 把一组汉字段交给 AI 校对（分小批、两路并行、失败重试、不合格的段单独重问），返回逐段校验通过的结果。
+   * @returns {Promise<{fixes:Map<string,{start:number,end:number,tokens:object[]}[]>, bad:{run:object,reason:string}[], failure:string|null, prog:object}>}
    */
-  async function reviewText(ctx, textId, onStep, ctl) {
-    const cfg = AI.normalizeConfig(ctx.aiConfig);
-    const empty = { changed: 0, rejected: 0, done: 0, total: 0 };
-    if (!AI.ready(cfg)) return Object.assign({ ok: false, why: STR.aiErr.config }, empty);
-    const T = root.BMTexts;
+  async function reviewRuns(ctx, cfg, runs, onStep, ctl) {
     const tr = ctx.translator;
-    const text = ctx.texts.texts.find((t) => t.id === textId);
-    if (!text || !tr) return Object.assign({ ok: false, why: STR.aiErr.config }, empty);
-    const runs = [];
-    for (const s of text.sentences) runs.push(...AI.runsOf(s.id, s.tokens, s.id + 'r'));
-    if (!runs.length) return Object.assign({ ok: true }, empty);
     const system = AI.systemPrompt(tr.rules);
     const fixes = new Map(); // 句 id → [{start, end, tokens}]
     const groups = AI.batches(runs);
     const prog = { done: 0, total: runs.length, batchesDone: 0, batches: groups.length, waiting: 0, retry: 0, reasoning: 0, content: 0 };
     const live = new Map(); // 在途批次 → 已收到的思考 / 回答字数
-    let rejected = 0;
     let failure = null;
     let next = 0;
     let inflight = 0;
@@ -237,7 +224,29 @@
       prog.retry++; inflight++; report();
       try { for (const g of AI.batches(redo)) { if (failure || (ctl && ctl.stopped())) break; await runBatch(g, true); } } finally { inflight--; report(); }
     }
-    rejected = bad.length;
+    return { fixes, bad, failure, prog };
+  }
+
+  /**
+   * 对一篇文本做 AI 校对：分小批发送汉字段（两路并行，失败自动重试），逐段校验，合格的写回（标为 AI）。
+   * 中途失败或被停止时，已经校验通过的结果照样写回（partial）。改之前的文本库存在 ctx.aiUndo 里，可一键撤销。
+   * @param {(p:{done:number, total:number, batchesDone:number, batches:number, waiting:number, retry:number})=>void} onStep 进度（段数）
+   * @param {{stopped:()=>boolean, ids?:Set<string>}} [ctl] stopped() 返回 true 时不再发新的批次；ids 收集在途的流式请求（停止时可取消）
+   * @returns {Promise<{ok:boolean, why?:string, partial?:boolean, stopped?:boolean, changed:number, rejected:number, done:number, total:number}>}
+   */
+  async function reviewText(ctx, textId, onStep, ctl) {
+    const cfg = AI.normalizeConfig(ctx.aiConfig);
+    const empty = { changed: 0, rejected: 0, done: 0, total: 0 };
+    if (!AI.ready(cfg)) return Object.assign({ ok: false, why: STR.aiErr.config }, empty);
+    const T = root.BMTexts;
+    const tr = ctx.translator;
+    const text = ctx.texts.texts.find((t) => t.id === textId);
+    if (!text || !tr) return Object.assign({ ok: false, why: STR.aiErr.config }, empty);
+    const runs = [];
+    for (const s of text.sentences) runs.push(...AI.runsOf(s.id, s.tokens, s.id + 'r'));
+    if (!runs.length) return Object.assign({ ok: true }, empty);
+    const { fixes, bad, failure, prog } = await reviewRuns(ctx, cfg, runs, onStep, ctl);
+    let rejected = bad.length;
 
     const before = ctx.texts;
     let store = ctx.texts;
@@ -265,5 +274,45 @@
     return { ok: !failure, why: failure || undefined, partial: !!failure && prog.done > 0, stopped, changed, rejected, rejectedInfo, done: prog.done, total: prog.total };
   }
 
-  root.BMAiViews = { loadConfig, available, settingsRows, reviewText };
+
+  /**
+   * 不入库的句子（文字转盲文页）做 AI 校对：返回每句校订后的 token（不合格的段保留原样）。
+   * @param {{id:string, tokens:object[]}[]} sentences
+   */
+  async function reviewSentences(ctx, sentences, onStep, ctl) {
+    const cfg = AI.normalizeConfig(ctx.aiConfig);
+    if (!AI.ready(cfg) || !ctx.translator) return { ok: false, why: STR.aiErr.config, changed: 0, rejected: 0 };
+    const runs = [];
+    for (const s of sentences) runs.push(...AI.runsOf(s.id, s.tokens, s.id + 'r'));
+    if (!runs.length) return { ok: true, sentences, changed: 0, rejected: 0 };
+    const { fixes, bad, failure, prog } = await reviewRuns(ctx, cfg, runs, onStep, ctl);
+    let changed = 0;
+    const out = sentences.map((s) => {
+      const f = fixes.get(s.id);
+      if (!f) return s;
+      const a = AI.applyRuns(s.tokens, f);
+      changed += a.changed;
+      return { id: s.id, tokens: a.tokens };
+    });
+    return { ok: !failure, why: failure || undefined, sentences: out, changed, rejected: bad.length, rejectedInfo: bad.slice(0, 3).map((b) => ({ text: b.run.text, reason: b.reason })), done: prog.done, total: prog.total };
+  }
+
+  /**
+   * 盲文转文字：请 AI 由反译出的带调拼音推测汉字原文（仅供参考）。字数与音节数对不上时 fits = false。
+   * @param {string} pinyin 反译结果（词间空格，含标点数字）
+   * @param {number} syllables 音节数
+   */
+  async function guessHanzi(ctx, pinyin, syllables, onProgress) {
+    const cfg = AI.normalizeConfig(ctx.aiConfig);
+    if (!AI.ready(cfg)) return { ok: false, why: STR.aiErr.config };
+    const r = await chat(cfg, STR.aiHanziSystem, JSON.stringify({ pinyin }), onProgress || (() => {}));
+    if (!r.ok) return r;
+    const j = AI.extractJson(r.text);
+    const text = j && typeof j.text === 'string' ? j.text.replace(/\s+/g, '').slice(0, 2000) : '';
+    if (!text) return { ok: false, why: STR.aiErr.format };
+    const han = Array.from(text).filter((c) => /[㐀-鿿豈-﫿]/.test(c)).length;
+    return { ok: true, text, fits: han === syllables };
+  }
+
+  root.BMAiViews = { loadConfig, available, settingsRows, reviewText, reviewSentences, guessHanzi };
 })(typeof self !== 'undefined' ? self : this);

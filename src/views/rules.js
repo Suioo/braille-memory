@@ -57,6 +57,7 @@
     const nodes = [
       W.chipRow(chips, STR.all),
       h('div', { class: 'seg-row' }, C.viewSegmented(ctx, () => show(card.flipped, false))),
+      h('button', { class: 'sheet-link sl', type: 'button', onclick: () => ctx.go('tonesheet') }, h('span', { text: STR.toneEntry }), ICON.next()),
       holder,
       h('div', { class: 'controls' }, prevBtn, W.btn(STR.flip, flip, { variant: 'filled', icon: ICON.flip(), autofocus: true, cls: 'wide' }), nextBtn),
     ];

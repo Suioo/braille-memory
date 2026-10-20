@@ -65,7 +65,12 @@
     ctx.save();
   }
 
-  TV.practice = function (ctx) {
+  /**
+   * @param {{embedded?:boolean, onChange?:Function}} [o] embedded：嵌在「词句」里（范围芯片和视角由外层提供），返回 {nodes: 练习入口, library: 文本列表 + 添加面板}；
+   *   文本增删后调用 onChange 让外层重建（来源芯片的计数会变）
+   */
+  TV.practice = function (ctx, o) {
+    o = o || {};
     const S = ctx.settings;
     const T = root.BMTexts;
     const scopeOk = () => ctx.textScope === 'all' || ctx.texts.texts.some((t) => t.id === ctx.textScope);
@@ -135,7 +140,7 @@
           ctl.replaceChildren(h('span', { class: 'ti-ask', role: 'alert', text: STR.textDeleteAsk }),
             h('div', { class: 'confirm-row', 'data-pad-layer': '1' },
               W.btn(STR.cancel, () => { row.classList.remove('asking'); idle(); }, { variant: 'text' }),
-              W.btn(STR.confirm, () => { deleteText(ctx, t.id); redraw(); ctx.toast(STR.textDeleted); }, { variant: 'error' })));
+              W.btn(STR.confirm, () => { deleteText(ctx, t.id); ctx.toast(STR.textDeleted); if (o.onChange) o.onChange(); else redraw(); }, { variant: 'error' })));
           row.scrollIntoView({ block: 'nearest' });
           const b = ctl.querySelector('button');
           if (b && !root.matchMedia('(pointer: coarse)').matches) b.focus({ preventScroll: true });
@@ -144,7 +149,7 @@
         return row;
       }));
     }
-    function redraw() { drawChips(); drawList(); refreshCounts(); }
+    function redraw() { if (!o.embedded) drawChips(); drawList(); refreshCounts(); }
 
     // ---------- 添加面板（默认折叠） ----------
     const title = field('input', STR.textTitleField, { type: 'text', maxlength: String(T.LIMITS.title) });
@@ -182,6 +187,7 @@
         ctx.save();
         area.value = ''; title.value = ''; fromFile = false;
         ctx.textScope = r.text.id;
+        ctx.wordSource = 'text'; // 回到练习页时，「词句」的来源芯片停在这篇新文本上
         if (!saved) ctx.toast(STR.textSaveFail);
         else ctx.toast(STR.textAdded(r.text.sentences.length));
         ctx.go('textdetail', { textId: r.text.id });
@@ -200,6 +206,12 @@
     })();
 
     redraw();
+    if (o.embedded) {
+      return {
+        nodes: [hero, hint, entries, lenSeg],
+        library: [h('div', { class: 'section-title', text: STR.textsTitle }), listHolder, panel],
+      };
+    }
     return {
       nodes: [
         chipsHolder,

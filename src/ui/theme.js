@@ -22,7 +22,7 @@
     document.documentElement.dataset.seed = seedName;
     document.documentElement.dataset.style = styleName;
     const g = Pal.GLASS;
-    st.setProperty('--g-a', String(g.fillAlpha));
+    st.setProperty('--g-a', String(dark ? g.fillAlpha : g.fillAlphaLight));
     st.setProperty('--g-a-fallback', String(g.fallbackAlpha));
     st.setProperty('--g-blob', String(dark ? g.blobDark : g.blobLight));
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light';

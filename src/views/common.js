@@ -67,7 +67,10 @@
   }
 
   /** 当前范围：对应数据可用且选了才是 'ext' / 'rules'，否则 'base'。 */
-  const moduleNow = (ctx, withTexts) => (ctx.ext && ctx.module === 'ext' ? 'ext' : ctx.ruleData && ctx.module === 'rules' ? 'rules' : withTexts && ctx.textData && ctx.module === 'texts' ? 'texts' : 'base');
+  // 自定义文本并在「词句」里（词句页顶部的来源芯片切换「标准词句 / 我的文本」）；只有没有词句数据时才单独显示「文本」一项
+  const moduleNow = (ctx, withTexts) => (ctx.ext && ctx.module === 'ext' ? 'ext'
+    : ctx.ruleData && (ctx.module === 'rules' || (withTexts && ctx.module === 'texts')) ? 'rules'
+    : withTexts && ctx.textData && ctx.module === 'texts' ? 'texts' : 'base');
 
   /**
    * 「基础 | 扩展 | 规则（词句）」分段控件（复用带拖动的分段按钮）。只有一项可选（没有对应数据）时返回 null，整个不显示。
@@ -79,7 +82,7 @@
     const opts = [{ value: 'base', text: STR.modBase }];
     if (ctx.ext) opts.push({ value: 'ext', text: STR.modExt });
     if (ctx.ruleData) opts.push({ value: 'rules', text: rulesLabel || STR.modRules });
-    if (withTexts && ctx.textData) opts.push({ value: 'texts', text: STR.modTexts });
+    if (withTexts && ctx.textData && !ctx.ruleData) opts.push({ value: 'texts', text: STR.modTexts });
     if (opts.length < 2) return null;
     const g = W.segmented(STR.a11yModule, opts, moduleNow(ctx, withTexts), (v) => { g.select(v); ctx.module = v; onChange(v); });
     return h('div', { class: 'seg-row module-seg' }, g);

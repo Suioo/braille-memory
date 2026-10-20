@@ -374,12 +374,14 @@
     const follow = (hover) => {
       const items = o.items();
       const t = (hover >= 0 ? items[hover] : null) || o.current();
+      for (const b of items) b.classList.toggle('slide-over', b === t); // 指示块下面那一项（文字跟着变色）
       if (t && t.offsetWidth) apply(rectOf(t), true, true);
     };
     const stopTimer = () => { if (timer) { clearTimeout(timer); timer = null; } };
     const endSliding = () => {
       sliding = false;
       el.classList.remove('dragging');
+      for (const b of o.items()) b.classList.remove('slide-over');
       if (pid != null) { try { el.releasePointerCapture(pid); } catch (_) { /* 已释放 */ } }
       pid = null;
     };
@@ -471,14 +473,28 @@
     return b;
   }
   /**
-   * 类别芯片行（radiogroup）：只支持点按（不做拖动选择），选中项自己填充主色，对比度高。row.sync() 保留为空操作（兼容调用方）。
+   * 类别芯片行（radiogroup）：点按，或按住约 150 ms 后左右滑动选择（快速划动仍是横向滚动）。
+   * 选中底板是会滑动的主色指示块（高对比度）；滑动中指示块下面那一项的文字跟着变色。
    * @param {HTMLElement[]} chips filterChip 的结果
    * @param {string} label 读屏名称
    */
   function chipRow(chips, label) {
-    const row = h('div', { class: 'chip-row', role: 'radiogroup', 'aria-label': label });
-    row.sync = () => {};
+    const ind = h('span', { class: 'chip-ind slide-ind', 'aria-hidden': 'true' });
+    const row = h('div', { class: 'chip-row slide-row', role: 'radiogroup', 'aria-label': label }, ind);
+    let busyUntil = 0;
+    const slide = attachSlide(row, ind, {
+      items: () => chips,
+      current: () => chips.find((c) => c.classList.contains('selected')) || null,
+      commit: (i) => chips[i].click(),
+      holdMs: CHIP_HOLD_MS,
+      busy: (ms) => { busyUntil = Date.now() + ms; },
+    });
+    const placed = () => !!ind.style.left;
+    row.sync = () => { busyUntil = Date.now() + 500; slide.place(placed() && row.isConnected); };
     for (const c of chips) { c._row = row; row.append(c); }
+    if (typeof root.ResizeObserver === 'function') new root.ResizeObserver(() => { if (Date.now() > busyUntil || !row.isConnected) slide.resized(); }).observe(row);
+    else if (root.requestAnimationFrame) root.requestAnimationFrame(() => slide.place(false));
+    if (root.document && root.document.fonts && root.document.fonts.ready) root.document.fonts.ready.then(() => slide.place(false)).catch(() => {});
     row.chips = chips;
     return row;
   }

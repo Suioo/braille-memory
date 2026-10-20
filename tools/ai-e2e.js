@@ -28,7 +28,9 @@ const server = http.createServer((req, res) => {
       try { runs = JSON.parse(user).runs || []; } catch (_) { /* 测试连接 */ }
       // 模拟模型：每段整体连写（拼音取自拼音库）；第二段故意改一个字，应被校验拒绝，并被单独重问一次（重问时它是唯一一段，就答对了）
       const out = runs.map((r, i) => ({ id: r.id, w: [[i === 1 ? r.text.replace(/./u, '错') : r.text, lib.pinyin(r.text, { type: 'array', toneType: 'symbol', toneSandhi: false }).join(' ')]] }));
-      const answer = runs.length ? '<think>先想想 {不是结果}</think>```json\n' + JSON.stringify({ runs: out }) + '\n```' : 'OK';
+      let asked = {};
+      try { asked = JSON.parse(user); } catch (_) { /* 测试连接 */ }
+      const answer = asked.pinyin ? JSON.stringify({ text: '你的书包' }) : runs.length ? '<think>先想想 {不是结果}</think>```json\n' + JSON.stringify({ runs: out }) + '\n```' : 'OK';
       if (j.stream) {
         // 模拟推理模型的流式回复：先发几段思考，再分段发回答（SSE）
         seen.stream = (seen.stream || 0) + 1;
@@ -59,7 +61,7 @@ function report(log) {
   const line = log.split(/\r?\n/).find((l) => l.includes('e2e ai '));
   console.log(line || log.slice(-2000));
   console.log('server saw: models=' + seen.models + ' chat=' + seen.chat + ' stream=' + seen.stream + ' auth=' + seen.auth);
-  const ok = line && /ok=true/.test(line) && /changed=2/.test(line) && /rejected=0/.test(line) && /models=mock-a,mock-b/.test(line) && seen.auth === 'Bearer sk-e2e' && seen.chat === 3 && seen.stream === 2;
+  const ok = line && /ok=true/.test(line) && /changed=2/.test(line) && /rejected=0/.test(line) && /models=mock-a,mock-b/.test(line) && /hanzi=你的书包:true/.test(line) && seen.auth === 'Bearer sk-e2e' && seen.chat === 4 && seen.stream === 3;
   console.log(ok ? 'PASS' : 'FAIL');
   process.exit(ok ? 0 : 1);
 }
