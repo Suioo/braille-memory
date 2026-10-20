@@ -226,7 +226,7 @@
       '任务：对给出的每一段汉字，按下面的分词连写规则切分成「连写单位」，并给出每个字的普通话本调拼音。',
       '要求：',
       '1. 连写单位按顺序拼起来必须和原文逐字相同，不增、不删、不改字。',
-      '2. 拼音用带调符号的小写字母，一个字一个音节，音节之间用空格分开；轻声不标调；一律写本调，不写变调（如「一」写 yī，「不」写 bù）；ü 写作 ü。',
+      '2. 拼音用带调符号的小写字母，一个字一个音节，音节之间用空格分开；轻声不标调；一律写本调，不写变调（「一」永远写 yī，「不」永远写 bù，如「一起」写 yī qǐ、「不要」写 bù yào）；ü 写作 ü。每段的 auto 里括号中是现有读音，没有把握时沿用它。',
       '3. 「的、地、得」作结构助词时读轻声 de；「了、着、过」作动态助词时读轻声。',
       '4. 只输出 JSON，不要任何解释，格式：{"runs":[{"id":"r1","w":[["汉字词","pīn yīn"],…]},…]}，每个输入段都要有对应的 id。',
       '分词连写规则（GF 0019—2018 第 12 章，空格表示分写，音节相连表示连写）：',
@@ -263,7 +263,7 @@
       while (j < tokens.length && tokens[j].k === 'w') j++;
       const seg = tokens.slice(i, j);
       if (!seg.some((t) => t.a === 'edited')) {
-        out.push({ id: (prefix || 'r') + out.length, sent: sentId, start: i, end: j, text: seg.map((t) => t.c).join(''), auto: seg.map((t) => t.c).join(' ') });
+        out.push({ id: (prefix || 'r') + out.length, sent: sentId, start: i, end: j, text: seg.map((t) => t.c).join(''), auto: seg.map((t) => t.c + '(' + t.p + ')').join(' '), py: seg.map((t) => ({ c: t.c, p: t.p })) });
       }
       i = j;
     }
@@ -328,6 +328,41 @@
     }
     return joined === run.text ? { ok: true, tokens: out } : { ok: false, reason: 'chars', detail: joined };
   }
+  /**
+   * 「一、不」只写本调（10.1.2 变调音节标本调）：模型常按口语变调写成 yì / bú。
+   * 若 AI 给的某个「一 / 不」与原标注只差声调，就改回原标注的读音（声调不同会改变盲文：yī 省写、yì 照写）。
+   * @param {object[]} tokens checkRun 通过的 token
+   * @param {{py?:{c:string,p:string}[]}} run
+   */
+  const SANDHI = new Set(['一', '不']);
+  function keepBaseTone(tokens, run, parse) {
+    if (!run.py || !run.py.length) return tokens;
+    const orig = [];
+    for (const t of run.py) {
+      let r;
+      try { r = parse(t.p.replace(/!/g, ''), { chars: t.c }); } catch (_) { r = null; }
+      const syl = r && r.ok ? r.words.flatMap((w) => w.syllables) : null;
+      if (!syl || syl.length !== Array.from(t.c).length) return tokens;
+      Array.from(t.c).forEach((ch, k) => orig.push({ ch, raw: syl[k].raw, plain: syl[k].plain, tone: syl[k].tone }));
+    }
+    let at = 0;
+    return tokens.map((t) => {
+      const chars = Array.from(t.c);
+      let r;
+      try { r = parse(t.p, { chars: t.c }); } catch (_) { r = null; }
+      const syl = r && r.ok ? r.words.flatMap((w) => w.syllables) : null;
+      if (!syl || syl.length !== chars.length) { at += chars.length; return t; }
+      let changed = false;
+      const raws = syl.map((s, k) => {
+        const o = orig[at + k];
+        if (o && SANDHI.has(chars[k]) && o.ch === chars[k] && o.plain === s.plain && o.tone !== s.tone) { changed = true; return o.raw; }
+        return s.raw;
+      });
+      at += chars.length;
+      return changed ? Object.assign({}, t, { p: joinSyllables(raws) }) : t;
+    });
+  }
+
   /** 同 checkRun，只返回 token 或 null。 */
   function validateRun(run, words, parse) {
     const r = checkRun(run, words, parse);
@@ -356,6 +391,6 @@
   return {
     KINDS, PRESETS, LIMITS, presetOf, isLocalHost, normalizeBase, normalizeConfig, ready,
     modelsRequest, parseModels, chatRequest, createStreamParser, parseChat, errorMessage, isReasoningModel,
-    systemPrompt, userPrompt, extractJson, runsOf, batches, checkRun, validateRun, normalizeSyllable, applyRuns,
+    systemPrompt, userPrompt, extractJson, runsOf, batches, checkRun, validateRun, keepBaseTone, normalizeSyllable, applyRuns,
   };
 });

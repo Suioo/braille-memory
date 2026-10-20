@@ -206,7 +206,7 @@
         const c = AI.checkRun(run, got.get(run.id), tr.parse);
         if (!c.ok) { bad.push({ run, reason: c.reason, detail: c.detail }); continue; }
         if (!fixes.has(run.sent)) fixes.set(run.sent, []);
-        fixes.get(run.sent).push({ start: run.start, end: run.end, tokens: c.tokens });
+        fixes.get(run.sent).push({ start: run.start, end: run.end, tokens: AI.keepBaseTone(c.tokens, run, tr.parse) });
       }
       if (!again) { prog.done += batch.length; prog.batchesDone++; }
     }

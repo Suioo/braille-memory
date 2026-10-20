@@ -121,3 +121,13 @@ test('checkRun reports why a result was rejected; tone-number pinyin and v are a
   assert.equal(AI.normalizeSyllable('le5'), 'le');
   assert.ok(AI.userPrompt([{ id: 'r0', text: '你', auto: '你' }], 'N').includes('"note":"N"'));
 });
+
+test('「一、不」被模型写成变调时改回本调（盲文不同：yī 省写、yì 照写）', () => {
+  const toks = [{ k: 'w', c: '一', p: 'yī', a: 'auto' }, { k: 'w', c: '起', p: 'qǐ', a: 'auto' }, { k: 'w', c: '不要', p: 'bùyào', a: 'auto' }];
+  const run = AI.runsOf('s1', toks)[0];
+  const c = AI.checkRun(run, [['一起', 'yì qǐ'], ['不要', 'bú yào']], translator.parse);
+  assert.equal(c.ok, true);
+  const fixed = AI.keepBaseTone(c.tokens, run, translator.parse);
+  assert.deepEqual(fixed.map((t) => t.p), ['yīqǐ', 'bùyào']);
+  assert.ok(run.auto.includes('一(yī)'));
+});
