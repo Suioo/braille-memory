@@ -77,7 +77,7 @@
         input = new W.DotsInput({ mirror: S.mirror, numbers: true });
         input.onChange = renderFooter;
         input.onTap = () => ctx.haptic('tap');
-        promptEl = h('div', { class: 'prompt' }, h('div', { class: 'sym ' + symClass(q.row.symbol), text: q.row.symbol }));
+        promptEl = h('div', { class: 'prompt' }, h('div', { class: 'sym ' + symClass(q.row.symbol), text: q.row.symbol }), W.miniSlot());
         body.replaceChildren(promptEl, input.el);
         ctx.say(q.row.symbol);
       } else {

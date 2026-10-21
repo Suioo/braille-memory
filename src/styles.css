@@ -302,7 +302,7 @@ button { font: inherit; color: inherit; }
 .input-cell.correct .dot.on .ring rect { fill: var(--primary); }
 
 /* ---------- 学习卡 ---------- */
-.card-holder { flex: 1; display: flex; min-height: 220px; }
+.card-holder { flex: 1; display: flex; min-height: 220px; touch-action: pan-y; } /* 横向手势留给左右滑卡 */
 .card { flex: 1; display: flex; perspective: 1600px; min-height: 0; position: relative; }
 /* 翻卡：对称缓动保证时间过半 = 转到 90°（侧面）；此刻用 visibility 切换正反面，
    不依赖 backface-visibility——部分安卓 WebView 在外层有动画时它会失效，两面叠在一起成「虚影」。 */
@@ -574,6 +574,7 @@ button { font: inherit; color: inherit; }
 .mini-cell i { border-radius: 50%; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-surface) 16%, transparent); }
 .mini-cell i.r { background: var(--on-surface); box-shadow: none; }
 .mini-cell.xs { --md: 6px; padding: 0; background: none; gap: 3px; border-radius: 0; }
+.mini-cell.ph { visibility: hidden; }
 .mini-in { animation: fade var(--t-reveal) var(--std-decel) both; }
 .prompt { gap: clamp(16px, 4vw, 32px); }
 .prompt-cell { flex-direction: row; gap: clamp(16px, 4vw, 28px); }
@@ -637,6 +638,7 @@ button { font: inherit; color: inherit; }
 @keyframes tab-r { from { opacity: 0; transform: translateX(56px); } to { opacity: 1; transform: none; } }
 @keyframes tab-l { from { opacity: 0; transform: translateX(-56px); } to { opacity: 1; transform: none; } }
 .q-enter { animation: axis-fwd var(--t-q) var(--emph-decel) both; }
+.q-enter-back { animation: axis-back var(--t-q) var(--emph-decel) both; }
 
 @keyframes axis-fwd { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: none; } }
 @keyframes axis-back { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: none; } }
@@ -741,7 +743,9 @@ button { font: inherit; color: inherit; }
 /* 浮动工具栏：答题页底部操作区 */
 .q-page .footer { align-self: center; width: auto; min-height: 0; margin: 8px 0 4px; padding: 8px;
   background: var(--surface-container-high); border-radius: 44px; gap: 8px; }
-.q-page .footer:empty { background: none; padding: 0; margin: 0; }
+/* 底部按钮消失（自动下一题、选择题作答中）时仍占住同样高度，答题区不上下跳 */
+.q-page .footer:empty { background: none; visibility: hidden; min-height: calc(72px + 16px); }
+@media (max-height: 760px) { .q-page .footer:empty { min-height: calc(64px + 16px); } }
 .lesson-page .controls { width: auto; gap: 8px; }
 
 @media (max-width: 540px) {
@@ -928,6 +932,12 @@ button.mini-cell:focus-visible, html[data-input="pad"] button.mini-cell:focus { 
 /* 整个词的迷你点图：空方 = 虚线空框；扎写时整串从右往左（row-reverse，换行也从右边开始） */
 .word-strip { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 8px; max-width: 100%; }
 .word-strip.rtl, .word-slots.rtl { flex-direction: row-reverse; }
+/* 词整体不拆；超长的词在音节处断开（行首补换行连写号） */
+.ws-word { display: inline-flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 8px; max-width: 100%; }
+.ws-syl { display: inline-flex; align-items: center; gap: 8px; }
+.word-strip.rtl .ws-word, .word-strip.rtl .ws-syl { flex-direction: row-reverse; }
+.ws-join { opacity: 0.6; }
+.word-strip.wrapped, .word-strip.wrapped .ws-word { justify-content: flex-start; }
 .word-strip .mini-cell { --md: 8px; }
 .mini-cell.blank { background: none; outline: 1.5px dashed var(--outline); outline-offset: -3px; opacity: 0.8; }
 .ws-cell { position: relative; display: inline-flex; border-radius: 12px; padding: 2px; }

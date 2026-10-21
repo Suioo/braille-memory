@@ -63,6 +63,10 @@
    * @param {boolean} mirror
    * @param {{xs?:boolean, fade?:boolean}} [o] xs = 芯片内超小号；fade = 随揭晓淡入
    */
+  /** 迷你点图的占位（不可见、同尺寸）：揭晓前先占住位置，揭晓时被真点图替换，题面不跳动。 */
+  function miniSlot() {
+    return h('span', { class: 'mini-cell ph', 'aria-hidden': 'true' }, ...Array.from({ length: 6 }, () => h('i')));
+  }
   function miniCellEl(dots, mirror, o) {
     o = o || {};
     const flippable = !!o.flippable;
@@ -845,20 +849,63 @@
   // ---------- 规则 / 词句 ----------
   /**
    * 一个词的整串迷你点图：空方画成虚线空框；扎写（镜像）时整串从右往左排、各方内部左右互换。
+   * 折行只发生在词与词之间（空方处），一个词整体不拆开；词比一行还长时按音节断开，
+   * 并在新一行行首加换行连写号（GF 0019—2018 第 5 页注：用在行首，前后音节保持完整）。
    * @param {number[][]} cells 各方点位（空方为 []）
    * @param {boolean} mirror
-   * @param {{marks?: (string|null)[], first?: number}} [o] marks = 逐方标记（'ok' | 'bad'）；first = 第一个出错的方
+   * @param {{marks?: (string|null)[], first?: number, syl?: number[], join?: number[]|null}} [o]
+   *   marks = 逐方标记（'ok' | 'bad'）；first = 第一个出错的方；syl = 各方所属音节序号（-1 = 标点 / 数字，跟在前一方后面）；
+   *   join = 换行连写号的点位（取自点位表；缺省时只在词间折行、不加连写号）
    */
   function wordStripEl(cells, mirror, o) {
     o = o || {};
     const el = h('div', { class: 'word-strip' + (mirror ? ' rtl' : ''), role: 'img', 'aria-label': STR.a11yWordCells(cells.length) });
+    let word = null;
+    let unit = null;
+    let unitSyl = null;
     cells.forEach((d, i) => {
-      const c = d.length ? miniCellEl(d, mirror, {}) : h('span', { class: 'mini-cell blank', 'aria-hidden': 'true' });
       const m = o.marks && o.marks[i];
-      const wrap = h('span', { class: 'ws-cell' + (m ? ' ' + m : '') + (o.first === i ? ' first' : '') }, c);
-      el.append(wrap);
+      const cls = 'ws-cell' + (m ? ' ' + m : '') + (o.first === i ? ' first' : '');
+      if (!d.length) { // 空方：词与词的分界，跟在前一个词末尾（行首不会出现空方），其后可以折行
+        const b = h('span', { class: cls }, h('span', { class: 'mini-cell blank', 'aria-hidden': 'true' }));
+        if (unit && word) unit.append(b); else el.append(b);
+        word = null;
+        return;
+      }
+      const sy = o.syl ? o.syl[i] : -1;
+      if (!word) { word = h('span', { class: 'ws-word' }); el.append(word); unit = null; }
+      if (!unit || (o.syl && sy >= 0 && sy !== unitSyl)) { unit = h('span', { class: 'ws-syl' }); word.append(unit); unitSyl = sy; }
+      unit.append(h('span', { class: cls }, miniCellEl(d, mirror, {})));
     });
+    fitStrip(el, o.join && o.syl ? o.join : null, mirror);
     return el;
+  }
+  /**
+   * 排好后的整理（宽度变了就重做；只看宽度，避免补号改变高度后反复触发）：
+   * 折成多行时改为从行首对齐，便于按顺序读；词内折行处补换行连写号（有 join 时）。
+   */
+  function fitStrip(el, dots, mirror) {
+    let lastW = -1;
+    const run = () => {
+      for (const j of el.querySelectorAll('.ws-join')) j.remove();
+      if (dots) {
+        for (const word of el.querySelectorAll('.ws-word')) {
+          const units = word.children;
+          for (let k = 1; k < units.length; k++) {
+            if (units[k].offsetTop > units[k - 1].offsetTop + 2) units[k].prepend(h('span', { class: 'ws-cell ws-join', title: STR.joinMark }, miniCellEl(dots, mirror, {})));
+          }
+        }
+      }
+      const kids = el.children;
+      el.classList.toggle('wrapped', kids.length > 1 && kids[kids.length - 1].offsetTop > kids[0].offsetTop + 2);
+    };
+    if (typeof ResizeObserver !== 'function') return;
+    new ResizeObserver((ents) => {
+      const wNow = Math.round(ents[0].contentRect.width);
+      if (wNow === lastW || !el.isConnected) return;
+      lastW = wNow;
+      run();
+    }).observe(el);
   }
 
   /**
@@ -1093,7 +1140,7 @@
   }
 
   root.BMW = {
-    cellEl, miniCellEl, symbolChip, DotsInput, ChooseInput, cardEl, starsEl, btn, iconBtn, filterChip, chipRow, assistChip, segmented, switchEl,
+    cellEl, miniCellEl, miniSlot, symbolChip, DotsInput, ChooseInput, cardEl, starsEl, btn, iconBtn, filterChip, chipRow, assistChip, segmented, switchEl,
     hooks, topBar, navBar, verdictEl, legendGlyph, revealPanel, answerDigits, progressBar,
     catTag, seqStripEl, extSymbolChip, extCardEl, SeqDotsInput, SeqChooseInput, extRevealPanel,
     wordStripEl, WordInput, ruleCardEl, ruleBoxEl, collapse,

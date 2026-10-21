@@ -63,12 +63,12 @@
       card = W.cardEl(row, { mirror: S.mirror, flipped: !!flipped, onFlip: ctx.fx.lift });
       body.className = 'q-body card-holder';
       body.replaceChildren(card.el);
-      if (animate) replay(card.el, 'q-enter');
+      if (animate) replay(card.el, animate === 'back' ? 'q-enter-back' : 'q-enter');
       resultEl.replaceChildren();
       resultEl.hidden = true;
       showTimer();
       footer.replaceChildren(h('div', { class: 'controls' },
-        W.iconBtn(ICON.prev(), STR.a11yPrev, () => { sess.learnMove(-1); renderLearn(true); }, { variant: 'outlined', cls: 'lg-btn', disabled: sess.learnIndex === 0 }),
+        W.iconBtn(ICON.prev(), STR.a11yPrev, () => { sess.learnMove(-1); renderLearn('back'); }, { variant: 'outlined', cls: 'lg-btn', disabled: sess.learnIndex === 0 }),
         W.btn(STR.flip, () => card.flip(), { variant: 'tonal', icon: ICON.flip() }),
         W.btn(STR.next, learnNext, { variant: 'filled', icon: ICON.next(), autofocus: true })));
       if (!ctx.shot && !(typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches)) { const b = footer.querySelector('[data-autofocus]'); if (b) b.focus({ preventScroll: true }); }
@@ -78,6 +78,12 @@
       sess.learnMove(1);
       if (sess.phase === 'learn') renderLearn(true); else renderQuestion(true);
     }
+    // 学习卡左右滑：左滑同「下一个」，右滑回上一张
+    C.swipeCards(body, (d) => {
+      if (d > 0) { learnNext(); return true; }
+      if (sess.learnIndex === 0) return false;
+      sess.learnMove(-1); renderLearn('back'); return true;
+    }, () => sub === 'card' && sess.phase === 'learn');
 
     // ---------- 练 / 测 ----------
     function practiceTrack() {
@@ -102,7 +108,7 @@
       input.onChange = renderFooter;
       input.onTap = () => ctx.haptic('tap');
       body.className = 'q-body';
-      promptEl = h('div', { class: 'prompt' }, h('div', { class: 'sym ' + symClass(row.symbol), text: row.symbol }));
+      promptEl = h('div', { class: 'prompt' }, h('div', { class: 'sym ' + symClass(row.symbol), text: row.symbol }), W.miniSlot());
       body.replaceChildren(promptEl, input.el);
       resultEl.replaceChildren();
       resultEl.hidden = false;

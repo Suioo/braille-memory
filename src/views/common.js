@@ -90,7 +90,7 @@
 
   /** 扩展符号的范围芯片（全部 + 扩展表类别；类别名完全来自 CSV）。选择只在本次运行内记住。 */
   function extScopeChips(ctx, onChange) {
-    const items = [['all', STR.all, ctx.extraRows.length], ...ctx.ext.cats.map((c) => [c.name, c.name, c.count])];
+    const items = [['all', STR.all, ctx.extraRows.length], ...ctx.ext.cats.map((c) => [c.name, c.name, c.count + baseAsExt(ctx, c.name).length])];
     if (!items.some(([k]) => k === ctx.extScope)) ctx.extScope = 'all';
     const chips = items.map(([key, label, n]) => {
       const c = W.filterChip(label, ctx.extScope === key, () => {
@@ -106,9 +106,21 @@
     row.select = (key) => { for (const c of chips) c.setSelected(c.dataset.scope === key); };
     return row;
   }
-  /** 当前范围内的扩展符号。 */
-  const extScopeRows = (ctx) => (ctx.extScope === 'all' || !ctx.ext.cats.some((c) => c.name === ctx.extScope)
-    ? ctx.extraRows : ctx.extraRows.filter((r) => r.category === ctx.extScope));
+  /**
+   * 基础表里与扩展同类别的符号（目前是 4 个单方标点），换成扩展行的样子，好在「扩展 → 标点」里和多方标点一起练。
+   * 点位原样取自基础表；baseRow 指回原行，记录写在基础那份里。
+   */
+  function baseAsExt(ctx, cat) {
+    return ctx.table.filter((r) => r.category === cat).map((r) => ({
+      id: r.id, symbol: r.symbol, category: r.category, source: r.source, note: '',
+      cells: [r.dots.slice()], cellsText: r.dots.slice().sort((a, b) => a - b).join(''), baseRow: r,
+    }));
+  }
+  /** 当前范围内的扩展符号；选了「标点」时连同基础表的单方标点一起。 */
+  const extScopeRows = (ctx) => {
+    if (ctx.extScope === 'all' || !ctx.ext.cats.some((c) => c.name === ctx.extScope)) return ctx.extraRows;
+    return [...baseAsExt(ctx, ctx.extScope), ...ctx.extraRows.filter((r) => r.category === ctx.extScope)];
+  };
 
   /** 阅读 / 镜像 分段按钮（就地改选中态，再通知页面刷新依赖视角的内容）。 */
   function viewSegmented(ctx, onChange) {
@@ -132,5 +144,50 @@
   /** 选择器中的 CSS 转义。 */
   const sel = (attr, v) => '[' + attr + '="' + CSS.escape(String(v)) + '"]';
 
-  root.BMCommon = { copyText, inviteCard, scopeChips, viewSegmented, backBtn, mirrorToggle, sel, moduleNow, moduleSegmented, extScopeChips, extScopeRows };
+  /**
+   * 学习卡左右滑动切换：卡片跟手平移，松手时划过约四分之一卡宽（或快速一甩）就切到下一张 / 上一张，否则弹回。
+   * 竖向拖动交给页面滚动；轻点仍是翻面（翻面那边移动超过阈值会自行取消）。
+   * @param {HTMLElement} holder 放卡片的容器（卡片是它的第一个子元素）
+   * @param {(d: number) => boolean} move 切换：d = 1 下一张、-1 上一张；到头了返回 false
+   * @param {() => boolean} [enabled] 当前是否允许滑动
+   */
+  function swipeCards(holder, move, enabled) {
+    let s = null;
+    const card = () => holder.firstElementChild;
+    const reset = (el, animate) => {
+      if (!el) return;
+      el.style.transition = animate ? 'transform 220ms cubic-bezier(0.2, 0, 0, 1), opacity 220ms' : '';
+      el.style.transform = '';
+      el.style.opacity = '';
+    };
+    holder.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 || e.isPrimary === false || (enabled && !enabled()) || !card()) return;
+      s = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), dir: null, el: card() };
+    });
+    holder.addEventListener('pointermove', (e) => {
+      if (!s || e.pointerId !== s.id) return;
+      const dx = e.clientX - s.x;
+      const dy = e.clientY - s.y;
+      if (!s.dir && Math.hypot(dx, dy) > 10) s.dir = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'x' : 'y';
+      if (s.dir !== 'x') return;
+      s.el.style.transition = 'none';
+      s.el.style.transform = 'translateX(' + dx + 'px) rotate(' + (dx / 60).toFixed(2) + 'deg)';
+      s.el.style.opacity = String(Math.max(0.4, 1 - Math.abs(dx) / 600));
+    });
+    const end = (e, cancel) => {
+      if (!s || e.pointerId !== s.id) return;
+      const st = s;
+      s = null;
+      if (st.dir !== 'x') return;
+      const dx = e.clientX - st.x;
+      const fast = Math.abs(dx) / Math.max(1, performance.now() - st.t) > 0.5 && Math.abs(dx) > 40;
+      const far = Math.abs(dx) > Math.min(120, holder.clientWidth * 0.25);
+      if (!cancel && (far || fast) && move(dx < 0 ? 1 : -1)) return; // 新卡片已换上，旧卡片随之移除
+      reset(st.el, true);
+    };
+    holder.addEventListener('pointerup', (e) => end(e, false));
+    holder.addEventListener('pointercancel', (e) => end(e, true));
+  }
+
+  root.BMCommon = { swipeCards, copyText, inviteCard, scopeChips, viewSegmented, backBtn, mirrorToggle, sel, moduleNow, moduleSegmented, extScopeChips, extScopeRows };
 })(typeof self !== 'undefined' ? self : this);

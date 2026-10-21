@@ -200,6 +200,7 @@
     askTone: '声调符号',
     askContract: '简写？',
     a11yWordCells: (n) => '共 ' + n + ' 方',
+    joinMark: '换行连写号：表示这一行开头的音节与上一行末尾连写（排版用，作答时不用写）',
     a11yRuleCard: (id, cat, page, title) => '规则 ' + id + (title ? ' ' + title : '') + '，' + cat + '，第 ' + page + ' 页',
     prevCell: '上一方',
     nextCell: '下一方',

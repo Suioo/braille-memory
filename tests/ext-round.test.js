@@ -106,3 +106,18 @@ test('bad mode throws; answering without a question throws', () => {
   assert.throws(() => mk({ mode: 'x' }));
   assert.throws(() => mk({}).answer({}, 1));
 });
+
+test('base punctuation borrowed into the ext 标点 scope: answers are recorded on the base symbol', () => {
+  const { table } = require('./helpers/fixtures.js');
+  const base = table.find((x) => x.category === '标点');
+  const borrowed = { id: base.id, symbol: base.symbol, category: base.category, source: base.source, note: '', cells: [base.dots.slice()], cellsText: base.dots.slice().sort((a, b) => a - b).join(''), baseRow: base };
+  const rows = [borrowed, ...extra.filter((x) => x.category === '标点')];
+  const r = mk({ rows, qtype: 'dots', length: 1 });
+  const q = r.next({ rowId: base.id });
+  assert.equal(q.row, borrowed);
+  const res = r.answer({ cells: [wrongDots(base)] }, 500);
+  assert.equal(res.correct, false);
+  assert.equal(r.progress.symbols[base.id].wrong, 1, 'recorded with the base symbol');
+  assert.equal(r.progress.ext.symbols[base.id], undefined, 'not duplicated in ext');
+  assert.ok(Prog.extWeakRows(r.progress, rows).includes(borrowed));
+});

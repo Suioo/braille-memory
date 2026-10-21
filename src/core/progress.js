@@ -275,7 +275,9 @@
   }
 
   // ---------- 扩展符号（与主表记录分开存放，计分规则相同） ----------
+  // 扩展练习里借用的基础符号（row.baseRow，如「扩展 → 标点」里的逗号）：记录仍写在基础符号那份里，两边共用
   function extState(progress, row) {
+    if (row.baseRow) return symState(progress, row.baseRow);
     return progress.ext.symbols[row.id] || { sig: extSymSig(row), score: 0, right: 0, wrong: 0 };
   }
   function ensureExt(progress, row) {
@@ -284,6 +286,7 @@
   }
   /** 扩展符号：记录一次作答（答对 score+right，答错 score+wrong）。 */
   function recordExtAnswer(progress, row, correct, cfg) {
+    if (row.baseRow) return recordAnswer(progress, row.baseRow, correct, cfg);
     const e = ensureExt(progress, row);
     e.score = nextScore(e.score, correct, cfg);
     if (correct) e.right += 1; else e.wrong += 1;

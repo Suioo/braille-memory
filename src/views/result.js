@@ -16,7 +16,7 @@
     const isTexts = params.module === 'texts' && !!ctx.textData;
     const isRules = params.module === 'rules' && !!ctx.ruleData;
     const isExt = params.module === 'ext' && !!ctx.ext;
-    const wrongRows = isRules || isTexts ? [] : sm.wrongIds.map((id) => (isExt ? ctx.ext.byId.get(id) : ctx.rowsById.get(id))).filter(Boolean);
+    const wrongRows = isRules || isTexts ? [] : sm.wrongIds.map((id) => (isExt ? ctx.ext.byId.get(id) || C.extScopeRows(ctx).find((r) => r.id === id) : ctx.rowsById.get(id))).filter(Boolean);
     const wrongItems = isRules ? (sm.wrongKeys || []).map((k) => ctx.ruleData.byKey.get(k)).filter(Boolean)
       : isTexts ? (sm.wrongKeys || []).map((k) => ctx.textData.byKey.get(k)).filter(Boolean) : [];
     const ruleChip = (it) => W.assistChip(isTexts ? Array.from(it.chars).slice(0, 10).join('') + (Array.from(it.chars).length > 10 ? '…' : '') : it.family ? (it.family === 'tone' ? it.raw : it.char) + ' · ' + it.word.chars : it.chars);

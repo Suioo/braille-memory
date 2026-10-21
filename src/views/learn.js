@@ -22,7 +22,7 @@
       const row = rows[i];
       card = W.cardEl(row, { mirror: S.mirror, flipped, onFlip: (el) => { ctx.fx.lift(el); if (el.getAttribute('aria-pressed') === 'true') ctx.haptic('dots', { rows: root.BMHapticsCore.dotRows(row.dots, S.mirror) }); } });
       holder.replaceChildren(card.el);
-      if (animate) replay(card.el, 'q-enter');
+      if (animate) replay(card.el, animate === 'back' ? 'q-enter-back' : 'q-enter');
       counter.textContent = (i + 1) + ' / ' + rows.length;
       prevBtn.disabled = i === 0;
       nextBtn.disabled = i === rows.length - 1;
@@ -30,10 +30,12 @@
     }
     function move(d) {
       const j = i + d;
-      if (j < 0 || j >= rows.length) return;
+      if (j < 0 || j >= rows.length) return false;
       i = j;
-      show(false, true);
+      show(false, d < 0 ? 'back' : true);
+      return true;
     }
+    C.swipeCards(holder, move);
     function flip() {
       const f = card.flip();
       ctx.say(f ? rows[i].symbol + ' ' + STR.a11yCell(rows[i].dotsText) : rows[i].symbol);

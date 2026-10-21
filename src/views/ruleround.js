@@ -99,7 +99,10 @@
     const charsEl = (chars) => h('div', { class: 'rule-chars q-chars ' + symClass(chars), text: chars });
 
     /** 读词题的题面：整串点位（空方画成虚线框）。 */
-    const readPrompt = () => h('div', { class: 'prompt prompt-read' }, W.wordStripEl(q.item.cells, S.mirror, {}));
+    const JOIN = (ctx.table.find((r) => r.symbol.includes('换行连写号')) || {}).dots || null; // 换行连写号的点位取自点位表
+    /** 标准答案的点位串：按词折行，词内折行处补换行连写号。 */
+    const answerStrip = (mirror, o) => W.wordStripEl(q.item.cells, mirror, Object.assign({ syl: q.item.result ? q.item.result.cells.map((c) => c.syllable) : null, join: JOIN }, o));
+    const readPrompt = () => h('div', { class: 'prompt prompt-read' }, answerStrip(S.mirror, {}));
     const choiceRows = () => q.options.map((o, i) => ({ id: i + 1, symbol: o.text, key: o.key }));
 
     function ask(force, animate) {
@@ -203,7 +206,7 @@
       return box;
     }
     function expectedRow(first) {
-      expectedEl = W.wordStripEl(q.item.cells, S.mirror, { first });
+      expectedEl = answerStrip(S.mirror, { first });
       return h('div', { class: 'expected-row' }, h('span', { class: 'k', text: STR.answer }), expectedEl);
     }
     function after(res) {
@@ -269,7 +272,7 @@
       if (!q) return;
       if (q.type === 'translate') {
         input.setMirror(m);
-        if (expectedEl) { const first = lastRes && !lastRes.correct ? lastRes.judge.firstWrong : -1; const n = W.wordStripEl(q.item.cells, m, { first }); expectedEl.replaceWith(n); expectedEl = n; }
+        if (expectedEl) { const first = lastRes && !lastRes.correct ? lastRes.judge.firstWrong : -1; const n = answerStrip(m, { first }); expectedEl.replaceWith(n); expectedEl = n; }
       } else if (q.type === 'read') {
         const n = readPrompt();
         promptEl.replaceWith(n);

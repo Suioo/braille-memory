@@ -395,6 +395,14 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
       v.api.submit();
     },
     'practice-choose': () => ctx.go('round', { mode: 'practice', force: { type: 'choose', rowId: demoRow().id } }),
+    /** 「k、q」这类宽符号：作答前 / 答对后，题面不应跳动或越界。 */
+    'practice-kq': () => { const r = ctx.table.find((x) => x.symbol === 'k、q') || demoRow(); ctx.go('round', { mode: 'practice', force: { type: 'dots', rowId: r.id } }).api.select(r.dots); },
+    'practice-kq-correct': () => {
+      const r = ctx.table.find((x) => x.symbol === 'k、q') || demoRow();
+      const v = ctx.go('round', { mode: 'practice', force: { type: 'dots', rowId: r.id } });
+      v.api.select(r.dots);
+      v.api.submit();
+    },
     'practice-choose-wrong': () => {
       const v = ctx.go('round', { mode: 'practice', force: { type: 'choose', rowId: demoRow().id } });
       v.api.pick(v.api.q.options.find((o) => o.id !== v.api.q.row.id).id);
@@ -485,6 +493,37 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
       const inp = document.querySelector('.tonesheet-page input'); if (inp) { inp.value = 'fēngfān hépíng kuàilè'; inp.dispatchEvent(new Event('input')); }
     },
     'learn-rules': () => { ctx.module = 'rules'; ctx.go('learn'); },
+    /** 扩展 → 标点：连同基础表的 4 个单方标点，共 23 个。 */
+    'ext-punct': () => { ctx.module = 'ext'; ctx.extScope = '标点'; ctx.go('practice'); },
+    'ext-punct-q': () => {
+      ctx.module = 'ext'; ctx.extScope = '标点';
+      const r = ctx.table.find((x) => x.category === '标点');
+      ctx.go('extround', { mode: 'practice', force: { type: 'chooseCells', rowId: r.id } });
+    },
+    /** 长句答错：标准答案按词折行，超长的词在音节处断开并在行首补换行连写号。 */
+    'text-long': async () => {
+      const lib = await new Promise((res) => { const sc = document.createElement('script'); sc.src = 'vendor/pinyin-pro.js'; sc.onload = () => res(root.BMPinyinProvider.createProvider(root.pinyinPro, {})); document.head.append(sc); });
+      const r = root.BMTexts.createText(ctx.texts, { title: '长句', raw: '我们高高兴兴地参加社会主义现代化建设，小朋友们在操场上快快乐乐地做游戏。', source: 'paste', rng: ctx.rng, map: ctx.translator.map, provider: lib });
+      ctx.texts = root.BMTexts.addText(ctx.texts, r.text);
+      ctx.rebuildTexts();
+      ctx.textScope = r.text.id;
+      const v = ctx.go('ruleround', { mode: 'practice', scope: 'text', textId: r.text.id, force: { type: 'translate' } });
+      v.api.select([[1, 2], [], [3, 4]]);
+      v.api.submit();
+      await new Promise((res) => setTimeout(res, 300));
+      const n = document.querySelectorAll('.expected-row .ws-join').length;
+      console.warn('text-long joins=' + n + ' words=' + document.querySelectorAll('.expected-row .ws-word').length);
+    },
+    /** 学习卡左滑一次、再右滑一次，输出每次后的计数（应为 2 / N，再回 1 / N）。 */
+    'learn-swipe': async () => {
+      ctx.go('learn');
+      const hd = document.querySelector('.card-holder');
+      const ev = (t, x) => hd.firstElementChild.dispatchEvent(new PointerEvent(t, { bubbles: true, button: 0, isPrimary: true, pointerId: 7, clientX: x, clientY: 300 }));
+      const swipe = async (dx) => { ev('pointerdown', 200); for (let k = 1; k <= 5; k++) { ev('pointermove', 200 + dx * k / 5); await new Promise((r) => setTimeout(r, 30)); } ev('pointerup', 200 + dx); await new Promise((r) => setTimeout(r, 400)); };
+      const n = () => document.querySelector('.tb-meta').textContent;
+      await swipe(-200); const a = n(); await swipe(200); const b = n(); await swipe(30); const c = n();
+      console.warn('learn-swipe ' + a + ' | ' + b + ' | small:' + c);
+    },
     'me-ai': async () => {
       ctx.go('me');
       await new Promise((r) => setTimeout(r, 80));
