@@ -229,6 +229,19 @@
         later(() => { for (const d of list) d.classList.remove('fx-squash'); }, 420 + list.length * 45 + 40);
         return true;
       },
+      /**
+       * 答对的整体反馈（只用变换，不改排版，约 0.7 s）：点阵卡弹一下并扩出一圈光、题目符号上跳落回、对勾弹出、进度条闪一下。
+       * @param {HTMLElement} body 题目区（.q-body）；动画挂在它所在的页面上
+       */
+      cheer(body) {
+        if (!active() || !body) return false;
+        const page = body.closest('.page') || body;
+        page.classList.remove('fx-cheer');
+        reflow(page);
+        page.classList.add('fx-cheer');
+        later(() => page.classList.remove('fx-cheer'), 800);
+        return true;
+      },
       /** 只对数字本身：缩放 + 颜色闪一下（360 ms）。 */
       bump(el) {
         if (!active() || !el) return false;

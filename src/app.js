@@ -395,6 +395,38 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
       v.api.submit();
     },
     'practice-choose': () => ctx.go('round', { mode: 'practice', force: { type: 'choose', rowId: demoRow().id } }),
+    /** 答对的整体反馈：输出答对瞬间正在播放的动画名（应含 fx-cheer-jump / fx-cheer-card / fx-cheer-mini）。 */
+    'practice-cheer': () => {
+      const r = ctx.table.find((x) => x.symbol === 'k、q') || demoRow();
+      const v = ctx.go('round', { mode: 'practice', force: { type: 'dots', rowId: r.id } });
+      v.api.select(r.dots);
+      v.api.submit();
+      console.warn('cheer anims=' + [...new Set(document.getAnimations().map((a) => a.animationName).filter(Boolean))].join(','));
+    },
+    /** 同上，但把动画定格在约 260 ms 处截图（看飘字、上跳、发光的样子）。 */
+    'practice-cheer-mid': async () => {
+      const r = ctx.table.find((x) => x.symbol === 'k、q') || demoRow();
+      const v = ctx.go('round', { mode: 'practice', force: { type: 'dots', rowId: r.id } });
+      await new Promise((res) => setTimeout(res, 400));
+      v.api.select(r.dots);
+      v.api.submit();
+      await new Promise((res) => requestAnimationFrame(res));
+      for (const a of document.getAnimations()) { try { a.currentTime = 260; a.commitStyles(); } catch (_) { /* 忽略 */ } a.cancel(); }
+    },
+    /** 扎写视角答对：小点图先按扎写弹出，约 0.6 s 后自动翻成阅读视角；之后不应再有动画（不闪）。 */
+    'practice-mirror-flip': async () => {
+      ctx.settings.mirror = true;
+      const r = demoRow();
+      const v = ctx.go('round', { mode: 'practice', force: { type: 'dots', rowId: r.id } });
+      await new Promise((res) => setTimeout(res, 400));
+      v.api.select(r.dots);
+      v.api.submit();
+      const m = () => document.querySelector('.prompt .mini-cell');
+      const st = () => m().getAttribute('aria-pressed') + '/' + m().getAnimations().map((x) => (x.animationName || 'js') + ':' + x.playState).join('+');
+      const a = st();
+      await new Promise((res) => setTimeout(res, 1300));
+      console.warn('mirror-flip start=' + a + ' end=' + st() + ' label=' + m().getAttribute('aria-label'));
+    },
     /** 「k、q」这类宽符号：作答前 / 答对后，题面不应跳动或越界。 */
     'practice-kq': () => { const r = ctx.table.find((x) => x.symbol === 'k、q') || demoRow(); ctx.go('round', { mode: 'practice', force: { type: 'dots', rowId: r.id } }).api.select(r.dots); },
     'practice-kq-correct': () => {

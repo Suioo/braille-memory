@@ -230,6 +230,7 @@
       if (res.correct) {
         phase = 'correct';
         ctx.fx.burst(body.querySelectorAll('.dot.on'));
+        ctx.fx.cheer(body);
         streak++; bestStreak = Math.max(bestStreak, streak);
         showStreak();
         ctx.fx.bump(streakEl);

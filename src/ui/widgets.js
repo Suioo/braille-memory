@@ -63,20 +63,57 @@
    * @param {boolean} mirror
    * @param {{xs?:boolean, fade?:boolean}} [o] xs = 芯片内超小号；fade = 随揭晓淡入
    */
-  /** 迷你点图的占位（不可见、同尺寸）：揭晓前先占住位置，揭晓时被真点图替换，题面不跳动。 */
-  function miniSlot() {
-    return h('span', { class: 'mini-cell ph', 'aria-hidden': 'true' }, ...Array.from({ length: 6 }, () => h('i')));
+  /**
+   * 把揭晓的迷你点图「浮」在题面上，不占排版位置：符号始终居中，作答前后不跳动。
+   * 优先放在符号右侧；右边放不下（如「k、q」）就放到符号下方，再不行贴在题面右上角。题面尺寸变化时重新摆放。
+   * @param {HTMLElement} promptEl 题面（.prompt）
+   * @param {HTMLElement} mini miniCellEl 的结果（已替换掉旧的那个或刚放进去）
+   */
+  function floatMini(promptEl, mini) {
+    mini.classList.add('mini-float');
+    const place = () => {
+      const sym = promptEl.querySelector('.sym');
+      if (!sym || !mini.isConnected) return;
+      const p = promptEl.getBoundingClientRect();
+      const r = sym.getBoundingClientRect();
+      const mw = mini.offsetWidth;
+      const mh = mini.offsetHeight;
+      const gap = 16;
+      let left = r.right - p.left + gap;
+      let top = r.top - p.top + (r.height - mh) / 2;
+      if (left + mw > p.width - 4) {
+        left = (p.width - mw) / 2;
+        top = r.bottom - p.top + 4;
+        if (top + mh > p.height) { left = p.width - mw - 4; top = 0; }
+      }
+      mini.style.left = Math.max(0, left) + 'px';
+      mini.style.top = Math.max(0, top) + 'px';
+    };
+    place();
+    if (!promptEl._miniRO && typeof ResizeObserver === 'function') {
+      promptEl._miniRO = new ResizeObserver(() => { const m = promptEl.querySelector('.mini-float'); if (m) { mini = m; place(); } });
+      promptEl._miniRO.observe(promptEl);
+    }
   }
+  /**
+   * 迷你点图（像真实盲文）。
+   * @param {{xs?:boolean, fade?:boolean, flippable?:boolean, reading?:boolean|'animate'}} [o]
+   *   fade = 揭晓时弹出；flippable = 可点按切换视角；
+   *   reading = 最终按阅读视角显示（真实盲文摸读的样子）：true 直接显示为阅读视角；
+   *   'animate' 在扎写视角下先按扎写出现，稍后自动翻成阅读视角（阅读视角下无需翻）
+   */
   function miniCellEl(dots, mirror, o) {
     o = o || {};
     const flippable = !!o.flippable;
     const orient = root.BMInteract.createMiniOrient(mirror);
+    const reducedNowMini = () => typeof root.matchMedia === 'function' && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (flippable && mirror && (o.reading === true || (o.reading === 'animate' && reducedNowMini()))) orient.toggle();
     const el = h(flippable ? 'button' : 'span', {
-      class: 'mini-cell' + (o.xs ? ' xs' : '') + (o.fade ? ' mini-in' : '') + (flippable ? ' flippable' : ''),
+      class: 'mini-cell' + (o.xs ? ' xs' : '') + (o.fade ? ' mini-pop' : '') + (flippable ? ' flippable' : ''),
       type: flippable ? 'button' : null,
       role: flippable ? null : 'img',
       'aria-label': flippable ? STR.a11yMini(orient.mirror) : STR.a11yCell(dots.slice().sort((a, b) => a - b).join('')),
-      'aria-pressed': flippable ? 'false' : null,
+      'aria-pressed': flippable ? String(orient.flipped) : null,
     });
     const cells = [];
     for (let k = 0; k < 6; k++) { const i = h('i', { 'aria-hidden': 'true' }); cells.push(i); el.append(i); }
@@ -92,12 +129,13 @@
     if (flippable) {
       let anims = [];
       const stop = () => { for (const a of anims) a.cancel(); anims = []; };
-      const reduced = () => typeof root.matchMedia === 'function' && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      el.addEventListener('click', () => {
+      const reduced = reducedNowMini;
+      let touched = false;
+      const flip = (byUser) => {
         orient.toggle();
         el.setAttribute('aria-pressed', String(orient.flipped));
         el.setAttribute('aria-label', STR.a11yMini(orient.mirror));
-        if (hooks.tick) hooks.tick();
+        if (byUser && hooks.tick) hooks.tick();
         stop();
         if (reduced() || typeof el.animate !== 'function') { layout(); return; }
         // 水平翻面：先压扁到 0，在中点换朝向，再展开（共约 260 ms）
@@ -112,7 +150,10 @@
           back.onfinish = () => { anims = []; };
           out.cancel();
         };
-      });
+      };
+      el.addEventListener('click', () => { touched = true; flip(true); });
+      // 扎写视角揭晓：弹出落定后自动翻成阅读视角（用户先点过就不再自动翻）
+      if (o.reading === 'animate' && mirror && !orient.flipped) setTimeout(() => { if (!touched && el.isConnected && !orient.flipped) flip(false); }, o.flipDelay || 620);
     }
     return el;
   }
@@ -1140,7 +1181,7 @@
   }
 
   root.BMW = {
-    cellEl, miniCellEl, miniSlot, symbolChip, DotsInput, ChooseInput, cardEl, starsEl, btn, iconBtn, filterChip, chipRow, assistChip, segmented, switchEl,
+    cellEl, miniCellEl, floatMini, symbolChip, DotsInput, ChooseInput, cardEl, starsEl, btn, iconBtn, filterChip, chipRow, assistChip, segmented, switchEl,
     hooks, topBar, navBar, verdictEl, legendGlyph, revealPanel, answerDigits, progressBar,
     catTag, seqStripEl, extSymbolChip, extCardEl, SeqDotsInput, SeqChooseInput, extRevealPanel,
     wordStripEl, WordInput, ruleCardEl, ruleBoxEl, collapse,

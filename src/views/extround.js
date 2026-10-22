@@ -145,6 +145,7 @@
         if (q.type === 'dots') input.lock(res.judge);
         resultEl.replaceChildren(h('div', { class: 'result-row' }, W.verdictEl(true)));
         ctx.fx.burst(body.querySelectorAll('.dot.on'));
+        ctx.fx.cheer(body);
         streak++; bestStreak = Math.max(bestStreak, streak);
         showStreak();
         ctx.fx.bump(streakEl);

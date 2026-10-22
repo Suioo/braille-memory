@@ -77,7 +77,7 @@
         input = new W.DotsInput({ mirror: S.mirror, numbers: true });
         input.onChange = renderFooter;
         input.onTap = () => ctx.haptic('tap');
-        promptEl = h('div', { class: 'prompt' }, h('div', { class: 'sym ' + symClass(q.row.symbol), text: q.row.symbol }), W.miniSlot());
+        promptEl = h('div', { class: 'prompt' }, h('div', { class: 'sym ' + symClass(q.row.symbol), text: q.row.symbol }));
         body.replaceChildren(promptEl, input.el);
         ctx.say(q.row.symbol);
       } else {
@@ -103,8 +103,9 @@
     /** 点点位题：只在揭晓后显示迷你点图（之前显示会泄露答案）。 */
     function showMini(fade) {
       const old = promptEl.querySelector('.mini-cell');
-      const mini = W.miniCellEl(q.row.dots, S.mirror, { fade, flippable: true });
+      const mini = W.miniCellEl(q.row.dots, S.mirror, { fade, flippable: true, reading: fade ? 'animate' : true });
       if (old) old.replaceWith(mini); else promptEl.append(mini);
+      W.floatMini(promptEl, mini);
     }
     const guarded = () => performance.now() < guardUntil;
 
@@ -128,6 +129,7 @@
         if (q.type === 'dots') input.lock();
         resultEl.replaceChildren(h('div', { class: 'result-row' }, W.verdictEl(true)));
         ctx.fx.burst(body.querySelectorAll('.dot.on'));
+        ctx.fx.cheer(body);
         streak++; bestStreak = Math.max(bestStreak, streak);
         showStreak();
         ctx.fx.bump(streakEl);

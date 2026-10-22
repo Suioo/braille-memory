@@ -108,7 +108,7 @@
       input.onChange = renderFooter;
       input.onTap = () => ctx.haptic('tap');
       body.className = 'q-body';
-      promptEl = h('div', { class: 'prompt' }, h('div', { class: 'sym ' + symClass(row.symbol), text: row.symbol }), W.miniSlot());
+      promptEl = h('div', { class: 'prompt' }, h('div', { class: 'sym ' + symClass(row.symbol), text: row.symbol }));
       body.replaceChildren(promptEl, input.el);
       resultEl.replaceChildren();
       resultEl.hidden = false;
@@ -159,6 +159,7 @@
         input.lock();
         resultEl.replaceChildren(h('div', { class: 'result-row' }, W.verdictEl(true)));
         ctx.fx.burst(input.el.querySelectorAll('.dot.on'));
+        ctx.fx.cheer(body);
         ctx.haptic('correct');
         ctx.say(STR.a11yCorrect);
         if (!testing) trackHolder.replaceChildren(practiceTrack());
@@ -210,8 +211,9 @@
     function showMini(r, fade) {
       if (!promptEl) return;
       const old = promptEl.querySelector('.mini-cell');
-      const mini = W.miniCellEl(r.dots, S.mirror, { fade, flippable: true });
+      const mini = W.miniCellEl(r.dots, S.mirror, { fade, flippable: true, reading: fade ? 'animate' : true });
       if (old) old.replaceWith(mini); else promptEl.append(mini);
+      W.floatMini(promptEl, mini);
     }
     function onMirror() {
       if ((sub === 'correct' || sub === 'wrong') && promptEl && promptEl.querySelector('.mini-cell')) showMini(row, false);
