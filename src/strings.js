@@ -70,6 +70,7 @@
     padHaptics: '手柄震动',
     padStyle: '震动风格', padStyleSoft: '轻', padStyleNormal: '标准', padStyleRich: '丰富',
     padDots: '点位节奏',
+    frameProbe: '帧率探针（调试）',
     padSwitchKeys: 'Switch 手柄按键', padSwitchKeycap: '按键帽字母', padSwitchPosition: '按物理位置',
     clear: '清除进度',
     clearBtn: '清除',

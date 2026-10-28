@@ -49,6 +49,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     const view = Views[name](ctx, params);
     current = view;
     currentName = name;
+    if (root.BMFrameProbe) { root.BMFrameProbe.scene(name); root.BMFrameProbe.tag('转场', 520); }
     const isTab = !!view.tab;
     const screen = h('main', { class: 'screen' + (isTab ? ' with-nav' : ''), tabindex: '-1' }, view.el,
       isTab ? W.navBar(TABS, view.tab, (k, byKey) => ctx.go(k, byKey ? { focus: '.nav-item.active' } : {}, { dir: 'tab' })) : null);
@@ -59,7 +60,14 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
       const at = (k) => TABS.findIndex((t) => t.key === k);
       dir = at(view.tab) > at(ctx.lastTab) ? 'tab-r' : 'tab-l';
     }
-    if (dir !== 'none') screen.classList.add('anim-' + dir);
+    if (dir !== 'none') {
+      const cls = 'anim-' + dir;
+      screen.classList.add(cls);
+      // 动画一结束就摘掉类：玻璃风格靠它在转场期间暂停模糊，结束后恢复（兜底定时器防止动画被关掉时类一直留着）
+      const done = () => screen.classList.remove(cls);
+      view.el.addEventListener('animationend', (e) => { if (e.target === view.el) done(); });
+      setTimeout(done, 700);
+    }
     if (isTab) ctx.lastTab = view.tab;
     $app.replaceChildren(screen);
     const navEl = screen.querySelector('.nav-bar');
@@ -175,6 +183,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
   });
   /** 震动（仅 Android 原生；其它平台空操作）。 */
   ctx.haptic = (kind, info) => {
+    if ((kind === 'correct' || kind === 'pass') && root.BMFrameProbe) root.BMFrameProbe.tag('答对动画', 1300);
     root.BMHaptics.play(kind, !!(ctx.progress && ctx.settings.haptics)); // 手机震动：行为与开关不变
     if (root.BMPadHaptics) root.BMPadHaptics.play(kind, info); // 手柄震动：只受「手柄震动」开关控制（不看华丽动效 / 减弱动效），info.streak ≥ 2 的答对 = 连对
   };
@@ -204,6 +213,7 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     root.BMTheme.setSeed(ctx.settings.seed);
     root.BMTheme.setStyle(ctx.settings.style);
     ctx.fx.sync();
+    if (root.BMFrameProbe) root.BMFrameProbe.set(ctx.settings.frameProbe);
   }
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const catNames = () => ctx.cats.map((c) => c.name);
@@ -748,6 +758,14 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
     root.BMTheme.setSeed(b.shot ? shotSeed : ctx.settings.seed);
     root.BMTheme.setStyle(ctx.settings.style);
     ctx.fx.sync();
+    // 帧率探针（调试）：设置里打开后才有浮层和统计，关闭时零开销；截图 / e2e 模式不启用
+    if (!b.shot && root.BMFrameProbe) {
+      root.BMFrameProbe.init({
+        meta: () => ({ version: ctx.version, style: ctx.settings.style, theme: ctx.settings.theme, ua: navigator.userAgent, dpr: root.devicePixelRatio, size: root.innerWidth + '×' + root.innerHeight }),
+        copy: ctx.copyText, toast: ctx.toast,
+      });
+      root.BMFrameProbe.set(ctx.settings.frameProbe);
+    }
     if (b.shot === '*batch*') {
       root.bm.onShotShow((page) => runShot(page));
       root.bm.shotPages(Object.keys(SHOTS));

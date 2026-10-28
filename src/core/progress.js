@@ -46,6 +46,7 @@
       padHapticsStyle: 'rich', // 震动风格：'soft' 轻 / 'normal' 标准 / 'rich' 丰富（更强、更有层次）
       padDots: true, // 点位节奏：翻到答案 / 答错揭晓时，用左右马达按行震出这个点位（左列左马达、右列右马达），帮助记忆
       padSwitchKeys: 'keycap', // Switch 手柄键位：'keycap' 按键帽字母（A 确认 B 返回）/ 'position' 按物理位置（下方 B 确认、右边 A 返回）；只在检测到 Switch 手柄时才显示
+      frameProbe: false, // 帧率探针（调试）：屏幕左上角显示 fps，可复制按页面 / 动画归类的报告
       style: STYLES[0],
     };
   }
@@ -90,6 +91,7 @@
     if (typeof s.fx === 'boolean') d.fx = s.fx;
     if (typeof s.haptics === 'boolean') d.haptics = s.haptics;
     if (typeof s.padHaptics === 'boolean') d.padHaptics = s.padHaptics;
+    if (typeof s.frameProbe === 'boolean') d.frameProbe = s.frameProbe;
     if (s.padHapticsStyle === 'soft' || s.padHapticsStyle === 'normal' || s.padHapticsStyle === 'rich') d.padHapticsStyle = s.padHapticsStyle;
     if (typeof s.padDots === 'boolean') d.padDots = s.padDots;
     if (s.padSwitchKeys === 'keycap' || s.padSwitchKeys === 'position') d.padSwitchKeys = s.padSwitchKeys;

@@ -248,7 +248,7 @@
         ]),
         grp('data', STR.groupData, [recordItem, item(STR.clear, clearCtl, 'clear')], !!params.confirm),
         ctx.translator && root.BMAiViews && root.BMAiViews.available() ? grp('ai', STR.groupAi, root.BMAiViews.settingsRows(ctx)) : null,
-        grp('about', STR.groupAbout, [about])));
+        grp('about', STR.groupAbout, [about, root.BMFrameProbe ? sw(STR.frameProbe, 'frameProbe', () => root.BMFrameProbe.set(S.frameProbe)) : null])));
 
     function onKey(e) {
       if (e.key === 'Escape' && pending) { closeConfirm('button'); return true; }

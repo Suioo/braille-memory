@@ -371,8 +371,9 @@ button { font: inherit; color: inherit; }
 .progress { flex: none; position: relative; height: 4px; border-radius: 2px; background: var(--secondary-container); }
 .progress .bar-active {
   position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px;
-  width: calc(var(--v) * 100%); background: var(--primary);
-  transition: width var(--t-page) var(--emph);
+  width: 100%; background: var(--primary);
+  transform: scaleX(var(--v)); transform-origin: left center; /* 只用 transform（合成器线程），不再每帧改 width 触发布局 */
+  transition: transform var(--t-page) var(--emph);
 }
 .progress .bar-stop { position: absolute; right: 0; top: 0; width: 4px; height: 4px; border-radius: 50%; background: var(--primary); }
 .counter { display: inline-flex; align-items: center; gap: 4px; font-size: var(--title-m); font-weight: 700; color: var(--on-surface-variant); padding: 0 8px; font-variant-numeric: tabular-nums; }
@@ -1308,3 +1309,10 @@ select.field { appearance: auto; min-height: 48px; }
 .ts-try-syl { min-width: 3.5em; font-size: 1.1rem; }
 .ts-try-why { font-weight: 700; color: var(--primary); }
 .ts-try-why.omit { color: var(--tertiary, var(--primary)); }
+
+/* ---------- 帧率探针浮层（调试；设置 → 关于 → 帧率探针） ---------- */
+.fp-overlay { position: fixed; left: 8px; top: calc(6px + env(safe-area-inset-top, 0px)); z-index: 300; display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border-radius: 999px; font: 600 12px/1.2 ui-monospace, Consolas, monospace; background: rgba(0, 0, 0, 0.72); color: #fff; pointer-events: none; max-width: calc(100vw - 16px); }
+.fp-overlay[data-state="warn"] { background: rgba(150, 90, 0, 0.82); }
+.fp-overlay[data-state="bad"] { background: rgba(160, 20, 20, 0.85); }
+.fp-overlay span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-btn { pointer-events: auto; border: 0; border-radius: 999px; padding: 4px 8px; font: inherit; color: #000; background: rgba(255, 255, 255, 0.9); cursor: pointer; flex: none; }
