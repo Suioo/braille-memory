@@ -915,7 +915,9 @@
       }
       const sy = o.syl ? o.syl[i] : -1;
       if (!word) { word = h('span', { class: 'ws-word' }); el.append(word); unit = null; }
-      if (!unit || (o.syl && sy >= 0 && sy !== unitSyl)) { unit = h('span', { class: 'ws-syl' }); word.append(unit); unitSyl = sy; }
+      // 词首的标点（开引号、开括号等）跟着后面的音节走：换行连写号不能用在音节与标点之间（教材 换行连写号 规定 2）
+      if (unit && unitSyl === -1 && sy >= 0) unitSyl = sy;
+      else if (!unit || (o.syl && sy >= 0 && sy !== unitSyl)) { unit = h('span', { class: 'ws-syl' }); word.append(unit); unitSyl = sy; }
       unit.append(h('span', { class: cls }, miniCellEl(d, mirror, {})));
     });
     fitStrip(el, o.join && o.syl ? o.join : null, mirror);

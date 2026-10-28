@@ -35,6 +35,7 @@
     if (!isObj(m.toneMarks) || !Object.values(m.toneMarks).every((a) => Array.isArray(a) && a.length === 4 && a.every(isStr))) e.push('toneMarks');
     if (!isObj(m.toneNames) || !['1', '2', '3', '4'].every((k) => isStr(m.toneNames[k]))) e.push('toneNames');
     if (!isObj(m.punctuation)) e.push('punctuation');
+    if (m.punctuationSpacing !== undefined && (!isObj(m.punctuationSpacing) || !Object.entries(m.punctuationSpacing).every(([k, v]) => k === 'note' || (isObj(v) && typeof v.before === 'boolean' && typeof v.after === 'boolean' && Object.prototype.hasOwnProperty.call(m.punctuation, k))))) e.push('punctuationSpacing');
     if (!isObj(m.numbers) || !isStr(m.numbers.sign)) e.push('numbers');
     return e;
   }

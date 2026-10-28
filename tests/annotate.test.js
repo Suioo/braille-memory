@@ -32,15 +32,16 @@ test('tokenize: words from the provider, punctuation (incl. two-char ones), numb
   assert.ok(dots && dots.length === 2 && dash && comma);
   const [a, b] = w2;
   const t = tok(a + comma + b + '12' + dots + 'abc ' + dash + '⚠');
-  assert.deepEqual(t.map((x) => x.k), ['w', 'u', 'w', 'n', 'u', 'x', 'u', 'x']);
+  // 逗号后按标点的书写规定自动补一个空方（见 tests/punct-spacing.test.js）；省略号、破折号未列入，不补
+  assert.deepEqual(t.map((x) => x.k), ['w', 'u', 'b', 'w', 'n', 'u', 'x', 'u', 'x']);
   assert.equal(t[0].c, a);
   assert.equal(t[0].p, dict.get(a));
   assert.equal(t[0].a, 'auto');
   assert.equal(t[1].c, comma);
-  assert.equal(t[3].c, '12');
-  assert.equal(t[4].c, dots, 'two-char punctuation is one token');
-  assert.equal(t[5].c, 'abc');
-  assert.equal(t[7].c, '⚠');
+  assert.equal(t[4].c, '12');
+  assert.equal(t[5].c, dots, 'two-char punctuation is one token');
+  assert.equal(t[6].c, 'abc');
+  assert.equal(t[8].c, '⚠');
   assert.equal(tok(a + ' ' + b).map((x) => x.k).join(''), 'ww', 'a space makes no blank by itself');
 });
 
@@ -68,15 +69,16 @@ test('check: a sentence made of example words translates, and equals the engine 
   assert.equal(st.result.cells.filter((c) => c.kind === 'space').length, 1);
 });
 
-test('check: punctuation and numbers go through the engine; blanks are only the explicit ones', () => {
+test('check: punctuation and numbers go through the engine; blanks are the comma rule\'s one plus the explicit ones', () => {
   const [a] = w2; const comma = pk('逗号、着重号');
   const st = A.check(tok(a + comma + '46'), tr);
   assert.equal(st.ok, true);
-  const direct = tr.translate([{ type: 'text', pinyin: dict.get(a), chars: a }, { type: 'punct', char: comma }, { type: 'number', text: '46' }]);
+  const direct = tr.translate([{ type: 'text', pinyin: dict.get(a), chars: a }, { type: 'punct', char: comma }, { type: 'blank' }, { type: 'number', text: '46' }]);
   assert.deepEqual(st.result.cells, direct.cells);
-  const withBlank = tok(a + comma + '46'); withBlank.splice(2, 0, { k: 'b' });
+  assert.equal(st.result.cells.filter((c) => c.kind === 'space').length, 1);
+  const withBlank = tok(a + comma + '46'); withBlank.splice(3, 0, { k: 'b' });
   const st2 = A.check(withBlank, tr);
-  assert.equal(st2.result.cells.filter((c) => c.kind === 'space').length, 1);
+  assert.equal(st2.result.cells.filter((c) => c.kind === 'space').length, 2);
 });
 
 test('check: every problem is reported per token (kind + reason); nothing is skipped silently', () => {

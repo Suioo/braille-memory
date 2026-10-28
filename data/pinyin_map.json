@@ -154,7 +154,28 @@
     "〉": "单书名号（后）",
     "·": "间隔号",
     "*": "注释号",
-    "note": "值是 braille_table.csv / braille_extra.csv 的 symbol 列；“：”与连接号共用一个点位，连接号 “-” 在例词中不转写（见 rules 12.2.6）。标点前后是否空方 PDF 未规定，由句子数据显式给出。"
+    "note": "值是 braille_table.csv / braille_extra.csv 的 symbol 列；“：”与连接号共用一个点位，连接号 “-” 在例词中不转写（见 rules 12.2.6）。标点前后是否空方见 punctuationSpacing；未列入的标点不自动空方，由句子数据显式给出。"
+  },
+  "punctuationSpacing": {
+    "note": "标点与前后词语之间是否空一方。before = 与前面的词语之间空一方，after = 与后面的词语之间空一方。两个标点连用时：前一个要求后空、后一个要求前空，则两者之间只空一方，否则不空。未列入的（单引号、破折号、省略号、注释号）不自动空方，由句子数据显式给出。依据：教材《基础盲文》第二章第四节 标点符号 第26—34页（句号 26，问号 / 感叹号 27，逗号 / 顿号 28，冒号 / 分号 29，引号 / 括号 31—32，书名号 32—33，间隔号 33—34，连用 34）；尚未对照 GF 0019—2018 原文。",
+    "。": { "before": false, "after": false },
+    "？": { "before": false, "after": false },
+    "！": { "before": false, "after": false },
+    "，": { "before": false, "after": true },
+    "、": { "before": false, "after": true },
+    "；": { "before": false, "after": true },
+    "：": { "before": false, "after": true },
+    "“": { "before": true, "after": false },
+    "”": { "before": false, "after": true },
+    "（": { "before": false, "after": false },
+    "）": { "before": false, "after": false },
+    "［": { "before": false, "after": false },
+    "］": { "before": false, "after": false },
+    "《": { "before": true, "after": false },
+    "》": { "before": false, "after": true },
+    "〈": { "before": true, "after": false },
+    "〉": { "before": false, "after": true },
+    "·": { "before": false, "after": false }
   },
   "numbers": {
     "sign": "数号",

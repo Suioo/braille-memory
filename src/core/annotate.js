@@ -111,7 +111,36 @@
       i++;
     }
     flush();
-    return { ok: true, tokens };
+    return { ok: true, tokens: spaceTokens(tokens, o.map.punctuationSpacing) };
+  }
+
+  /**
+   * 按标点的书写规定补空方（只补，不改已有的；已经有显式空方的地方不重复）：
+   * 词（数、不支持的原文也算）与标点之间：标点的 before / after 为 true 才空一方；
+   * 两个标点连用：前一个 after 且后一个 before 才在两者之间空一方（只空一方）。
+   * spacing 来自 data/pinyin_map.json 的 punctuationSpacing；缺失或标点未列入 = 不自动空方。句首、句尾不补。
+   */
+  function spaceTokens(tokens, spacing) {
+    if (!spacing || typeof spacing !== 'object') return tokens;
+    const rule = (t) => (t && t.k === 'u' && t.c !== 'note' && Object.prototype.hasOwnProperty.call(spacing, t.c) ? spacing[t.c] : null);
+    const out = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const prev = tokens[i - 1];
+      const t = tokens[i];
+      if (prev && prev.k !== 'b' && t.k !== 'b') {
+        const rp = rule(prev);
+        const rt = rule(t);
+        const pu = prev.k === 'u';
+        const tu = t.k === 'u';
+        let blank = false;
+        if (pu && tu) blank = !!(rp && rp.after && rt && rt.before);
+        else if (pu) blank = !!(rp && rp.after);
+        else if (tu) blank = !!(rt && rt.before);
+        if (blank) out.push({ k: 'b' });
+      }
+      out.push(t);
+    }
+    return out;
   }
 
   const classify = (c) => (CJK.test(c) ? 'no-pinyin' : /[A-Za-z]/.test(c) ? 'latin' : /[０-９]/.test(c) ? 'fullwidth-digit' : /[\u0000-\u007f]/.test(c) ? 'ascii-symbol' : 'symbol');
@@ -197,5 +226,5 @@
     return s;
   }
 
-  return { CJK, MAX_SENTENCE, splitSentences, tokenize, engineTokens, check, hash, cellsKey, pinyinLine, classify };
+  return { CJK, MAX_SENTENCE, splitSentences, tokenize, spaceTokens, engineTokens, check, hash, cellsKey, pinyinLine, classify };
 });
